@@ -10,7 +10,9 @@ struct appitool: AsyncParsableCommand {
         subcommands: [
             StatusCommand.self,
             BuildCommand.self,
-            CheckCommand.self
+            CheckCommand.self,
+            FlowCommand.self,
+            KokonoCommand.self,
         ]
     )
 }

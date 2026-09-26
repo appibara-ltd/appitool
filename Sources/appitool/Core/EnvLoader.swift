@@ -157,7 +157,7 @@ public enum EnvLoader {
     // MARK: - Private Helpers
 
     /// Sets an environment variable in the current process across POSIX (setenv) and Windows (_putenv_s).
-    private static func setEnvironmentVariable(key: String, value: String, overwrite: Bool) {
+    public static func setEnvironmentVariable(key: String, value: String, overwrite: Bool = true) {
         #if os(Windows)
         if overwrite || getenv(key) == nil {
             _putenv_s(key, value)
