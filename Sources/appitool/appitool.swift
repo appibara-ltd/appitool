@@ -45,7 +45,7 @@ struct appitool: AsyncParsableCommand {
         let resolvedKey = key ?? ProcessInfo.processInfo.environment["APPLE_KEY"]
 
         // Resolve Google Play credentials & options
-        let resolvedGoogleKey = googleKey ?? ProcessInfo.processInfo.environment["GOOGLE_KEY"] ?? ProcessInfo.processInfo.environment["GOOGLE_APPLICATION_CREDENTIALS"]
+        let resolvedGoogleKey = googleKey ?? ProcessInfo.processInfo.environment["GOOGLE_KEY"]
         let resolvedPackageName = packageName ?? ProcessInfo.processInfo.environment["GOOGLE_PACKAGE_NAME"]
 
         let hasAppleCredentials = (resolvedKeyId?.isEmpty == false) && (resolvedIssuerId?.isEmpty == false) && (resolvedKey?.isEmpty == false)
