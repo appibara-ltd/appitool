@@ -134,7 +134,7 @@ let package = Package(
             ],
             swiftSettings: defaultSwiftSettings,
             linkerSettings: [
-                .unsafeFlags(["-Xlinker", "-dead_strip", "-Xlinker", "-s"], .when(configuration: .release)),
+                .unsafeFlags(["-Xlinker", "-dead_strip"], .when(configuration: .release)),
             ]
         ),
 
