@@ -5,6 +5,13 @@ struct FlowContext: Sendable {
     enum Platform: String, Sendable {
         case ios
         case android
+
+        var icon: String {
+            switch self {
+            case .ios: return "🍎"
+            case .android: return "🤖"
+            }
+        }
     }
 
     let platform: Platform
@@ -35,6 +42,7 @@ struct FlowContext: Sendable {
     var metadata: [String: String] = [:]
 
     // Notification configuration
+    var slackUrl: String?
     var kokonoUrl: String?
     var kokonoPublicKey: String?
 
@@ -43,6 +51,7 @@ struct FlowContext: Sendable {
         distribution: BuildCommand.Distribution,
         projectDirectory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
         isDryRun: Bool = false,
+        slackUrl: String? = nil,
         kokonoUrl: String? = nil,
         kokonoPublicKey: String? = nil
     ) {
@@ -51,6 +60,7 @@ struct FlowContext: Sendable {
         self.projectDirectory = projectDirectory
         self.isDryRun = isDryRun
         self.startTime = Date()
+        self.slackUrl = slackUrl
         self.kokonoUrl = kokonoUrl
         self.kokonoPublicKey = kokonoPublicKey
     }

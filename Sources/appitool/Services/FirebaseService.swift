@@ -91,14 +91,12 @@ struct FirebaseService: Sendable {
         try self.init(authMiddleware: StaticBearerAuthMiddleware(token: token), transport: transport)
     }
 
-    /// Resolves credentials from the environment (`FIREBASE_TOKEN` or `GOOGLE_KEY` / `GOOGLE_APPLICATION_CREDENTIALS`)
-    /// and instantiates `FirebaseService`.
-    static func makeService() throws -> FirebaseService? {
-        let env = ProcessInfo.processInfo.environment
-        if let token = env["FIREBASE_TOKEN"], !token.isEmpty {
+    /// Instantiates `FirebaseService` using explicitly provided credentials (`token` or `googleKey`).
+    static func makeService(token: String? = nil, googleKey: String? = nil) throws -> FirebaseService? {
+        if let token, !token.isEmpty {
             return try FirebaseService(token: token)
         }
-        if let googleKey = env["GOOGLE_KEY"] ?? env["GOOGLE_APPLICATION_CREDENTIALS"], !googleKey.isEmpty {
+        if let googleKey, !googleKey.isEmpty {
             return try FirebaseService(key: googleKey)
         }
         return nil

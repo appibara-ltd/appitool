@@ -24,5 +24,13 @@ struct BuildCommand: AsyncParsableCommand {
             default: return nil
             }
         }
+
+        var icon: String {
+            switch self {
+            case .appstore: return "🚀"
+            case .adhoc: return "🧪"
+            case .development: return "🛠️"
+            }
+        }
     }
 }

@@ -10,8 +10,11 @@
 - Whenever code introduces or calls a new API endpoint, immediately add its exact path to `filter.paths` in the corresponding target's `openapi-generator-config.yaml`.
 - Whenever an existing API endpoint is removed or no longer referenced, immediately remove its path from `filter.paths` in the corresponding target's `openapi-generator-config.yaml`.
 
-# Environment Variables Management Rules
-- Whenever code introduces or reads a new environment variable (e.g., via `ProcessInfo.processInfo.environment`), immediately add it to `.env.example` with a descriptive comment and placeholder value.
+# Environment Variables & Configuration Architecture
+- Reading environment variables (`ProcessInfo.processInfo.environment`, `getenv`, etc.) is strictly permitted ONLY within `Commands/` (and `Core/` as an exception).
+- `Flow/`, `Tasks/`, and `Services/` must NEVER read environment variables directly. They must receive all required configurations, credentials, URLs, and keys purely via function arguments, initializers, or context objects.
+- Commands are responsible for resolving CLI options with environment variable fallbacks and passing the resolved values down into Tasks, Services, and Flow.
+- Whenever code introduces or reads a new environment variable, immediately add it to `.env.example` with a descriptive comment and placeholder value.
 - Whenever an existing environment variable is removed or no longer referenced in the codebase, immediately remove it from `.env.example`.
 
 # CLI Option Standards

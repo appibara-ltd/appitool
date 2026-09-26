@@ -23,11 +23,17 @@ struct KokonoCommand: AsyncParsableCommand {
     func run() async throws {
         _ = try? EnvLoader.loadEnv()
 
+        let resolvedUrl = url ?? ProcessInfo.processInfo.environment["KOKONO_URL"]
+        guard let resolvedUrl, !resolvedUrl.isEmpty else {
+            print("Error: ".red.bold + "Missing KokoNo URL. Provide -u, --url or configure KOKONO_URL in .env.")
+            throw ExitCode.failure
+        }
+
         // Per-URL Keypair Isolation:
         // If URL is explicitly provided via option, public key must also be explicitly provided via option.
         // If not provided, it must NOT fall back to .env's key and should remain unencrypted.
         let resolvedPublicKey: String?
-        if let url, !url.isEmpty {
+        if url != nil {
             resolvedPublicKey = e2e
         } else {
             resolvedPublicKey = e2e ?? ProcessInfo.processInfo.environment["KOKONO_E2E_PUBLIC_KEY"]
@@ -41,7 +47,7 @@ struct KokonoCommand: AsyncParsableCommand {
                 status: .success,
                 title: title,
                 message: message,
-                kokonoUrl: url,
+                kokonoUrl: resolvedUrl,
                 kokonoPublicKey: resolvedPublicKey
             ))
             print("✓ ".green.bold + "KokoNo notification sent successfully.".bold)

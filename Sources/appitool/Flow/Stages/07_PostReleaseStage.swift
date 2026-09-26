@@ -25,9 +25,10 @@ struct PostReleaseStage: FlowStageHandler {
 
         await NotifyTask().notifyAllConfigured(
             status: .success,
-            title: "appitool flow finished: \(context.platform.rawValue.uppercased()) (\(context.distribution.rawValue))",
+            title: "✅ AppiFlow \(context.platform.icon) \(context.distribution.icon)",
             message: "Release completed successfully.",
             metadata: metadata,
+            slackUrl: context.slackUrl,
             kokonoUrl: context.kokonoUrl,
             kokonoPublicKey: context.kokonoPublicKey
         )

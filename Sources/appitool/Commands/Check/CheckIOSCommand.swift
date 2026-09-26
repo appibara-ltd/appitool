@@ -19,10 +19,22 @@ struct CheckIOSCommand: AsyncParsableCommand {
 
         switch distribution {
         case .adhoc:
+            guard let resolvedAppId = firebaseAppId ?? ProcessInfo.processInfo.environment["FIREBASE_IOS_APP_ID"], !resolvedAppId.isEmpty else {
+                print("Error: ".red.bold + "Missing Firebase App ID for iOS. Provide --firebase-app-id or configure FIREBASE_IOS_APP_ID in .env.")
+                return
+            }
+
+            let token = ProcessInfo.processInfo.environment["FIREBASE_TOKEN"]
+            let googleKey = ProcessInfo.processInfo.environment["GOOGLE_KEY"] ?? ProcessInfo.processInfo.environment["GOOGLE_APPLICATION_CREDENTIALS"]
+            guard let service = try FirebaseService.makeService(token: token, googleKey: googleKey) else {
+                print("Error: ".red.bold + "Missing Firebase credentials. Provide GOOGLE_KEY, GOOGLE_APPLICATION_CREDENTIALS, or FIREBASE_TOKEN in .env.")
+                return
+            }
+
             print("Checking Firebase iOS App information...".dim)
             let task = GetFirebaseAppInfoTask()
             do {
-                guard case .ios(let app) = try await task.run(.init(platform: .ios, firebaseAppId: firebaseAppId)) else {
+                guard case .ios(let app) = try await task.run(.init(platform: .ios, firebaseAppId: resolvedAppId, service: service)) else {
                     return
                 }
                 print("\n" + "─── Firebase iOS App Information ───".cyan.bold)

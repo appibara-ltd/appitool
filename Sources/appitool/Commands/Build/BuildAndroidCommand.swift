@@ -56,11 +56,25 @@ struct BuildAndroidCommand: AsyncParsableCommand {
             }
 
         case .adhoc:
-            let displayTarget = packageName ?? firebaseAppId ?? ProcessInfo.processInfo.environment["FIREBASE_ANDROID_APP_ID"] ?? "Android App"
+            let resolvedAppId = firebaseAppId ?? ProcessInfo.processInfo.environment["FIREBASE_ANDROID_APP_ID"]
+            let displayTarget = packageName ?? resolvedAppId ?? "Android App"
             print("Fetching latest build from Firebase App Distribution for ".dim + "\(displayTarget)".bold + "...".dim)
+
+            guard let targetAppId = resolvedAppId, !targetAppId.isEmpty else {
+                print("Error: ".red.bold + "Missing Firebase App ID for Android. Provide --firebase-app-id or configure FIREBASE_ANDROID_APP_ID in .env.")
+                return
+            }
+
+            let token = ProcessInfo.processInfo.environment["FIREBASE_TOKEN"]
+            let googleKey = googleCredentials.resolveKey() ?? ProcessInfo.processInfo.environment["GOOGLE_APPLICATION_CREDENTIALS"]
+            guard let firebaseService = try FirebaseService.makeService(token: token, googleKey: googleKey) else {
+                print("Error: ".red.bold + "Missing Firebase credentials. Provide FIREBASE_TOKEN or GOOGLE_KEY / GOOGLE_APPLICATION_CREDENTIALS in .env.")
+                return
+            }
+
             do {
                 let info = try await task.run(.init(
-                    target: .android(packageName: packageName, firebaseAppId: firebaseAppId),
+                    target: .android(packageName: packageName, firebaseAppId: targetAppId, firebaseService: firebaseService),
                     distribution: .adhoc
                 ))
                 print("✓ Latest Remote Build: ".green.bold + "Version \(info.version)".bold + " (Build Number: \(info.buildNumber))".yellow.bold)

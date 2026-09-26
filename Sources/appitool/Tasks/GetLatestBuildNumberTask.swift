@@ -50,8 +50,8 @@ enum GetLatestBuildNumberError: LocalizedError, Sendable {
 struct GetLatestBuildNumberTask: Task {
     struct Input: Sendable {
         enum Target: Sendable {
-            case ios(bundleId: String? = nil, service: AppStoreService? = nil, firebaseAppId: String? = nil)
-            case android(packageName: String? = nil, service: GooglePlayService? = nil, track: String? = nil, firebaseAppId: String? = nil)
+            case ios(bundleId: String? = nil, service: AppStoreService? = nil, firebaseAppId: String? = nil, firebaseService: FirebaseService? = nil)
+            case android(packageName: String? = nil, service: GooglePlayService? = nil, track: String? = nil, firebaseAppId: String? = nil, firebaseService: FirebaseService? = nil)
         }
 
         let target: Target
@@ -75,7 +75,7 @@ struct GetLatestBuildNumberTask: Task {
 
         case .appstore:
             switch input.target {
-            case .ios(let bundleId, let service, _):
+            case .ios(let bundleId, let service, _, _):
                 guard let bundleId, !bundleId.isEmpty else {
                     throw GetLatestBuildNumberError.missingConfiguration("Bundle ID is required for App Store distribution.")
                 }
@@ -83,7 +83,7 @@ struct GetLatestBuildNumberTask: Task {
                     throw GetLatestBuildNumberError.missingConfiguration("AppStoreService is required for App Store distribution.")
                 }
                 return try await fetchLatestTestFlightBuild(bundleId: bundleId, service: service)
-            case .android(let packageName, let service, let track, _):
+            case .android(let packageName, let service, let track, _, _):
                 guard let packageName, !packageName.isEmpty else {
                     throw GetLatestBuildNumberError.missingConfiguration("Package name is required for Google Play distribution.")
                 }
@@ -95,10 +95,23 @@ struct GetLatestBuildNumberTask: Task {
 
         case .adhoc:
             switch input.target {
-            case .ios(_, _, let firebaseAppId):
-                return try await fetchLatestFirebaseIOSBuild(firebaseAppId: firebaseAppId)
-            case .android(_, _, _, let firebaseAppId):
-                return try await fetchLatestFirebaseAndroidBuild(firebaseAppId: firebaseAppId)
+            case .ios(_, _, let firebaseAppId, let firebaseService):
+                guard let firebaseAppId, !firebaseAppId.isEmpty else {
+                    throw GetLatestBuildNumberError.missingConfiguration("Missing Firebase App ID for iOS.")
+                }
+                guard let firebaseService else {
+                    throw GetLatestBuildNumberError.unauthorized("Missing Firebase credentials.")
+                }
+                return try await fetchLatestFirebaseAppDistributionBuild(appId: firebaseAppId, service: firebaseService)
+
+            case .android(_, _, _, let firebaseAppId, let firebaseService):
+                guard let firebaseAppId, !firebaseAppId.isEmpty else {
+                    throw GetLatestBuildNumberError.missingConfiguration("Missing Firebase App ID for Android.")
+                }
+                guard let firebaseService else {
+                    throw GetLatestBuildNumberError.unauthorized("Missing Firebase credentials.")
+                }
+                return try await fetchLatestFirebaseAppDistributionBuild(appId: firebaseAppId, service: firebaseService)
             }
         }
     }
@@ -236,33 +249,7 @@ struct GetLatestBuildNumberTask: Task {
 
     // MARK: - AdHoc (Firebase App Distribution)
 
-    private func fetchLatestFirebaseIOSBuild(firebaseAppId: String?) async throws -> LatestBuildInfo {
-        let env = ProcessInfo.processInfo.environment
-        guard let appId = firebaseAppId ?? env["FIREBASE_IOS_APP_ID"], !appId.isEmpty else {
-            throw GetLatestBuildNumberError.missingConfiguration(
-                "Missing Firebase App ID for iOS. Provide --firebase-app-id or set FIREBASE_IOS_APP_ID in .env."
-            )
-        }
-        return try await fetchLatestFirebaseAppDistributionBuild(appId: appId)
-    }
-
-    private func fetchLatestFirebaseAndroidBuild(firebaseAppId: String?) async throws -> LatestBuildInfo {
-        let env = ProcessInfo.processInfo.environment
-        guard let appId = firebaseAppId ?? env["FIREBASE_ANDROID_APP_ID"], !appId.isEmpty else {
-            throw GetLatestBuildNumberError.missingConfiguration(
-                "Missing Firebase App ID for Android. Provide --firebase-app-id or set FIREBASE_ANDROID_APP_ID in .env."
-            )
-        }
-        return try await fetchLatestFirebaseAppDistributionBuild(appId: appId)
-    }
-
-    private func fetchLatestFirebaseAppDistributionBuild(appId: String) async throws -> LatestBuildInfo {
-        guard let service = try FirebaseService.makeService() else {
-            throw GetLatestBuildNumberError.unauthorized(
-                "Missing Firebase credentials. Provide FIREBASE_TOKEN or GOOGLE_KEY / GOOGLE_APPLICATION_CREDENTIALS in .env."
-            )
-        }
-
+    private func fetchLatestFirebaseAppDistributionBuild(appId: String, service: FirebaseService) async throws -> LatestBuildInfo {
         let segments = appId.split(separator: ":")
         let projectNumber = segments.count >= 2 ? String(segments[1]) : "-"
 

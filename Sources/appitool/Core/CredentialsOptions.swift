@@ -80,6 +80,19 @@ struct FirebaseCredentialsOptions: ParsableArguments, Sendable {
     @Option(name: .long, help: "Firebase CI token (defaults to FIREBASE_TOKEN in .env).")
     var firebaseToken: String?
 
+    /// Resolves credentials from CLI options or environment and creates a `FirebaseService`.
+    func makeService(googleKey: String? = nil) throws -> FirebaseService? {
+        let env = ProcessInfo.processInfo.environment
+        if let token = firebaseToken ?? env["FIREBASE_TOKEN"], !token.isEmpty {
+            return try FirebaseService(token: token)
+        }
+        let resolvedGoogleKey = googleKey ?? env["GOOGLE_KEY"] ?? env["GOOGLE_APPLICATION_CREDENTIALS"]
+        if let resolvedGoogleKey, !resolvedGoogleKey.isEmpty {
+            return try FirebaseService(key: resolvedGoogleKey)
+        }
+        return nil
+    }
+
     /// Applies any provided CLI flags over environment variables.
     func applyEnvironmentOverrides(platformAppIdKey: String) {
         if let firebaseAppId, !firebaseAppId.isEmpty {
@@ -101,6 +114,24 @@ struct NotificationOptions: ParsableArguments, Sendable {
 
     @Option(name: .long, help: "Optional KokoNo public key for end-to-end (E2E) encryption (defaults to KOKONO_E2E_PUBLIC_KEY in .env).")
     var kokonoPublicKey: String?
+
+    /// Resolves notification URLs and keys by checking CLI flags first, falling back to environment variables.
+    func resolve() -> (slackUrl: String?, kokonoUrl: String?, kokonoPublicKey: String?) {
+        let env = ProcessInfo.processInfo.environment
+        let resolvedSlack = slackUrl ?? env["SLACK_URL"]
+        let resolvedKokono = kokonoUrl ?? env["KOKONO_URL"]
+        let resolvedKey: String?
+        if kokonoUrl != nil {
+            resolvedKey = kokonoPublicKey
+        } else {
+            resolvedKey = kokonoPublicKey ?? env["KOKONO_E2E_PUBLIC_KEY"]
+        }
+        return (
+            resolvedSlack?.isEmpty == false ? resolvedSlack : nil,
+            resolvedKokono?.isEmpty == false ? resolvedKokono : nil,
+            resolvedKey?.isEmpty == false ? resolvedKey : nil
+        )
+    }
 
     /// Applies any provided CLI flags over environment variables.
     func applyEnvironmentOverrides() {

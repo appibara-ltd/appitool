@@ -41,6 +41,7 @@ struct NotifyTask: Task {
         let title: String
         let message: String
         let metadata: [String: String]
+        let slackUrl: String?
         let kokonoUrl: String?
         let kokonoPublicKey: String?
 
@@ -50,6 +51,7 @@ struct NotifyTask: Task {
             title: String,
             message: String,
             metadata: [String: String] = [:],
+            slackUrl: String? = nil,
             kokonoUrl: String? = nil,
             kokonoPublicKey: String? = nil
         ) {
@@ -58,6 +60,7 @@ struct NotifyTask: Task {
             self.title = title
             self.message = message
             self.metadata = metadata
+            self.slackUrl = slackUrl
             self.kokonoUrl = kokonoUrl
             self.kokonoPublicKey = kokonoPublicKey
         }
@@ -72,7 +75,7 @@ struct NotifyTask: Task {
         var errorDescription: String? {
             switch self {
             case .missingWebhookUrl(let provider):
-                return "Missing URL for \(provider). Check your .env configuration."
+                return "Missing URL for \(provider)."
             case .invalidWebhookUrl(let url):
                 return "Invalid URL: \(url)"
             case .invalidPublicKey(let reason):
@@ -94,25 +97,25 @@ struct NotifyTask: Task {
         }
     }
 
-    /// Dispatches notification to all providers that have their webhook URL configured in environment.
+    /// Dispatches notification to all providers that have their webhook URL provided.
     func notifyAllConfigured(
         status: Status,
         title: String,
         message: String,
         metadata: [String: String] = [:],
+        slackUrl: String? = nil,
         kokonoUrl: String? = nil,
         kokonoPublicKey: String? = nil
     ) async {
-        let env = ProcessInfo.processInfo.environment
-
-        if env["SLACK_URL"] != nil {
+        if let slackUrl, !slackUrl.isEmpty {
             do {
                 try await run(.init(
                     provider: .slack,
                     status: status,
                     title: title,
                     message: message,
-                    metadata: metadata
+                    metadata: metadata,
+                    slackUrl: slackUrl
                 ))
                 print("   ✓ ".green.bold + "Slack notification sent successfully.".dim)
             } catch {
@@ -120,18 +123,7 @@ struct NotifyTask: Task {
             }
         }
 
-        let resolvedUrl = kokonoUrl ?? env["KOKONO_URL"]
-        if let resolvedUrl, !resolvedUrl.isEmpty {
-            // Per-URL Keypair Isolation:
-            // If URL is explicitly provided via option, public key MUST also be provided via option.
-            // If not provided, it must NOT fall back to .env's key and should remain unencrypted.
-            let resolvedKey: String?
-            if kokonoUrl != nil {
-                resolvedKey = kokonoPublicKey
-            } else {
-                resolvedKey = kokonoPublicKey ?? env["KOKONO_E2E_PUBLIC_KEY"]
-            }
-
+        if let kokonoUrl, !kokonoUrl.isEmpty {
             do {
                 try await run(.init(
                     provider: .kokono,
@@ -139,8 +131,8 @@ struct NotifyTask: Task {
                     title: title,
                     message: message,
                     metadata: metadata,
-                    kokonoUrl: resolvedUrl,
-                    kokonoPublicKey: resolvedKey
+                    kokonoUrl: kokonoUrl,
+                    kokonoPublicKey: kokonoPublicKey
                 ))
                 print("   ✓ ".green.bold + "KokoNo notification sent successfully.".dim)
             } catch {
@@ -152,8 +144,8 @@ struct NotifyTask: Task {
     // MARK: - Slack Provider
 
     private func sendSlackNotification(_ input: Input) async throws {
-        guard let urlString = ProcessInfo.processInfo.environment["SLACK_URL"], !urlString.isEmpty else {
-            throw NotifyError.missingWebhookUrl("Slack (SLACK_URL)")
+        guard let urlString = input.slackUrl, !urlString.isEmpty else {
+            throw NotifyError.missingWebhookUrl("Slack")
         }
 
         guard let url = URL(string: urlString) else {
@@ -161,7 +153,17 @@ struct NotifyTask: Task {
         }
 
         // Format metadata fields
-        let fields = input.metadata.map { key, value in
+        let preferredOrder = ["Platform", "Distribution", "Version", "Build Number", "App ID", "Failing Stage", "Elapsed Time", "Total Duration"]
+        let sortedMetadata = input.metadata.sorted { first, second in
+            let index1 = preferredOrder.firstIndex(of: first.key) ?? Int.max
+            let index2 = preferredOrder.firstIndex(of: second.key) ?? Int.max
+            if index1 != index2 {
+                return index1 < index2
+            }
+            return first.key < second.key
+        }
+
+        let fields = sortedMetadata.map { key, value in
             [
                 "title": key,
                 "value": value,
@@ -172,8 +174,9 @@ struct NotifyTask: Task {
         let payload: [String: Any] = [
             "attachments": [
                 [
+                    "fallback": "\(input.title)\n\(input.message)",
                     "color": input.status.colorHex,
-                    "title": "\(input.status.emoji) \(input.title)",
+                    "title": input.title,
                     "text": input.message,
                     "fields": fields,
                     "footer": "appitool flow",
@@ -267,8 +270,8 @@ struct NotifyTask: Task {
     }
 
     private func sendKokoNoNotification(_ input: Input) async throws {
-        guard let urlString = input.kokonoUrl ?? ProcessInfo.processInfo.environment["KOKONO_URL"], !urlString.isEmpty else {
-            throw NotifyError.missingWebhookUrl("KokoNo (KOKONO_URL)")
+        guard let urlString = input.kokonoUrl, !urlString.isEmpty else {
+            throw NotifyError.missingWebhookUrl("KokoNo")
         }
 
         guard let components = URLComponents(string: urlString), let _ = components.url else {
@@ -277,7 +280,7 @@ struct NotifyTask: Task {
 
         // Extract token from query parameter "?token=..." or URL
         guard let token = components.queryItems?.first(where: { $0.name == "token" })?.value, !token.isEmpty else {
-            throw NotifyError.missingWebhookUrl("KokoNo token in KOKONO_URL (expected ?token=<token>)")
+            throw NotifyError.missingWebhookUrl("KokoNo token in URL (expected ?token=<token>)")
         }
 
         // Endpoint URL without query parameters (defaults to https://kokono.me/notify)
@@ -287,21 +290,53 @@ struct NotifyTask: Task {
             throw NotifyError.invalidWebhookUrl(urlString)
         }
 
-        // Per-URL Keypair Isolation:
-        // If kokonoUrl is explicitly provided, public key MUST also be explicitly provided via option.
-        // It must NOT fall back to .env's key because keys are strictly tied to specific URLs.
-        let publicKey: String?
-        if input.kokonoUrl != nil {
-            publicKey = input.kokonoPublicKey
+        let publicKey = input.kokonoPublicKey
+
+        let maxKokonoMessageLength = 250
+        var fullMessage: String
+
+        if !input.metadata.isEmpty {
+            let preferredOrder = ["Platform", "Distribution", "Version", "Build Number", "App ID", "Failing Stage", "Elapsed Time", "Total Duration"]
+            let sortedMetadata = input.metadata.sorted { first, second in
+                let index1 = preferredOrder.firstIndex(of: first.key) ?? Int.max
+                let index2 = preferredOrder.firstIndex(of: second.key) ?? Int.max
+                if index1 != index2 {
+                    return index1 < index2
+                }
+                return first.key < second.key
+            }
+            let metadataLines = sortedMetadata.map { "\($0.key): \($0.value)" }.joined(separator: "\n")
+
+            if input.message.isEmpty {
+                fullMessage = metadataLines
+            } else {
+                let separator = "\n\n"
+                let metadataOverhead = separator.count + metadataLines.count
+                if metadataOverhead < maxKokonoMessageLength {
+                    let availableForMessage = maxKokonoMessageLength - metadataOverhead
+                    var trimmedMessage = input.message
+                    if trimmedMessage.count > availableForMessage {
+                        let cutoff = max(0, availableForMessage - 3)
+                        trimmedMessage = String(trimmedMessage.prefix(cutoff)) + "..."
+                    }
+                    fullMessage = trimmedMessage + separator + metadataLines
+                } else {
+                    fullMessage = input.message + separator + metadataLines
+                }
+            }
         } else {
-            publicKey = input.kokonoPublicKey ?? ProcessInfo.processInfo.environment["KOKONO_E2E_PUBLIC_KEY"]
+            fullMessage = input.message
+        }
+
+        if fullMessage.count > maxKokonoMessageLength {
+            fullMessage = String(fullMessage.prefix(maxKokonoMessageLength - 3)) + "..."
         }
 
         let payload: [String: Any]
         if let publicKey, !publicKey.isEmpty {
             // E2E Encrypted Payload
             let encryptedTitle = try encryptKokoNo(message: input.title, recipientPublicKeyB64: publicKey)
-            let encryptedMessage = try encryptKokoNo(message: input.message, recipientPublicKeyB64: publicKey)
+            let encryptedMessage = try encryptKokoNo(message: fullMessage, recipientPublicKeyB64: publicKey)
 
             payload = [
                 "token": token,
@@ -324,7 +359,7 @@ struct NotifyTask: Task {
             payload = [
                 "token": token,
                 "title": input.title,
-                "message": input.message
+                "message": fullMessage
             ]
         }
 

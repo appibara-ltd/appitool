@@ -36,12 +36,15 @@ struct FlowIOSCommand: AsyncParsableCommand {
         firebaseCredentials.applyEnvironmentOverrides(platformAppIdKey: "FIREBASE_IOS_APP_ID")
         notificationOptions.applyEnvironmentOverrides()
 
+        let notifications = notificationOptions.resolve()
+
         let runner = FlowRunner(
             platform: .ios,
             distribution: distribution,
             isDryRun: dryRun,
-            kokonoUrl: notificationOptions.kokonoUrl,
-            kokonoPublicKey: notificationOptions.kokonoPublicKey
+            slackUrl: notifications.slackUrl,
+            kokonoUrl: notifications.kokonoUrl,
+            kokonoPublicKey: notifications.kokonoPublicKey
         )
 
         try await runner.run()

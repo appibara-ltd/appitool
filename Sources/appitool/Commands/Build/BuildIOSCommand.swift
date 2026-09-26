@@ -56,11 +56,25 @@ struct BuildIOSCommand: AsyncParsableCommand {
             }
 
         case .adhoc:
-            let displayTarget = bundleId ?? firebaseAppId ?? ProcessInfo.processInfo.environment["FIREBASE_IOS_APP_ID"] ?? "iOS App"
+            let resolvedAppId = firebaseAppId ?? ProcessInfo.processInfo.environment["FIREBASE_IOS_APP_ID"]
+            let displayTarget = bundleId ?? resolvedAppId ?? "iOS App"
             print("Fetching latest build from Firebase App Distribution for ".dim + "\(displayTarget)".bold + "...".dim)
+
+            guard let targetAppId = resolvedAppId, !targetAppId.isEmpty else {
+                print("Error: ".red.bold + "Missing Firebase App ID for iOS. Provide --firebase-app-id or configure FIREBASE_IOS_APP_ID in .env.")
+                return
+            }
+
+            let token = ProcessInfo.processInfo.environment["FIREBASE_TOKEN"]
+            let googleKey = ProcessInfo.processInfo.environment["GOOGLE_KEY"] ?? ProcessInfo.processInfo.environment["GOOGLE_APPLICATION_CREDENTIALS"]
+            guard let firebaseService = try FirebaseService.makeService(token: token, googleKey: googleKey) else {
+                print("Error: ".red.bold + "Missing Firebase credentials. Provide FIREBASE_TOKEN or GOOGLE_KEY / GOOGLE_APPLICATION_CREDENTIALS in .env.")
+                return
+            }
+
             do {
                 let info = try await task.run(.init(
-                    target: .ios(bundleId: bundleId, firebaseAppId: firebaseAppId),
+                    target: .ios(bundleId: bundleId, firebaseAppId: targetAppId, firebaseService: firebaseService),
                     distribution: .adhoc
                 ))
                 print("✓ Latest Remote Build: ".green.bold + "Version \(info.version)".bold + " (Build Number: \(info.buildNumber))".yellow.bold)

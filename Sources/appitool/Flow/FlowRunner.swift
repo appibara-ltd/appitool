@@ -11,6 +11,7 @@ struct FlowRunner: Sendable {
     let platform: FlowContext.Platform
     let distribution: BuildCommand.Distribution
     let isDryRun: Bool
+    let slackUrl: String?
     let kokonoUrl: String?
     let kokonoPublicKey: String?
 
@@ -18,12 +19,14 @@ struct FlowRunner: Sendable {
         platform: FlowContext.Platform,
         distribution: BuildCommand.Distribution,
         isDryRun: Bool = false,
+        slackUrl: String? = nil,
         kokonoUrl: String? = nil,
         kokonoPublicKey: String? = nil
     ) {
         self.platform = platform
         self.distribution = distribution
         self.isDryRun = isDryRun
+        self.slackUrl = slackUrl
         self.kokonoUrl = kokonoUrl
         self.kokonoPublicKey = kokonoPublicKey
     }
@@ -36,6 +39,7 @@ struct FlowRunner: Sendable {
             platform: platform,
             distribution: distribution,
             isDryRun: isDryRun,
+            slackUrl: slackUrl,
             kokonoUrl: kokonoUrl,
             kokonoPublicKey: kokonoPublicKey
         )
@@ -122,9 +126,10 @@ struct FlowRunner: Sendable {
 
         await NotifyTask().notifyAllConfigured(
             status: .failure,
-            title: "appitool flow failed at [\(stage.rawValue.uppercased())]",
-            message: "Reason: \(error.localizedDescription)",
+            title: "💥 AppiFlow \(context.platform.icon) \(context.distribution.icon)",
+            message: error.localizedDescription,
             metadata: metadata,
+            slackUrl: context.slackUrl,
             kokonoUrl: context.kokonoUrl,
             kokonoPublicKey: context.kokonoPublicKey
         )

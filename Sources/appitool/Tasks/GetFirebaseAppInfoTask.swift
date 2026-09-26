@@ -11,7 +11,7 @@ enum GetFirebaseAppInfoError: LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .missingAppId(let platform):
-            return "Missing Firebase App ID for \(platform). Provide --firebase-app-id or configure FIREBASE_\(platform.uppercased())_APP_ID in .env."
+            return "Missing Firebase App ID for \(platform)."
         case .unauthorized(let message):
             return "Firebase authorization failed: \(message)"
         case .appNotFound(let identifier):
@@ -32,11 +32,13 @@ struct GetFirebaseAppInfoTask: Task {
 
     struct Input: Sendable {
         let platform: Platform
-        let firebaseAppId: String?
+        let firebaseAppId: String
+        let service: FirebaseService
 
-        init(platform: Platform, firebaseAppId: String? = nil) {
+        init(platform: Platform, firebaseAppId: String, service: FirebaseService) {
             self.platform = platform
             self.firebaseAppId = firebaseAppId
+            self.service = service
         }
     }
 
@@ -49,43 +51,38 @@ struct GetFirebaseAppInfoTask: Task {
 
     @discardableResult
     func run(_ input: Input) async throws -> Output {
-        guard let service = try FirebaseService.makeService() else {
-            throw GetFirebaseAppInfoError.unauthorized("Missing Firebase credentials. Provide GOOGLE_KEY, GOOGLE_APPLICATION_CREDENTIALS, or FIREBASE_TOKEN in .env.")
-        }
-
         switch input.platform {
         case .ios:
-            let app = try await fetchIOSAppInfo(appId: input.firebaseAppId, service: service)
+            let app = try await fetchIOSAppInfo(appId: input.firebaseAppId, service: input.service)
             return .ios(app)
         case .android:
-            let app = try await fetchAndroidAppInfo(appId: input.firebaseAppId, service: service)
+            let app = try await fetchAndroidAppInfo(appId: input.firebaseAppId, service: input.service)
             return .android(app)
         }
     }
 
     // MARK: - Direct Single iOS App Fetch
 
-    private func fetchIOSAppInfo(appId: String?, service: FirebaseService) async throws -> Components.Schemas.IosApp {
-        let env = ProcessInfo.processInfo.environment
-        guard let resolvedAppId = appId ?? env["FIREBASE_IOS_APP_ID"], !resolvedAppId.isEmpty else {
+    private func fetchIOSAppInfo(appId: String, service: FirebaseService) async throws -> Components.Schemas.IosApp {
+        guard !appId.isEmpty else {
             throw GetFirebaseAppInfoError.missingAppId(platform: "iOS")
         }
 
-        let projectNumber = extractProjectNumber(from: resolvedAppId)
+        let projectNumber = extractProjectNumber(from: appId)
         let response = try await service.management.firebase_period_projects_period_iosApps_period_get(.init(
-            path: .init(projectsId: projectNumber, iosAppId: resolvedAppId)
+            path: .init(projectsId: projectNumber, iosAppId: appId)
         ))
 
         switch response {
         case .ok(let okResponse):
             guard case .json(let app) = okResponse.body else {
-                throw GetFirebaseAppInfoError.apiError("Failed to decode JSON response for iOS App ID: \(resolvedAppId)")
+                throw GetFirebaseAppInfoError.apiError("Failed to decode JSON response for iOS App ID: \(appId)")
             }
             return app
 
         case .undocumented(let statusCode, _):
             if statusCode == 404 {
-                throw GetFirebaseAppInfoError.appNotFound(identifier: resolvedAppId)
+                throw GetFirebaseAppInfoError.appNotFound(identifier: appId)
             }
             throw GetFirebaseAppInfoError.apiError("Firebase API returned HTTP \(statusCode)")
         }
@@ -93,27 +90,26 @@ struct GetFirebaseAppInfoTask: Task {
 
     // MARK: - Direct Single Android App Fetch
 
-    private func fetchAndroidAppInfo(appId: String?, service: FirebaseService) async throws -> Components.Schemas.AndroidApp {
-        let env = ProcessInfo.processInfo.environment
-        guard let resolvedAppId = appId ?? env["FIREBASE_ANDROID_APP_ID"], !resolvedAppId.isEmpty else {
+    private func fetchAndroidAppInfo(appId: String, service: FirebaseService) async throws -> Components.Schemas.AndroidApp {
+        guard !appId.isEmpty else {
             throw GetFirebaseAppInfoError.missingAppId(platform: "Android")
         }
 
-        let projectNumber = extractProjectNumber(from: resolvedAppId)
+        let projectNumber = extractProjectNumber(from: appId)
         let response = try await service.management.firebase_period_projects_period_androidApps_period_get(.init(
-            path: .init(projectsId: projectNumber, androidAppId: resolvedAppId)
+            path: .init(projectsId: projectNumber, androidAppId: appId)
         ))
 
         switch response {
         case .ok(let okResponse):
             guard case .json(let app) = okResponse.body else {
-                throw GetFirebaseAppInfoError.apiError("Failed to decode JSON response for Android App ID: \(resolvedAppId)")
+                throw GetFirebaseAppInfoError.apiError("Failed to decode JSON response for Android App ID: \(appId)")
             }
             return app
 
         case .undocumented(let statusCode, _):
             if statusCode == 404 {
-                throw GetFirebaseAppInfoError.appNotFound(identifier: resolvedAppId)
+                throw GetFirebaseAppInfoError.appNotFound(identifier: appId)
             }
             throw GetFirebaseAppInfoError.apiError("Firebase API returned HTTP \(statusCode)")
         }
