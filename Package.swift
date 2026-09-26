@@ -5,12 +5,12 @@ import PackageDescription
 
 let defaultSwiftSettings: [SwiftSetting] = [
     .enableUpcomingFeature("ApproachableConcurrency"),
-    .unsafeFlags(["-Osize"], .when(configuration: .release)),
+    .unsafeFlags(["-Osize", "-gnone"], .when(configuration: .release)),
 ]
 
 let apiSwiftSettings: [SwiftSetting] = [
     .enableUpcomingFeature("ApproachableConcurrency"),
-    .unsafeFlags(["-O"], .when(configuration: .release)),
+    .unsafeFlags(["-O", "-gnone"], .when(configuration: .release)),
 ]
 
 let package = Package(
@@ -114,6 +114,30 @@ let package = Package(
                 .plugin(name: "OpenAPIGenerator", package: "swift-openapi-generator"),
             ]
         ),
+        // Firebase Management API (OpenAPI generator plugin target)
+        .target(
+            name: "FirebaseManagementAPI",
+            dependencies: [
+                .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
+                .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
+            ],
+            swiftSettings: apiSwiftSettings,
+            plugins: [
+                .plugin(name: "OpenAPIGenerator", package: "swift-openapi-generator"),
+            ]
+        ),
+        // Firebase App Distribution API (OpenAPI generator plugin target)
+        .target(
+            name: "FirebaseAppDistributionAPI",
+            dependencies: [
+                .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
+                .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
+            ],
+            swiftSettings: apiSwiftSettings,
+            plugins: [
+                .plugin(name: "OpenAPIGenerator", package: "swift-openapi-generator"),
+            ]
+        ),
 
         .executableTarget(
             name: "appitool",
@@ -125,6 +149,8 @@ let package = Package(
                 "GooglePlayIntegrityAPI",
                 "GooglePlayCustomAppAPI",
                 "GooglePlayGamesManagementAPI",
+                "FirebaseManagementAPI",
+                "FirebaseAppDistributionAPI",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
                 .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
@@ -134,7 +160,11 @@ let package = Package(
             ],
             swiftSettings: defaultSwiftSettings,
             linkerSettings: [
-                .unsafeFlags(["-Xlinker", "-dead_strip"], .when(configuration: .release)),
+                .unsafeFlags([
+                    "-Xlinker", "-dead_strip",
+                    "-Xlinker", "-x",
+                    "-Xlinker", "-S",
+                ], .when(configuration: .release)),
             ]
         ),
 

@@ -1,0 +1,8 @@
+generate:
+  - types
+  - client
+accessModifier: package
+filter:
+  paths:
+    - /v1beta1/projects/{projectsId}/iosApps/{iosAppId}
+    - /v1beta1/projects/{projectsId}/androidApps/{androidAppId}

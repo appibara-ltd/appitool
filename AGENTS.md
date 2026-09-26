@@ -17,10 +17,18 @@
 - All CLI options must ideally use `name: .shortAndLong` (e.g., `-b, --bundle-id`, `-p, --package-name`, `-d, --distribution`), providing both a single-character shorthand and a descriptive kebab-case flag unless a single-character conflict exists.
 - Never alias semantically different concepts under the same option (e.g., `--bundle-id` and `--app-id` are distinct concepts and must never be aliases for the same option).
 
+# Command Structure Conventions
+- Commands partitioned into platform-specific subcommands (e.g., `ios` and `android`) must be grouped into a dedicated subdirectory inside `Sources/appitool/Commands/` named after the root command (e.g., `Commands/Build/` for `BuildCommand.swift`, `BuildIOSCommand.swift`, `BuildAndroidCommand.swift`, and `Commands/Check/` for `CheckCommand.swift`, `CheckIOSCommand.swift`, `CheckAndroidCommand.swift`).
+- Standalone commands without platform subcommands remain directly under `Sources/appitool/Commands/`.
+
 # Execution & Workflow Guidelines
 - Before building or executing commands, always ensure the local repository is up to date by running `git pull`.
 - Always run `swift run appitool -h` first to discover existing/new subcommands and options before executing specific commands.
 - The CLI can be built and executed directly via Swift Package Manager:
   ```bash
   swift run appitool <subcommand> [options]
+  ```
+- For minimal release binary size, always build with release configuration and strip debug/global symbols:
+  ```bash
+  swift build -c release && strip .build/release/appitool
   ```

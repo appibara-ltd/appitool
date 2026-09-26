@@ -9,7 +9,8 @@ struct appitool: AsyncParsableCommand {
         version: "0.1.0",
         subcommands: [
             StatusCommand.self,
-            BuildCommand.self
+            BuildCommand.self,
+            CheckCommand.self
         ]
     )
 }

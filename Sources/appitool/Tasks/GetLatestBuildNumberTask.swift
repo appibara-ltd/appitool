@@ -1,6 +1,11 @@
 import Foundation
 import AppStoreConnectAPI
 import GooglePlayStoreAPI
+import FirebaseAppDistributionAPI
+import Rainbow
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Result containing the latest version and build number retrieved from the remote store.
 struct LatestBuildInfo: Sendable, Equatable {
@@ -21,6 +26,8 @@ enum GetLatestBuildNumberError: LocalizedError, Sendable {
     case appNotFound(identifier: String)
     case apiError(String)
     case unauthorized(String)
+    case developmentNotSupported
+    case missingConfiguration(String)
 
     var errorDescription: String? {
         switch self {
@@ -30,23 +37,29 @@ enum GetLatestBuildNumberError: LocalizedError, Sendable {
             return "API request failed: \(message)"
         case .unauthorized(let message):
             return "Authorization failed: \(message)"
+        case .developmentNotSupported:
+            return "Development distribution cannot be checked remotely (development builds are not distributed remotely)."
+        case .missingConfiguration(let message):
+            return "Configuration missing: \(message)"
         }
     }
 }
 
-/// A task that retrieves the latest uploaded build version and build number from TestFlight (App Store Connect)
-/// or Google Play Console, functioning like Fastlane's `get_latest_build_number` action.
+/// A task that retrieves the latest uploaded build version and build number from TestFlight (App Store Connect),
+/// Google Play Console, or Firebase App Distribution based on the distribution method.
 struct GetLatestBuildNumberTask: Task {
     struct Input: Sendable {
         enum Target: Sendable {
-            case ios(bundleId: String, service: AppStoreService)
-            case android(packageName: String, service: GooglePlayService, track: String? = nil)
+            case ios(bundleId: String? = nil, service: AppStoreService? = nil, firebaseAppId: String? = nil)
+            case android(packageName: String? = nil, service: GooglePlayService? = nil, track: String? = nil, firebaseAppId: String? = nil)
         }
 
         let target: Target
+        let distribution: BuildCommand.Distribution
 
-        init(target: Target) {
+        init(target: Target, distribution: BuildCommand.Distribution = .appstore) {
             self.target = target
+            self.distribution = distribution
         }
     }
 
@@ -56,17 +69,50 @@ struct GetLatestBuildNumberTask: Task {
 
     @discardableResult
     func run(_ input: Input) async throws -> LatestBuildInfo {
-        switch input.target {
-        case .ios(let bundleId, let service):
-            return try await fetchLatestIOSBuild(bundleId: bundleId, service: service)
-        case .android(let packageName, let service, let track):
-            return try await fetchLatestAndroidBuild(packageName: packageName, service: service, trackFilter: track)
+        switch input.distribution {
+        case .development:
+            return try handleDevelopmentDistribution()
+
+        case .appstore:
+            switch input.target {
+            case .ios(let bundleId, let service, _):
+                guard let bundleId, !bundleId.isEmpty else {
+                    throw GetLatestBuildNumberError.missingConfiguration("Bundle ID is required for App Store distribution.")
+                }
+                guard let service else {
+                    throw GetLatestBuildNumberError.missingConfiguration("AppStoreService is required for App Store distribution.")
+                }
+                return try await fetchLatestTestFlightBuild(bundleId: bundleId, service: service)
+            case .android(let packageName, let service, let track, _):
+                guard let packageName, !packageName.isEmpty else {
+                    throw GetLatestBuildNumberError.missingConfiguration("Package name is required for Google Play distribution.")
+                }
+                guard let service else {
+                    throw GetLatestBuildNumberError.missingConfiguration("GooglePlayService is required for Google Play distribution.")
+                }
+                return try await fetchLatestGooglePlayBuild(packageName: packageName, service: service, trackFilter: track)
+            }
+
+        case .adhoc:
+            switch input.target {
+            case .ios(_, _, let firebaseAppId):
+                return try await fetchLatestFirebaseIOSBuild(firebaseAppId: firebaseAppId)
+            case .android(_, _, _, let firebaseAppId):
+                return try await fetchLatestFirebaseAndroidBuild(firebaseAppId: firebaseAppId)
+            }
         }
+    }
+
+    // MARK: - Development
+
+    private func handleDevelopmentDistribution() throws -> LatestBuildInfo {
+        print("⚠️  Warning: ".yellow.bold + "Development distribution cannot be checked remotely (development builds are not distributed).")
+        throw GetLatestBuildNumberError.developmentNotSupported
     }
 
     // MARK: - iOS (TestFlight / App Store Connect)
 
-    private func fetchLatestIOSBuild(bundleId: String, service: AppStoreService) async throws -> LatestBuildInfo {
+    private func fetchLatestTestFlightBuild(bundleId: String, service: AppStoreService) async throws -> LatestBuildInfo {
         // 1. Fetch App by bundle ID
         let appsResponse = try await service.client.apps_getCollection(.init(
             query: .init(filter_lbrack_bundleId_rbrack_: [bundleId])
@@ -122,7 +168,7 @@ struct GetLatestBuildNumberTask: Task {
 
     // MARK: - Android (Google Play Console)
 
-    private func fetchLatestAndroidBuild(
+    private func fetchLatestGooglePlayBuild(
         packageName: String,
         service: GooglePlayService,
         trackFilter: String?
@@ -186,5 +232,59 @@ struct GetLatestBuildNumberTask: Task {
             version: resolvedVersionName,
             buildNumber: String(maxVersionCode)
         )
+    }
+
+    // MARK: - AdHoc (Firebase App Distribution)
+
+    private func fetchLatestFirebaseIOSBuild(firebaseAppId: String?) async throws -> LatestBuildInfo {
+        let env = ProcessInfo.processInfo.environment
+        guard let appId = firebaseAppId ?? env["FIREBASE_IOS_APP_ID"], !appId.isEmpty else {
+            throw GetLatestBuildNumberError.missingConfiguration(
+                "Missing Firebase App ID for iOS. Provide --firebase-app-id or set FIREBASE_IOS_APP_ID in .env."
+            )
+        }
+        return try await fetchLatestFirebaseAppDistributionBuild(appId: appId)
+    }
+
+    private func fetchLatestFirebaseAndroidBuild(firebaseAppId: String?) async throws -> LatestBuildInfo {
+        let env = ProcessInfo.processInfo.environment
+        guard let appId = firebaseAppId ?? env["FIREBASE_ANDROID_APP_ID"], !appId.isEmpty else {
+            throw GetLatestBuildNumberError.missingConfiguration(
+                "Missing Firebase App ID for Android. Provide --firebase-app-id or set FIREBASE_ANDROID_APP_ID in .env."
+            )
+        }
+        return try await fetchLatestFirebaseAppDistributionBuild(appId: appId)
+    }
+
+    private func fetchLatestFirebaseAppDistributionBuild(appId: String) async throws -> LatestBuildInfo {
+        guard let service = try FirebaseService.makeService() else {
+            throw GetLatestBuildNumberError.unauthorized(
+                "Missing Firebase credentials. Provide FIREBASE_TOKEN or GOOGLE_KEY / GOOGLE_APPLICATION_CREDENTIALS in .env."
+            )
+        }
+
+        let segments = appId.split(separator: ":")
+        let projectNumber = segments.count >= 2 ? String(segments[1]) : "-"
+
+        let response = try await service.appDistribution.firebaseappdistribution_period_projects_period_apps_period_releases_period_list(.init(
+            path: .init(parent: "projects/\(projectNumber)/apps/\(appId)"),
+            query: .init(pageSize: 1)
+        ))
+
+        switch response {
+        case .ok(let okResponse):
+            guard case .json(let payload) = okResponse.body else {
+                throw GetLatestBuildNumberError.apiError("Failed to decode JSON response from Firebase App Distribution.")
+            }
+            guard let latestRelease = payload.releases?.first else {
+                return LatestBuildInfo(version: "1.0.0", buildNumber: "0")
+            }
+            return LatestBuildInfo(
+                version: latestRelease.displayVersion ?? "1.0.0",
+                buildNumber: latestRelease.buildVersion ?? "0"
+            )
+        case .undocumented(let statusCode, _):
+            throw GetLatestBuildNumberError.apiError("Firebase App Distribution API returned HTTP \(statusCode)")
+        }
     }
 }

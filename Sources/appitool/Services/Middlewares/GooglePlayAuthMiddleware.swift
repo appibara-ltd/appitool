@@ -122,6 +122,11 @@ public struct GooglePlayAuthMiddleware: ClientMiddleware {
         }
     }
 
+    /// Obtains a valid OAuth 2.0 access token for Google Cloud / Firebase APIs.
+    public func getAccessToken() async throws -> String {
+        try await tokenProvider()
+    }
+
     // MARK: - ClientMiddleware
 
     public func intercept(
