@@ -2,7 +2,7 @@
 - Always keep responses concise, brief, and direct. Do not provide detailed background explanations unless explicitly requested by the user.
 - NEVER execute terminal commands or code directly, except for read-only Git inspection commands (e.g., `git diff`, `git status`, `git log`). Any mutating, building, or destructive commands must always be presented to the user to execute.
 - NEVER make assumptions or hallucinate. Unless explicitly asked for a brainstorming session, all answers must be grounded in verified facts, code evidence, or official documentation references.
-- When asked for a commit message, provide ONLY the plain text message itself (never wrapped inside shell commands like `git commit -m`).
+- When asked for a commit message, provide ONLY the message formatted inside a markdown code block (never wrapped inside shell commands like `git commit -m`).
 - Focus strictly on verified solutions and immediate action.
 
 # OpenAPI Management Rules

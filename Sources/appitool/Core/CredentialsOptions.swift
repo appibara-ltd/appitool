@@ -29,19 +29,6 @@ struct AppleCredentialsOptions: ParsableArguments, Sendable {
         guard let creds = resolve() else { return nil }
         return try AppStoreService(keyId: creds.keyId, issuerId: creds.issuerId, key: creds.key)
     }
-
-    /// Applies any provided CLI flags over environment variables.
-    func applyEnvironmentOverrides() {
-        if let appleKeyId, !appleKeyId.isEmpty {
-            EnvLoader.setEnvironmentVariable(key: "APPLE_KEY_ID", value: appleKeyId)
-        }
-        if let appleIssuerId, !appleIssuerId.isEmpty {
-            EnvLoader.setEnvironmentVariable(key: "APPLE_ISSUER_ID", value: appleIssuerId)
-        }
-        if let appleKey, !appleKey.isEmpty {
-            EnvLoader.setEnvironmentVariable(key: "APPLE_KEY", value: appleKey)
-        }
-    }
 }
 
 /// Reusable CLI options and environment resolution for Google Play credentials.
@@ -62,13 +49,6 @@ struct GoogleCredentialsOptions: ParsableArguments, Sendable {
     func makeService() throws -> GooglePlayService? {
         guard let key = resolveKey() else { return nil }
         return try GooglePlayService(key: key)
-    }
-
-    /// Applies any provided CLI flags over environment variables.
-    func applyEnvironmentOverrides() {
-        if let googleKey, !googleKey.isEmpty {
-            EnvLoader.setEnvironmentVariable(key: "GOOGLE_KEY", value: googleKey)
-        }
     }
 }
 
@@ -91,16 +71,6 @@ struct FirebaseCredentialsOptions: ParsableArguments, Sendable {
             return try FirebaseService(key: resolvedGoogleKey)
         }
         return nil
-    }
-
-    /// Applies any provided CLI flags over environment variables.
-    func applyEnvironmentOverrides(platformAppIdKey: String) {
-        if let firebaseAppId, !firebaseAppId.isEmpty {
-            EnvLoader.setEnvironmentVariable(key: platformAppIdKey, value: firebaseAppId)
-        }
-        if let firebaseToken, !firebaseToken.isEmpty {
-            EnvLoader.setEnvironmentVariable(key: "FIREBASE_TOKEN", value: firebaseToken)
-        }
     }
 }
 
@@ -131,25 +101,5 @@ struct NotificationOptions: ParsableArguments, Sendable {
             resolvedKokono?.isEmpty == false ? resolvedKokono : nil,
             resolvedKey?.isEmpty == false ? resolvedKey : nil
         )
-    }
-
-    /// Applies any provided CLI flags over environment variables.
-    func applyEnvironmentOverrides() {
-        if let slackUrl, !slackUrl.isEmpty {
-            EnvLoader.setEnvironmentVariable(key: "SLACK_URL", value: slackUrl)
-        }
-        if let kokonoUrl, !kokonoUrl.isEmpty {
-            EnvLoader.setEnvironmentVariable(key: "KOKONO_URL", value: kokonoUrl)
-            // Per-URL Keypair Isolation:
-            // When kokonoUrl is overridden, public key must also be provided via CLI;
-            // otherwise clear KOKONO_E2E_PUBLIC_KEY so the .env key is not used for a different URL.
-            if let kokonoPublicKey, !kokonoPublicKey.isEmpty {
-                EnvLoader.setEnvironmentVariable(key: "KOKONO_E2E_PUBLIC_KEY", value: kokonoPublicKey)
-            } else {
-                EnvLoader.setEnvironmentVariable(key: "KOKONO_E2E_PUBLIC_KEY", value: "")
-            }
-        } else if let kokonoPublicKey, !kokonoPublicKey.isEmpty {
-            EnvLoader.setEnvironmentVariable(key: "KOKONO_E2E_PUBLIC_KEY", value: kokonoPublicKey)
-        }
     }
 }

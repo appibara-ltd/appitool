@@ -11,6 +11,7 @@ struct FlowRunner: Sendable {
     let platform: FlowContext.Platform
     let distribution: BuildCommand.Distribution
     let isDryRun: Bool
+    let bundleId: String?
     let slackUrl: String?
     let kokonoUrl: String?
     let kokonoPublicKey: String?
@@ -19,6 +20,7 @@ struct FlowRunner: Sendable {
         platform: FlowContext.Platform,
         distribution: BuildCommand.Distribution,
         isDryRun: Bool = false,
+        bundleId: String? = nil,
         slackUrl: String? = nil,
         kokonoUrl: String? = nil,
         kokonoPublicKey: String? = nil
@@ -26,6 +28,7 @@ struct FlowRunner: Sendable {
         self.platform = platform
         self.distribution = distribution
         self.isDryRun = isDryRun
+        self.bundleId = bundleId
         self.slackUrl = slackUrl
         self.kokonoUrl = kokonoUrl
         self.kokonoPublicKey = kokonoPublicKey
@@ -39,6 +42,7 @@ struct FlowRunner: Sendable {
             platform: platform,
             distribution: distribution,
             isDryRun: isDryRun,
+            bundleId: bundleId,
             slackUrl: slackUrl,
             kokonoUrl: kokonoUrl,
             kokonoPublicKey: kokonoPublicKey
@@ -120,8 +124,9 @@ struct FlowRunner: Sendable {
             "Failing Stage": "\(stage.emoji) \(stage.displayName)",
             "Elapsed Time": String(format: "%.2fs", totalDuration),
         ]
-        if let appId = context.appId {
-            metadata["App ID"] = appId
+        if let bundleId = context.bundleId {
+            let key = context.platform == .ios ? "Bundle ID" : "Package Name"
+            metadata[key] = bundleId
         }
 
         await NotifyTask().notifyAllConfigured(

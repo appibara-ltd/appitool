@@ -28,20 +28,14 @@ struct FlowIOSCommand: AsyncParsableCommand {
     func run() async throws {
         _ = try? EnvLoader.loadEnv()
 
-        // Apply CLI option overrides to process environment
-        if let bundleId, !bundleId.isEmpty {
-            EnvLoader.setEnvironmentVariable(key: "APPLE_BUNDLE_ID", value: bundleId)
-        }
-        appleCredentials.applyEnvironmentOverrides()
-        firebaseCredentials.applyEnvironmentOverrides(platformAppIdKey: "FIREBASE_IOS_APP_ID")
-        notificationOptions.applyEnvironmentOverrides()
-
         let notifications = notificationOptions.resolve()
+        let resolvedBundleId = bundleId ?? ProcessInfo.processInfo.environment["APPLE_BUNDLE_ID"]
 
         let runner = FlowRunner(
             platform: .ios,
             distribution: distribution,
             isDryRun: dryRun,
+            bundleId: resolvedBundleId,
             slackUrl: notifications.slackUrl,
             kokonoUrl: notifications.kokonoUrl,
             kokonoPublicKey: notifications.kokonoPublicKey

@@ -28,20 +28,14 @@ struct FlowAndroidCommand: AsyncParsableCommand {
     func run() async throws {
         _ = try? EnvLoader.loadEnv()
 
-        // Apply CLI option overrides to process environment
-        if let packageName, !packageName.isEmpty {
-            EnvLoader.setEnvironmentVariable(key: "GOOGLE_PACKAGE_NAME", value: packageName)
-        }
-        googleCredentials.applyEnvironmentOverrides()
-        firebaseCredentials.applyEnvironmentOverrides(platformAppIdKey: "FIREBASE_ANDROID_APP_ID")
-        notificationOptions.applyEnvironmentOverrides()
-
         let notifications = notificationOptions.resolve()
+        let resolvedPackageName = packageName ?? ProcessInfo.processInfo.environment["GOOGLE_PACKAGE_NAME"]
 
         let runner = FlowRunner(
             platform: .android,
             distribution: distribution,
             isDryRun: dryRun,
+            bundleId: resolvedPackageName,
             slackUrl: notifications.slackUrl,
             kokonoUrl: notifications.kokonoUrl,
             kokonoPublicKey: notifications.kokonoPublicKey

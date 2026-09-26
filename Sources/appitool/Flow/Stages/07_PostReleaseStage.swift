@@ -19,8 +19,9 @@ struct PostReleaseStage: FlowStageHandler {
         if let buildNumber = context.buildNumber {
             metadata["Build Number"] = buildNumber
         }
-        if let appId = context.appId {
-            metadata["App ID"] = appId
+        if let bundleId = context.bundleId {
+            let key = context.platform == .ios ? "Bundle ID" : "Package Name"
+            metadata[key] = bundleId
         }
 
         await NotifyTask().notifyAllConfigured(

@@ -153,7 +153,7 @@ struct NotifyTask: Task {
         }
 
         // Format metadata fields
-        let preferredOrder = ["Platform", "Distribution", "Version", "Build Number", "App ID", "Failing Stage", "Elapsed Time", "Total Duration"]
+        let preferredOrder = ["Platform", "Distribution", "Version", "Build Number", "Bundle ID", "Package Name", "Failing Stage", "Elapsed Time", "Total Duration"]
         let sortedMetadata = input.metadata.sorted { first, second in
             let index1 = preferredOrder.firstIndex(of: first.key) ?? Int.max
             let index2 = preferredOrder.firstIndex(of: second.key) ?? Int.max
@@ -296,7 +296,7 @@ struct NotifyTask: Task {
         var fullMessage: String
 
         if !input.metadata.isEmpty {
-            let preferredOrder = ["Platform", "Distribution", "Version", "Build Number", "App ID", "Failing Stage", "Elapsed Time", "Total Duration"]
+            let preferredOrder = ["Platform", "Distribution", "Version", "Build Number", "Bundle ID", "Package Name", "Failing Stage", "Elapsed Time", "Total Duration"]
             let sortedMetadata = input.metadata.sorted { first, second in
                 let index1 = preferredOrder.firstIndex(of: first.key) ?? Int.max
                 let index2 = preferredOrder.firstIndex(of: second.key) ?? Int.max

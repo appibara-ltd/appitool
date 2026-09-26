@@ -25,7 +25,7 @@ struct FlowContext: Sendable {
     var stageDurations: [FlowStage: TimeInterval] = [:]
 
     // Configuration / Project Identifiers
-    var appId: String? // Bundle ID (iOS) or Package Name (Android)
+    var bundleId: String? // Bundle ID (iOS) or Package Name (Android)
     var projectPath: URL?
 
     // Pre-build state
@@ -51,6 +51,7 @@ struct FlowContext: Sendable {
         distribution: BuildCommand.Distribution,
         projectDirectory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
         isDryRun: Bool = false,
+        bundleId: String? = nil,
         slackUrl: String? = nil,
         kokonoUrl: String? = nil,
         kokonoPublicKey: String? = nil
@@ -60,6 +61,7 @@ struct FlowContext: Sendable {
         self.projectDirectory = projectDirectory
         self.isDryRun = isDryRun
         self.startTime = Date()
+        self.bundleId = bundleId
         self.slackUrl = slackUrl
         self.kokonoUrl = kokonoUrl
         self.kokonoPublicKey = kokonoPublicKey
