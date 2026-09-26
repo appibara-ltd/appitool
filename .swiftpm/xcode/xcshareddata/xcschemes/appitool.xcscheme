@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
    LastUpgradeVersion = "2710"
-   version = "1.7">
+   version = "1.3">
    <BuildAction
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES"
       buildArchitectures = "Automatic">
       <BuildActionEntries>
          <BuildActionEntry
-            buildForTesting = "YES"
+            buildForTesting = "NO"
             buildForRunning = "YES"
             buildForProfiling = "YES"
             buildForArchiving = "YES"
@@ -26,8 +26,7 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      shouldUseLaunchSchemeArgsEnv = "YES"
-      shouldAutocreateTestPlan = "YES">
+      shouldUseLaunchSchemeArgsEnv = "YES">
       <Testables>
          <TestableReference
             skipped = "NO">
@@ -60,6 +59,33 @@
             ReferencedContainer = "container:">
          </BuildableReference>
       </BuildableProductRunnable>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "APPLE_KEY_ID"
+            value = "52RM7MZ6ZC"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "APPLE_ISSUER_ID"
+            value = "e4fa720d-5b65-4809-b947-b9648de65d1b"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "APPLE_KEY"
+            value = "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JR1RBZ0VBTUJNR0J5cUdTTTQ5QWdFR0NDcUdTTTQ5QXdFSEJIa3dkd0lCQVFRZ3VmdTRsRXI2bVpQYnlBd0QKZUk1dGllTlYzN0ZqM2c5K2FJaW95aDRsVCtLZ0NnWUlLb1pJemowREFRZWhSQU5DQUFUWG0xS3Nuc2ZrWnhsWApRWlUzUW9pWEszMGlkZjZpRktiWklJdFg5QzdNM1NIVG5oa1RXSmw0QnNRUG96azJESWpXNnVLRlhRakRtR2dTCmE1T2lPRm1HCi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0="
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "GOOGLE_KEY"
+            value = "ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAia29rb25vLWVhNDJmIiwKICAicHJpdmF0ZV9rZXlfaWQiOiAiNTcxMzRhNjhiNzZhNjRmNjEwZjI2M2MwNzAzNGEwYTQyMTFkZTA3NyIsCiAgInByaXZhdGVfa2V5IjogIi0tLS0tQkVHSU4gUFJJVkFURSBLRVktLS0tLVxuTUlJRXZRSUJBREFOQmdrcWhraUc5dzBCQVFFRkFBU0NCS2N3Z2dTakFnRUFBb0lCQVFEV2g2Wm9BaUFzN0FVclxuMGpNTEJCMXFjbWxFZ0VraW1lSGUyUHVOQkFGYWcxTnpvbkoxdEhWcU9USjl1N1poTFBmOWNpRkE5SDg1S0lTOFxuMmxJUk0yR094MzRkRDQxMlg4V2RNWlBycWwrYVg4U0pyejJNUTR6ZmhMWW1kVEF6MHNPdWxMS0ZWTEJiSjBoQVxuV3VDVlpLWWFPUndIR3pCRFd6bmdsMGJlM1haOVVwdUFMeThuYi9PNTgyeDZ1WUtBc0RjOXE3UDVtdU9ZaG9DMFxub3F5YUI0OEZSelJ5VHZKOWZyMFp4eG1hc2xCL3l4Mm54MjBibk1qZEx0L3NNaUVlZjJQbW54K2JPRlZySzkvQ1xuMnJJMU1qbnVleG5BRTNkWi90TU9EZGhGR1c0VFdTRXZWTFhST1dOdmtrQ2tCckpzb0JTM3dmRVBsUy93VDVDcVxudVU2cjRocHpBZ01CQUFFQ2dnRUFBMFU5aVJsaG1NcUZpSFhKL2dTelYwMHhhajBHMDVtMlhJQU51YTY0cGlsTVxua2JEU1phOHNmM2NwOWNva3M3eFpRK1AzYlowc2w3NlVzRUphbG9oWGZvQUpFUTFaaTZQdjdwa05sMWR5NFhibVxuZmRXbmxRenVMaWp6NExzMmJHaWhESGN4cVNBWUY4YmExTks2cFkrWVdFSXliTEFiNi9MenlEbzhrTm8zcUlRRFxuMVZVeTQrUHJQK0x0aitCdjkvNHFSTytMeW1ObG5vK0IyV2xtNnUrakVON1RVR1hHamF3TlhlRUo5NjdTbXY2RlxuVG5GUW5OVXNOM1FQa3J6V3pITVE2c0hUOXdRV2hPTGhhYXpJRWRmUmQ3RDZGd3ljS0dDYnhyRTRWZ1VjRjRxNVxuTFJOOUhpeC82KzdRY1hpeXd1QnRCQ0ZwRTZQNVZ0MVptZUlqSUI2UEVRS0JnUUR0RmE2ZGhCYlBJdG1uYVQvTVxuL1B0cFZPQmRqaXFrSTAwbG1ZWEV0NzI5dFNmZ3BGc0tUaHhUZjNJcXZ3MkFVM0N5RlIxZ09LZGRRUTNRYnpIUlxuTU45ZmJ1WHR4RzQyTEREUUdjMlJBZmVJbVVUSCtYdjZqb0lPN2NFK29pQVZzRURtT0hMdnl3UkZWL3F0QWNKQVxuWXJuSzkyYmQvMlpYSGdOY3J1WlFMYmtSTVFLQmdRRG5wVXlGeHdOZlVTRTlROHlkRm9TS1NqV1FaVmZuYlk1UlxueGpYb0J5VmJBbWpydDcxL0JBM3NYL3lTb283aUFLaS83dlA3L1IraWI4RjZ6RTBzRHhKNzk3bUZxcG9SNEp4dlxuZWZVaWs5VFFEVzQ3MWZDZzJZbVc3VWpncDBybWdVWlNWUzhONFlMQnIrTHFKQmE1dlFpZjlXT0FxbVVzU3FCVlxuRklQWG02NmM0d0tCZ1FDUjIxZjg0aW1pTDMrV0pnTXhXcVpWcS9rSXRaRDRRQnVUT1RyNXhreStMSGduRlJaSlxuWmJxNWg5dTEvcW9RdThUR1dvVWpFRmV1NEhuZU5McUNSejMxR1dYdGZINk5aMngwYXB0MFRiQjY0a2hWZXVCU1xuU21BclRRd3BPMWJmNFBwY2FIZ1ZuR0c1UTZJZDA4b3RFRS9iVlk5OG5rYlk2OGNIdXpaSU40ajIwUUtCZ0FJRVxucTYwQ3RlSFB1Q1ZyZ00zaGsxZ05HM2hkbWExM2crVHNnQzI4V2pQM3ltZzdXcGhQdGJ0WWZyL2NVTGhoWHhjRlxuQXZVd0dHVjI2YzJqR0EwSk9KVUI3SWpnbXFVTE92R3hzMVFReTZyZ1l4UjhZYk5WRWVEUndtL0twVmxxeU8wUVxudHU4OUJzR2ZRYS9lanFBaHFJQ1VSOENvTzJkdVl3VTZ2NGRTWU93WEFvR0FFTzhTT3Z2amFBTHpUUEtqK2RqS1xuV2huanR1ZzA5WTBlZEpna0JuOVNlWUdzdUVNMjNIUGdFUmNINUpNcktIS1hTS1o1YzNNMzhqMS9PZm1NeEdkOVxuQ2x5WkI0aU1JbG5NakZsNGR5akw3d2xOdnJlS0pkUnN5cGJpMUJoVFluMTJjMWgwbnZXSUllNGVESFdCK2FhZ1xuSXBHcUxUOFFveHVuQldBWHczRHdZNFE9XG4tLS0tLUVORCBQUklWQVRFIEtFWS0tLS0tXG4iLAogICJjbGllbnRfZW1haWwiOiAiYXBwaXRvb2wtbWFuYWdlckBrb2tvbm8tZWE0MmYuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLAogICJjbGllbnRfaWQiOiAiMTEwODE1NjAyMjE1NjEwNTgwMDc0IiwKICAiYXV0aF91cmkiOiAiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLAogICJ0b2tlbl91cmkiOiAiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLAogICJhdXRoX3Byb3ZpZGVyX3g1MDlfY2VydF91cmwiOiAiaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vb2F1dGgyL3YxL2NlcnRzIiwKICAiY2xpZW50X3g1MDlfY2VydF91cmwiOiAiaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vcm9ib3QvdjEvbWV0YWRhdGEveDUwOS9hcHBpdG9vbC1tYW5hZ2VyJTQwa29rb25vLWVhNDJmLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwKICAidW5pdmVyc2VfZG9tYWluIjogImdvb2dsZWFwaXMuY29tIgp9Cg=="
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "GOOGLE_PACKAGE_NAME"
+            value = "com.appibara.kokono"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

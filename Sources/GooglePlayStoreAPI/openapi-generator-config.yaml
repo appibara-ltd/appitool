@@ -1,0 +1,10 @@
+generate:
+  - types
+  - client
+accessModifier: package
+filter:
+  paths:
+    - /androidpublisher/v3/applications/{packageName}/reviews
+    - /androidpublisher/v3/applications/{packageName}/edits
+    - /androidpublisher/v3/applications/{packageName}/edits/{editId}/tracks
+    - /androidpublisher/v3/applications/{packageName}/edits/{editId}

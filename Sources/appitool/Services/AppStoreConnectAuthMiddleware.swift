@@ -18,36 +18,16 @@ public struct AppStoreConnectAuthMiddleware: ClientMiddleware {
     /// Token validity duration in seconds (Apple allows maximum 20 minutes / 1200 seconds).
     private let tokenLifetime: TimeInterval
 
-    /// Initializes middleware with the private key content (PEM formatted or raw Base64 string).
+    /// Initializes middleware with the private key (file path, raw PEM string, or Base64 encoded).
     public init(
         keyId: String,
         issuerId: String,
-        privateKey: String,
+        key: String,
         tokenLifetime: TimeInterval = 19 * 60
     ) throws {
         self.keyId = keyId
         self.issuerId = issuerId
-        self.privateKey = try Self.parsePrivateKey(from: privateKey)
-        self.tokenLifetime = tokenLifetime
-        self.tokenCache = TokenCache()
-    }
-
-    /// Initializes middleware by reading the private key from a `.p8` file path.
-    public init(
-        keyId: String,
-        issuerId: String,
-        privateKeyPath: String,
-        tokenLifetime: TimeInterval = 19 * 60
-    ) throws {
-        var path = privateKeyPath
-        if path.hasPrefix("~/") {
-            let home = FileManager.default.homeDirectoryForCurrentUser.path
-            path = home + path.dropFirst()
-        }
-        let keyContent = try String(contentsOfFile: path, encoding: .utf8)
-        self.keyId = keyId
-        self.issuerId = issuerId
-        self.privateKey = try Self.parsePrivateKey(from: keyContent)
+        self.privateKey = try Self.parsePrivateKey(from: key)
         self.tokenLifetime = tokenLifetime
         self.tokenCache = TokenCache()
     }
@@ -118,61 +98,90 @@ public struct AppStoreConnectAuthMiddleware: ClientMiddleware {
 
     // MARK: - Key Parsing & Format Detection
 
-    /// Checks whether a given string is Base64 encoded.
+    /// Checks whether a given string is Base64 encoded (with or without padding).
     public static func isBase64Encoded(_ string: String) -> Bool {
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.count % 4 == 0 else { return false }
-        return Data(base64Encoded: trimmed, options: [.ignoreUnknownCharacters]) != nil
+        guard !trimmed.isEmpty else { return false }
+        let remainder = trimmed.count % 4
+        let padded = remainder == 0 ? trimmed : trimmed + String(repeating: "=", count: 4 - remainder)
+        return Data(base64Encoded: padded, options: [.ignoreUnknownCharacters]) != nil
     }
 
     /// Automatically detects and parses the private key from:
     /// - A file path (e.g. `./AuthKey_XXX.p8` or `~/AuthKey_XXX.p8`)
     /// - Base64-encoded `.p8` file content (commonly used in .env / CI/CD)
     /// - Direct PEM formatted string (`-----BEGIN PRIVATE KEY-----`)
-    /// - Raw DER binary encoded in Base64
+    /// - Raw DER binary encoded in Base64 (with or without padding)
     public static func parsePrivateKey(from raw: String) throws -> P256.Signing.PrivateKey {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        var trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Strip surrounding quotes if any (e.g. "..." or '...')
+        if (trimmed.hasPrefix("\"") && trimmed.hasSuffix("\"")) || (trimmed.hasPrefix("'") && trimmed.hasSuffix("'")) {
+            trimmed = String(trimmed.dropFirst().dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        // Replace literal escaped newlines "\n" with real newlines
+        trimmed = trimmed.replacingOccurrences(of: "\\n", with: "\n")
 
         // 1. Is it a file path on disk?
         var filePath = trimmed
-        if filePath.hasPrefix("~/") {
-            let home = FileManager.default.homeDirectoryForCurrentUser.path
-            filePath = home + filePath.dropFirst()
+        if filePath.hasPrefix("~/") || filePath.hasPrefix("~\\") {
+            let subpath = String(filePath.dropFirst(2))
+            filePath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(subpath).path
         }
         if FileManager.default.fileExists(atPath: filePath) {
             let fileContent = try String(contentsOfFile: filePath, encoding: .utf8)
             return try parsePrivateKey(from: fileContent)
         }
 
-        // 2. Is it a direct PEM string?
+        // 2. Is it a direct PEM string (contains PEM markers)?
         if trimmed.contains("-----BEGIN") {
+            // Extract the base64 DER content between BEGIN and END markers
+            if let derData = extractDERFromPEM(trimmed),
+               let key = try? P256.Signing.PrivateKey(derRepresentation: derData) {
+                return key
+            }
+            // Fallback to CryptoKit's standard PEM parser
             return try P256.Signing.PrivateKey(pemRepresentation: trimmed)
         }
 
-        // 3. Is it Base64 encoded?
-        if isBase64Encoded(trimmed),
-           let decodedData = Data(base64Encoded: trimmed, options: [.ignoreUnknownCharacters]) {
+        // 3. Could it be Base64 encoded? (either Base64 of PEM string, or Base64 of raw DER bytes)
+        let unpadded = trimmed.filter { !$0.isWhitespace }
+        let remainder = unpadded.count % 4
+        let paddedBase64 = remainder == 0 ? unpadded : unpadded + String(repeating: "=", count: 4 - remainder)
+
+        if let decodedData = Data(base64Encoded: paddedBase64, options: [.ignoreUnknownCharacters]) {
             // 3a. Base64 of the entire .p8 file (decodes to PEM text)
             if let decodedString = String(data: decodedData, encoding: .utf8),
                decodedString.contains("-----BEGIN") {
-                return try P256.Signing.PrivateKey(pemRepresentation: decodedString)
+                return try parsePrivateKey(from: decodedString)
             }
 
-            // 3b. Base64 of raw PKCS#8 DER bytes
+            // 3b. Base64 of raw PKCS#8 or SEC1 DER bytes
             if let keyFromDER = try? P256.Signing.PrivateKey(derRepresentation: decodedData) {
                 return keyFromDER
             }
         }
 
-        // 4. Raw key body without headers (wrap as PEM)
-        let pem = """
-        -----BEGIN PRIVATE KEY-----
-        \(trimmed)
-        -----END PRIVATE KEY-----
-        """
-        return try P256.Signing.PrivateKey(pemRepresentation: pem)
+        // 4. Fallback: attempt standard CryptoKit PEM parsing
+        return try P256.Signing.PrivateKey(pemRepresentation: trimmed)
+    }
+
+
+    /// Helper to extract raw DER data from a PEM-formatted string.
+    private static func extractDERFromPEM(_ pem: String) -> Data? {
+        let lines = pem.components(separatedBy: .newlines)
+        let base64Lines = lines.filter { line in
+            let t = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            return !t.isEmpty && !t.hasPrefix("-----")
+        }
+        let base64String = base64Lines.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+        let remainder = base64String.count % 4
+        let padded = remainder == 0 ? base64String : base64String + String(repeating: "=", count: 4 - remainder)
+        return Data(base64Encoded: padded, options: [.ignoreUnknownCharacters])
     }
 }
+
 
 // MARK: - Thread-Safe Token Cache
 
@@ -182,19 +191,18 @@ private final class TokenCache: @unchecked Sendable {
     private var tokenExpiration: Date = .distantPast
 
     func validToken(generate: () throws -> (token: String, expiration: Date)) throws -> String {
-        lock.lock()
-        defer { lock.unlock() }
+        try lock.withLock {
+            let now = Date()
+            // Refresh token if within 60 seconds of expiration
+            if let cachedToken, now < tokenExpiration.addingTimeInterval(-60) {
+                return cachedToken
+            }
 
-        let now = Date()
-        // Refresh token if within 60 seconds of expiration
-        if let cachedToken, now < tokenExpiration.addingTimeInterval(-60) {
-            return cachedToken
+            let (newToken, expiration) = try generate()
+            self.cachedToken = newToken
+            self.tokenExpiration = expiration
+            return newToken
         }
-
-        let (newToken, expiration) = try generate()
-        self.cachedToken = newToken
-        self.tokenExpiration = expiration
-        return newToken
     }
 }
 
