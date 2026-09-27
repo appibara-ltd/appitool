@@ -66,7 +66,7 @@ struct FirebaseCredentialsOptions: ParsableArguments, Sendable {
         if let token = firebaseToken ?? env["FIREBASE_TOKEN"], !token.isEmpty {
             return try FirebaseService(token: token)
         }
-        let resolvedGoogleKey = googleKey ?? env["GOOGLE_KEY"] ?? env["GOOGLE_APPLICATION_CREDENTIALS"]
+        let resolvedGoogleKey = googleKey ?? env["GOOGLE_KEY"]
         if let resolvedGoogleKey, !resolvedGoogleKey.isEmpty {
             return try FirebaseService(key: resolvedGoogleKey)
         }
