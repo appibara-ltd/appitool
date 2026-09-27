@@ -14,7 +14,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+
+      - name: Setup Swift 6.4
+        uses: swift-actions/setup-swift@v3
+        with:
+          swift-version: "6.4"
 
       - name: Build and Package (Apple Silicon arm64)
         run: |
