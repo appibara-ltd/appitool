@@ -100,68 +100,78 @@ PATH_NEEDS_RELOAD=0
 UPDATED_RC=""
 
 if [ "$INSTALL_DIR" = "$HOME/.local/bin" ]; then
+    CURRENT_SHELL="$(basename "${SHELL:-}")"
+    RC_FILE=""
+
+    case "$CURRENT_SHELL" in
+        zsh)
+            RC_FILE="$HOME/.zshrc"
+            ;;
+        bash)
+            if [ -f "$HOME/.bash_profile" ]; then
+                RC_FILE="$HOME/.bash_profile"
+            elif [ -f "$HOME/.bashrc" ]; then
+                RC_FILE="$HOME/.bashrc"
+            else
+                RC_FILE="$HOME/.bash_profile"
+            fi
+            ;;
+        fish)
+            FISH_CONF_DIR="$HOME/.config/fish"
+            mkdir -p "$FISH_CONF_DIR"
+            RC_FILE="$FISH_CONF_DIR/config.fish"
+            ;;
+        *)
+            if [ -f "$HOME/.zshrc" ]; then
+                RC_FILE="$HOME/.zshrc"
+            elif [ -f "$HOME/.bash_profile" ]; then
+                RC_FILE="$HOME/.bash_profile"
+            elif [ -f "$HOME/.bashrc" ]; then
+                RC_FILE="$HOME/.bashrc"
+            else
+                RC_FILE="$HOME/.profile"
+            fi
+            ;;
+    esac
+
+    # Ensure RC_FILE exists
+    touch "$RC_FILE"
+
+    # Check if an active (uncommented) PATH export for ~/.local/bin exists in RC_FILE
+    if grep -E '^[[:space:]]*(export[[:space:]]+)?PATH=.*\.local/bin' "$RC_FILE" >/dev/null 2>&1 || \
+       grep -E '^[[:space:]]*fish_add_path.*\.local/bin' "$RC_FILE" >/dev/null 2>&1; then
+        : # Already explicitly in rc file
+    else
+        echo "" >> "$RC_FILE"
+        echo '# Added by appitool installer' >> "$RC_FILE"
+        if [ "$CURRENT_SHELL" = "fish" ]; then
+            echo 'fish_add_path -g $HOME/.local/bin' >> "$RC_FILE"
+        else
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$RC_FILE"
+        fi
+        PATH_NEEDS_RELOAD=1
+        UPDATED_RC="$RC_FILE"
+    fi
+
+    # Check if ~/.local/bin is actually in the current running environment's PATH
     case ":$PATH:" in
         *":$HOME/.local/bin:"*) ;;
         *)
-            CURRENT_SHELL="$(basename "${SHELL:-}")"
-            RC_FILE=""
-
-            case "$CURRENT_SHELL" in
-                zsh)
-                    RC_FILE="$HOME/.zshrc"
-                    ;;
-                bash)
-                    if [ -f "$HOME/.bash_profile" ]; then
-                        RC_FILE="$HOME/.bash_profile"
-                    elif [ -f "$HOME/.bashrc" ]; then
-                        RC_FILE="$HOME/.bashrc"
-                    else
-                        RC_FILE="$HOME/.bash_profile"
-                    fi
-                    ;;
-                fish)
-                    FISH_CONF_DIR="$HOME/.config/fish"
-                    mkdir -p "$FISH_CONF_DIR"
-                    RC_FILE="$FISH_CONF_DIR/config.fish"
-                    ;;
-                *)
-                    if [ -f "$HOME/.zshrc" ]; then
-                        RC_FILE="$HOME/.zshrc"
-                    elif [ -f "$HOME/.bash_profile" ]; then
-                        RC_FILE="$HOME/.bash_profile"
-                    elif [ -f "$HOME/.bashrc" ]; then
-                        RC_FILE="$HOME/.bashrc"
-                    else
-                        RC_FILE="$HOME/.profile"
-                    fi
-                    ;;
-            esac
-
-            if [ -n "$RC_FILE" ]; then
-                if [ -f "$RC_FILE" ] && grep -q '\.local/bin' "$RC_FILE"; then
-                    : # Already configured
-                else
-                    if [ "$CURRENT_SHELL" = "fish" ]; then
-                        echo "" >> "$RC_FILE"
-                        echo '# Added by appitool installer' >> "$RC_FILE"
-                        echo 'fish_add_path -g $HOME/.local/bin' >> "$RC_FILE"
-                    else
-                        echo "" >> "$RC_FILE"
-                        echo '# Added by appitool installer' >> "$RC_FILE"
-                        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$RC_FILE"
-                    fi
-                    PATH_NEEDS_RELOAD=1
-                    UPDATED_RC="$RC_FILE"
-                fi
-            fi
+            PATH_NEEDS_RELOAD=1
+            UPDATED_RC="${UPDATED_RC:-$RC_FILE}"
             ;;
     esac
 fi
 
-echo "🎉 appitool ${TAG_NAME} installed successfully!"
-if [ "$PATH_NEEDS_RELOAD" -eq 1 ]; then
-    echo "   ⚠️  Note: Added ~/.local/bin to ${UPDATED_RC}."
-    echo "   Please run 'source ${UPDATED_RC}' or open a new terminal window to start using 'appitool'."
+echo "🎉 appitool ${TAG_NAME} installed successfully to ${INSTALL_DIR}/appitool!"
+if [ "$PATH_NEEDS_RELOAD" -eq 1 ] && [ -n "$UPDATED_RC" ]; then
+    echo ""
+    echo "   ⚠️  PATH Configuration:"
+    echo "   Added ~/.local/bin to your ${UPDATED_RC}."
+    echo "   To start using 'appitool' in this terminal session, run:"
+    echo "       export PATH=\"\$HOME/.local/bin:\$PATH\""
+    echo "   Or reload your configuration:"
+    echo "       source ${UPDATED_RC}"
 else
     echo "   Run 'appitool --help' to get started."
 fi
