@@ -129,10 +129,23 @@ struct FlowRunner: Sendable {
             metadata[key] = bundleId
         }
 
+        let title = "💥 AppiFlow \(context.platform.icon) \(context.distribution.icon)"
+        let message = error.localizedDescription
+
+        guard !context.isDryRun else {
+            print("   ℹ Skipping failure notifications (dry-run mode).".yellow)
+            print("     Title:   \(title)".dim)
+            print("     Message: \(message)".dim)
+            for (key, value) in metadata.sorted(by: { $0.key < $1.key }) {
+                print("     • \(key): \(value)".dim)
+            }
+            return
+        }
+
         await NotifyTask().notifyAllConfigured(
             status: .failure,
-            title: "💥 AppiFlow \(context.platform.icon) \(context.distribution.icon)",
-            message: error.localizedDescription,
+            title: title,
+            message: message,
             metadata: metadata,
             slackUrl: context.slackUrl,
             kokonoUrl: context.kokonoUrl,
