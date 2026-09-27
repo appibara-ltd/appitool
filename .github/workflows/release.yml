@@ -8,6 +8,11 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-macos:
@@ -33,6 +38,11 @@ jobs:
 
           # Generate SHA256 checksum
           shasum -a 256 appitool-darwin-arm64.tar.gz > checksums.txt
+
+      - name: Generate Artifact Attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'appitool-darwin-arm64.tar.gz'
 
       - name: Create GitHub Release
         env:
