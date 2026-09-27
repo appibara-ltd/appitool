@@ -47,12 +47,12 @@ if [ -z "$RELEASE_JSON" ] || echo "$RELEASE_JSON" | grep -q '"message": *"Not Fo
     exit 1
 fi
 
-TAG_NAME="$(echo "$RELEASE_JSON" | grep -o '"tag_name": *"[^"]*"' | head -n 1 | cut -d'"' -f4 || true)"
-TARBALL_URL="$(echo "$RELEASE_JSON" | grep -o 'https://[^"]*appitool-darwin-arm64\.tar\.gz' | head -n 1 || true)"
-CHECKSUMS_URL="$(echo "$RELEASE_JSON" | grep -o 'https://[^"]*checksums\.txt' | head -n 1 || true)"
+TAG_NAME="$(echo "$RELEASE_JSON" | awk -F'"' '/"tag_name":/ { print $4; exit }')"
+TARBALL_URL="$(echo "$RELEASE_JSON" | awk -F'"' '/"name": *"appitool-darwin-arm64\.tar\.gz"/ { found=1 } found && /"browser_download_url":/ { print $4; exit }')"
+CHECKSUMS_URL="$(echo "$RELEASE_JSON" | awk -F'"' '/"name": *"checksums\.txt"/ { found=1 } found && /"browser_download_url":/ { print $4; exit }')"
 
-TARBALL_API_URL="$(echo "$RELEASE_JSON" | grep -B 2 -A 5 'appitool-darwin-arm64\.tar\.gz' | grep -o 'https://api.github.com/repos/[^"]*/assets/[0-9]*' | head -n 1 || true)"
-CHECKSUMS_API_URL="$(echo "$RELEASE_JSON" | grep -B 2 -A 5 'checksums\.txt' | grep -o 'https://api.github.com/repos/[^"]*/assets/[0-9]*' | head -n 1 || true)"
+TARBALL_API_URL="$(echo "$RELEASE_JSON" | awk -F'"' '/"url":/ { last_url=$4 } /"name": *"appitool-darwin-arm64\.tar\.gz"/ { print last_url; exit }')"
+CHECKSUMS_API_URL="$(echo "$RELEASE_JSON" | awk -F'"' '/"url":/ { last_url=$4 } /"name": *"checksums\.txt"/ { print last_url; exit }')"
 
 if [ -z "$TARBALL_URL" ] || [ -z "$CHECKSUMS_URL" ]; then
     echo "❌ Error: Could not locate release artifacts for arm64 macOS (${TAG_NAME:-unknown})." >&2
