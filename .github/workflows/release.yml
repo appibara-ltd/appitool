@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build and Package (Apple Silicon arm64)
+        run: |
+          swift build -c release --arch arm64
+          BIN_PATH="$(swift build -c release --arch arm64 --show-bin-path)/appitool"
+          strip "$BIN_PATH"
+          codesign --force --sign - "$BIN_PATH"
+
+          # Create tar.gz archive
+          tar -czf appitool-darwin-arm64.tar.gz -C "$(dirname "$BIN_PATH")" appitool
+
+          # Generate SHA256 checksum
+          shasum -a 256 appitool-darwin-arm64.tar.gz > checksums.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            appitool-darwin-arm64.tar.gz \
+            checksums.txt \
+            --title "${{ github.ref_name }}" \
+            --generate-notes

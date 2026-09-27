@@ -13,6 +13,7 @@ struct appitool: AsyncParsableCommand {
             CheckCommand.self,
             FlowCommand.self,
             KokonoCommand.self,
+            SelfUpdateCommand.self,
         ]
     )
 }
