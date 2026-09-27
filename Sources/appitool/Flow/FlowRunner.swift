@@ -143,7 +143,7 @@ struct FlowRunner: Sendable {
     // MARK: - Presentation Helpers
 
     private func printHeader(context: FlowContext) {
-        print("\n" + "🌊 Starting appitool flow: \(context.platform.rawValue.uppercased()) (\(context.distribution.rawValue))".cyan.bold)
+        print("\n" + "🌊 Starting AppiFlow: \(context.platform.rawValue.uppercased()) (\(context.distribution.rawValue))".cyan.bold)
         print("   Working Directory: \(context.projectDirectory.path)".dim)
         if context.isDryRun {
             print("   Mode: DRY RUN (No mutations will be performed)".yellow.bold)
