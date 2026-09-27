@@ -44,6 +44,8 @@ struct SelfUpdateCommand: AsyncParsableCommand {
     }
 
     func run() async throws {
+        _ = try? EnvLoader.loadEnv()
+
         let currentVersionString = appitool.configuration.version
         print("🌊 Checking for updates (current version: \(currentVersionString))...")
 
@@ -106,8 +108,8 @@ struct SelfUpdateCommand: AsyncParsableCommand {
         }
 
         print("   ℹ Downloading \(artifactName)...")
-        let tarballData = try await downloadData(from: tarballAsset.browserDownloadUrl)
-        let checksumsData = try await downloadData(from: checksumsAsset.browserDownloadUrl)
+        let tarballData = try await downloadData(for: tarballAsset)
+        let checksumsData = try await downloadData(for: checksumsAsset)
 
         let tarballPath = tempDir.appendingPathComponent(artifactName)
         try tarballData.write(to: tarballPath)
@@ -178,30 +180,50 @@ struct SelfUpdateCommand: AsyncParsableCommand {
 
     // MARK: - Networking & Helpers
 
+    private var githubToken: String? {
+        let token = ProcessInfo.processInfo.environment["GITHUB_TOKEN"] ?? ProcessInfo.processInfo.environment["GH_TOKEN"]
+        let trimmed = token?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed?.isEmpty == false ? trimmed : nil
+    }
+
     private func fetchLatestRelease() async throws -> GitHubRelease {
         var request = URLRequest(url: Self.latestReleaseURL)
         request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
         request.setValue("appitool-self-update", forHTTPHeaderField: "User-Agent")
+        if let token = githubToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
             let body = String(data: data, encoding: .utf8) ?? ""
-            print("❌ Error: Failed to fetch latest release from GitHub (HTTP \(statusCode)): \(body)".red)
+            if statusCode == 404 && githubToken == nil {
+                print("❌ Error: Release not found on GitHub (HTTP 404).".red)
+                print("   If the repository is private, please set the GITHUB_TOKEN environment variable:".yellow)
+                print("   export GITHUB_TOKEN=\"ghp_...\"".dim)
+            } else {
+                print("❌ Error: Failed to fetch latest release from GitHub (HTTP \(statusCode)): \(body)".red)
+            }
             throw ExitCode.failure
         }
 
         return try JSONDecoder().decode(GitHubRelease.self, from: data)
     }
 
-    private func downloadData(from url: URL) async throws -> Data {
-        var request = URLRequest(url: url)
+    private func downloadData(for asset: GitHubAsset) async throws -> Data {
+        let targetURL = githubToken != nil ? asset.url : asset.browserDownloadUrl
+        var request = URLRequest(url: targetURL)
         request.setValue("appitool-self-update", forHTTPHeaderField: "User-Agent")
+        if let token = githubToken {
+            request.setValue("application/octet-stream", forHTTPHeaderField: "Accept")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-            print("❌ Error: Failed to download asset from \(url) (HTTP \(statusCode)).".red)
+            print("❌ Error: Failed to download asset '\(asset.name)' from \(targetURL) (HTTP \(statusCode)).".red)
             throw ExitCode.failure
         }
         return data
@@ -286,10 +308,12 @@ private struct GitHubRelease: Decodable {
 
 private struct GitHubAsset: Decodable {
     let name: String
+    let url: URL
     let browserDownloadUrl: URL
 
     enum CodingKeys: String, CodingKey {
         case name
+        case url
         case browserDownloadUrl = "browser_download_url"
     }
 }

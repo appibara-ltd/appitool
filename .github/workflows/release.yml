@@ -41,6 +41,7 @@ jobs:
 
       - name: Generate Artifact Attestation
         uses: actions/attest-build-provenance@v2
+        continue-on-error: true
         with:
           subject-path: 'appitool-darwin-arm64.tar.gz'
 

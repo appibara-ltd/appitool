@@ -21,11 +21,11 @@ public enum EnvLoader {
     ///
     /// - Parameters:
     ///   - path: The file path to the `.env` file (defaults to `".env"` in the current working directory).
-    ///   - overwrite: Whether existing environment variables should be overwritten (defaults to `true`).
+    ///   - overwrite: Whether existing environment variables should be overwritten (defaults to `false`).
     /// - Returns: A dictionary of parsed key-value pairs loaded from the file.
     /// - Throws: An error if the file exists but cannot be read.
     @discardableResult
-    public static func loadEnv(from path: String = ".env", overwrite: Bool = true) throws -> [String: String] {
+    public static func loadEnv(from path: String = ".env", overwrite: Bool = false) throws -> [String: String] {
         let fileManager = FileManager.default
 
         // Resolve tilde (`~`) if present in path
@@ -47,10 +47,10 @@ public enum EnvLoader {
     ///
     /// - Parameters:
     ///   - content: Raw text content formatted as key-value pairs.
-    ///   - overwrite: Whether existing environment variables should be overwritten (defaults to `true`).
+    ///   - overwrite: Whether existing environment variables should be overwritten (defaults to `false`).
     /// - Returns: A dictionary of parsed key-value pairs.
     @discardableResult
-    public static func parseAndInject(content: String, overwrite: Bool = true) -> [String: String] {
+    public static func parseAndInject(content: String, overwrite: Bool = false) -> [String: String] {
         let parsed = parse(content: content)
         for (key, value) in parsed {
             setEnvironmentVariable(key: key, value: value, overwrite: overwrite)
@@ -157,7 +157,7 @@ public enum EnvLoader {
     // MARK: - Private Helpers
 
     /// Sets an environment variable in the current process across POSIX (setenv) and Windows (_putenv_s).
-    public static func setEnvironmentVariable(key: String, value: String, overwrite: Bool = true) {
+    public static func setEnvironmentVariable(key: String, value: String, overwrite: Bool = false) {
         #if os(Windows)
         if overwrite || getenv(key) == nil {
             _putenv_s(key, value)
