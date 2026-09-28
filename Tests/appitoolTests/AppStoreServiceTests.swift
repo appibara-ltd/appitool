@@ -9,6 +9,7 @@ import Crypto
 #endif
 @testable import appitool
 import AppStoreConnectAPI
+import AppleServices
 
 @Suite("AppStoreService Tests")
 struct AppStoreServiceTests {

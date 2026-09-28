@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseManagementAPI
+import GoogleServices
 
 /// Errors thrown by `GetFirebaseAppInfoTask`.
 enum GetFirebaseAppInfoError: LocalizedError, Sendable {

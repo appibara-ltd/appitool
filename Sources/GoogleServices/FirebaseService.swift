@@ -8,14 +8,14 @@ import FirebaseAppDistributionAPI
 /// Unified service providing access to Firebase APIs:
 /// - `management`: Firebase Management API (listing iOS/Android apps, retrieving bundle IDs, package names, metadata)
 /// - `appDistribution`: Firebase App Distribution API (querying releases, versions, and build numbers)
-struct FirebaseService: Sendable {
-    private static let sharedTransport = URLSessionTransport()
+package struct FirebaseService: Sendable {
+    package static let sharedTransport = URLSessionTransport()
 
     /// The OpenAPI client for the Firebase Management API (firebase v1beta1).
-    let management: FirebaseManagementAPI.Client
+    package let management: FirebaseManagementAPI.Client
 
     /// The OpenAPI client for the Firebase App Distribution API (firebaseappdistribution v1).
-    let appDistribution: FirebaseAppDistributionAPI.Client
+    package let appDistribution: FirebaseAppDistributionAPI.Client
 
     /// Middleware that unescapes `%2F` in request paths.
     /// Google Cloud AIP APIs use multi-segment resource names (e.g. `projects/123/apps/456`),
@@ -36,7 +36,7 @@ struct FirebaseService: Sendable {
         }
     }
 
-    init(
+    package init(
         authMiddleware: any ClientMiddleware,
         transport: any ClientTransport = Self.sharedTransport
     ) throws {
@@ -56,7 +56,7 @@ struct FirebaseService: Sendable {
     }
 
     /// Initializes `FirebaseService` using a Google Cloud Service Account key (file path, raw JSON, or Base64 string).
-    init(
+    package init(
         key: String,
         transport: any ClientTransport = Self.sharedTransport,
         urlSession: URLSession = .shared
@@ -70,11 +70,11 @@ struct FirebaseService: Sendable {
     }
 
     /// Initializes `FirebaseService` using a static OAuth 2.0 Bearer access token (e.g. from `FIREBASE_TOKEN`).
-    init(
+    package init(
         token: String,
         transport: any ClientTransport = Self.sharedTransport
     ) throws {
-        struct StaticBearerAuthMiddleware: ClientMiddleware {
+        struct StaticBearerAuthMiddleware: ClientMiddleware, Sendable {
             let token: String
             func intercept(
                 _ request: HTTPRequest,
@@ -88,11 +88,12 @@ struct FirebaseService: Sendable {
                 return try await next(req, body, baseURL)
             }
         }
+
         try self.init(authMiddleware: StaticBearerAuthMiddleware(token: token), transport: transport)
     }
 
     /// Instantiates `FirebaseService` using explicitly provided credentials (`token` or `googleKey`).
-    static func makeService(token: String? = nil, googleKey: String? = nil) throws -> FirebaseService? {
+    package static func makeService(token: String? = nil, googleKey: String? = nil) throws -> FirebaseService? {
         if let token, !token.isEmpty {
             return try FirebaseService(token: token)
         }

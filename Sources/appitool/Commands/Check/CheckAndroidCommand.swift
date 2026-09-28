@@ -1,5 +1,6 @@
 import ArgumentParser
 import Foundation
+import GoogleServices
 import Rainbow
 
 struct CheckAndroidCommand: AsyncParsableCommand {

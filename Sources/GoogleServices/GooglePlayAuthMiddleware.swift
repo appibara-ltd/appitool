@@ -8,17 +8,17 @@ import FoundationNetworking
 #endif
 
 /// Represents the structure of a Google Cloud Service Account JSON key file.
-public struct GoogleServiceAccountKey: Codable, Sendable {
-    public let type: String?
-    public let projectId: String?
-    public let privateKeyId: String?
-    public let privateKey: String
-    public let clientEmail: String
-    public let clientId: String?
-    public let authUri: String?
-    public let tokenUri: String?
-    public let authProviderX509CertUrl: String?
-    public let clientX509CertUrl: String?
+package struct GoogleServiceAccountKey: Codable, Sendable {
+    package let type: String?
+    package let projectId: String?
+    package let privateKeyId: String?
+    package let privateKey: String
+    package let clientEmail: String
+    package let clientId: String?
+    package let authUri: String?
+    package let tokenUri: String?
+    package let authProviderX509CertUrl: String?
+    package let clientX509CertUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case type
@@ -33,7 +33,7 @@ public struct GoogleServiceAccountKey: Codable, Sendable {
         case clientX509CertUrl = "client_x509_cert_url"
     }
 
-    public init(
+    package init(
         type: String? = "service_account",
         projectId: String? = nil,
         privateKeyId: String? = nil,
@@ -64,41 +64,41 @@ public struct GoogleServiceAccountKey: Codable, Sendable {
 /// 1. Google Service Account JSON file path (e.g. `./service-account.json` or `~/service-account.json`)
 /// 2. Raw or Base64-encoded Service Account JSON string
 /// 3. Pre-existing static OAuth 2.0 access token (e.g. from CI/CD or `gcloud auth print-access-token`)
-public struct GooglePlayAuthMiddleware: ClientMiddleware {
+package struct GooglePlayAuthMiddleware: ClientMiddleware, Sendable {
 
     /// The default OAuth scope for Google Play Android Developer API operations.
-    public static let defaultScope = "https://www.googleapis.com/auth/androidpublisher"
+    package static let defaultScope = "https://www.googleapis.com/auth/androidpublisher"
 
     /// Alias for defaultScope specifically denoting Android Publisher API operations.
-    public static let publisherScope = "https://www.googleapis.com/auth/androidpublisher"
+    package static let publisherScope = "https://www.googleapis.com/auth/androidpublisher"
 
     /// The OAuth scope for Google Play Developer Reporting API operations (vitals, anomalies, error reports).
-    public static let reportingScope = "https://www.googleapis.com/auth/playdeveloperreporting"
+    package static let reportingScope = "https://www.googleapis.com/auth/playdeveloperreporting"
 
     /// The OAuth scope for Google Play Games Services configuration and publishing operations.
-    public static let gamesConfigurationScope = "https://www.googleapis.com/auth/androidpublisher"
+    package static let gamesConfigurationScope = "https://www.googleapis.com/auth/androidpublisher"
 
     /// The OAuth scope for Google Play Integrity API operations.
-    public static let integrityScope = "https://www.googleapis.com/auth/playintegrity"
+    package static let integrityScope = "https://www.googleapis.com/auth/playintegrity"
 
     /// The OAuth scope for Google Play Custom App Publishing API operations.
-    public static let customAppScope = "https://www.googleapis.com/auth/androidpublisher"
+    package static let customAppScope = "https://www.googleapis.com/auth/androidpublisher"
 
     /// The OAuth scope for Google Play Games Services Management API operations.
-    public static let gamesManagementScope = "https://www.googleapis.com/auth/games"
+    package static let gamesManagementScope = "https://www.googleapis.com/auth/games"
 
     /// Combined OAuth scopes covering all Google Play developer operations.
-    public static let allScopes = "\(publisherScope) \(reportingScope) \(integrityScope) \(gamesManagementScope)"
+    package static let allScopes = "\(publisherScope) \(reportingScope) \(integrityScope) \(gamesManagementScope)"
 
     /// The default Google OAuth 2.0 token endpoint.
-    public static let defaultTokenURI = "https://oauth2.googleapis.com/token"
+    package static let defaultTokenURI = "https://oauth2.googleapis.com/token"
 
     private let tokenProvider: @Sendable () async throws -> String
 
     // MARK: - Initializer
 
     /// Initializes middleware using a Service Account key (file path, raw JSON, or Base64-encoded JSON).
-    public init(
+    package init(
         key: String,
         scope: String = defaultScope,
         urlSession: URLSession = .shared
@@ -123,7 +123,7 @@ public struct GooglePlayAuthMiddleware: ClientMiddleware {
     }
 
     /// Obtains a valid OAuth 2.0 access token for Google Cloud / Firebase APIs.
-    public func getAccessToken() async throws -> String {
+    package func getAccessToken() async throws -> String {
         try await tokenProvider()
     }
 
@@ -229,7 +229,7 @@ public struct GooglePlayAuthMiddleware: ClientMiddleware {
     // MARK: - Parsing Helpers
 
     /// Parses a Google Service Account Key from either a file path, raw JSON, or Base64-encoded JSON.
-    public static func parseServiceAccount(from raw: String) throws -> GoogleServiceAccountKey {
+    package static func parseServiceAccount(from raw: String) throws -> GoogleServiceAccountKey {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // 1. Is it a file path on disk?

@@ -2,6 +2,8 @@ import Foundation
 import AppStoreConnectAPI
 import GooglePlayStoreAPI
 import FirebaseAppDistributionAPI
+import AppleServices
+import GoogleServices
 import Rainbow
 #if canImport(FoundationNetworking)
 import FoundationNetworking

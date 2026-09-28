@@ -9,9 +9,9 @@ import Crypto
 #endif
 
 /// A `ClientMiddleware` that injects App Store Connect API compliant ES256 JWT tokens into HTTP requests.
-public struct AppStoreConnectAuthMiddleware: ClientMiddleware {
-    public let keyId: String
-    public let issuerId: String
+package struct AppStoreConnectAuthMiddleware: ClientMiddleware, Sendable {
+    package let keyId: String
+    package let issuerId: String
     private let privateKey: P256.Signing.PrivateKey
     private let tokenCache: TokenCache
 
@@ -19,7 +19,7 @@ public struct AppStoreConnectAuthMiddleware: ClientMiddleware {
     private let tokenLifetime: TimeInterval
 
     /// Initializes middleware with the private key (file path, raw PEM string, or Base64 encoded).
-    public init(
+    package init(
         keyId: String,
         issuerId: String,
         key: String,
@@ -50,7 +50,7 @@ public struct AppStoreConnectAuthMiddleware: ClientMiddleware {
     // MARK: - Token Management
 
     /// Returns a valid cached JWT token or creates a new one if expired.
-    public func validToken() throws -> String {
+    package func validToken() throws -> String {
         try tokenCache.validToken {
             try generateJWT(now: Date())
         }
@@ -99,7 +99,7 @@ public struct AppStoreConnectAuthMiddleware: ClientMiddleware {
     // MARK: - Key Parsing & Format Detection
 
     /// Checks whether a given string is Base64 encoded (with or without padding).
-    public static func isBase64Encoded(_ string: String) -> Bool {
+    package static func isBase64Encoded(_ string: String) -> Bool {
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
         let remainder = trimmed.count % 4
@@ -112,7 +112,7 @@ public struct AppStoreConnectAuthMiddleware: ClientMiddleware {
     /// - Base64-encoded `.p8` file content (commonly used in .env / CI/CD)
     /// - Direct PEM formatted string (`-----BEGIN PRIVATE KEY-----`)
     /// - Raw DER binary encoded in Base64 (with or without padding)
-    public static func parsePrivateKey(from raw: String) throws -> P256.Signing.PrivateKey {
+    package static func parsePrivateKey(from raw: String) throws -> P256.Signing.PrivateKey {
         var trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Strip surrounding quotes if any (e.g. "..." or '...')
@@ -167,7 +167,6 @@ public struct AppStoreConnectAuthMiddleware: ClientMiddleware {
         return try P256.Signing.PrivateKey(pemRepresentation: trimmed)
     }
 
-
     /// Helper to extract raw DER data from a PEM-formatted string.
     private static func extractDERFromPEM(_ pem: String) -> Data? {
         let lines = pem.components(separatedBy: .newlines)
@@ -181,7 +180,6 @@ public struct AppStoreConnectAuthMiddleware: ClientMiddleware {
         return Data(base64Encoded: padded, options: [.ignoreUnknownCharacters])
     }
 }
-
 
 // MARK: - Thread-Safe Token Cache
 

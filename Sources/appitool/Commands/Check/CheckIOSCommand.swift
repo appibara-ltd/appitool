@@ -1,5 +1,7 @@
 import ArgumentParser
 import Foundation
+import AppleServices
+import GoogleServices
 import Rainbow
 
 struct CheckIOSCommand: AsyncParsableCommand {

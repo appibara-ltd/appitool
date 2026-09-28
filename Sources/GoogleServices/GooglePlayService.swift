@@ -1,10 +1,3 @@
-//
-//  GooglePlayService.swift
-//  appitool
-//
-//  Created by Orkun Tümer on 24.09.2026.
-//
-
 import Foundation
 import OpenAPIURLSession
 import OpenAPIRuntime
@@ -22,30 +15,30 @@ import GooglePlayGamesManagementAPI
 /// - `integrity`: Play Integrity API (verifying runtime app/device integrity tokens)
 /// - `customApps`: Custom App Publishing API (publishing private enterprise apps)
 /// - `gamesManagement`: Games Services Management API (testing/resetting achievements and leaderboards)
-struct GooglePlayService: Sendable {
-    private static let sharedTransport = URLSessionTransport()
+package struct GooglePlayService: Sendable {
+    package static let sharedTransport = URLSessionTransport()
 
     /// The underlying OpenAPI client for the Google Play Developer Publishing API (androidpublisher v3).
-    let client: GooglePlayStoreAPI.Client
+    package let client: GooglePlayStoreAPI.Client
 
     /// The underlying OpenAPI client for the Google Play Developer Reporting API (playdeveloperreporting v1beta1).
-    let reporting: GooglePlayReportingAPI.Client
+    package let reporting: GooglePlayReportingAPI.Client
 
     /// The underlying OpenAPI client for the Google Play Games Services Publishing API (gamesConfiguration v1).
-    let games: GooglePlayGamesConfigurationAPI.Client
+    package let games: GooglePlayGamesConfigurationAPI.Client
 
     /// The underlying OpenAPI client for the Google Play Integrity API (playintegrity v1).
-    let integrity: GooglePlayIntegrityAPI.Client
+    package let integrity: GooglePlayIntegrityAPI.Client
 
     /// The underlying OpenAPI client for the Google Play Custom App Publishing API (playcustomapp v1).
-    let customApps: GooglePlayCustomAppAPI.Client
+    package let customApps: GooglePlayCustomAppAPI.Client
 
     /// The underlying OpenAPI client for the Google Play Games Services Management API (gamesManagement v1).
-    let gamesManagement: GooglePlayGamesManagementAPI.Client
+    package let gamesManagement: GooglePlayGamesManagementAPI.Client
 
     /// Initializes GooglePlayService with credentials (key can be a service account JSON file path, raw JSON, or Base64-encoded JSON).
     /// Uses a single shared AuthMiddleware and token exchange for all Google Play APIs.
-    init(
+    package init(
         key: String,
         scope: String = GooglePlayAuthMiddleware.allScopes,
         transport: any ClientTransport = Self.sharedTransport,

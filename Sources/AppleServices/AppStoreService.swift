@@ -1,24 +1,17 @@
-//
-//  AppStoreService.swift
-//  appitool
-//
-//  Created by Orkun Tümer on 24.09.2026.
-//
-
+import Foundation
 import OpenAPIURLSession
 import OpenAPIRuntime
 import AppStoreConnectAPI
-import MatchTarget
 
 /// Service providing access to the Apple App Store Connect API.
-struct AppStoreService: Sendable {
-    private static let sharedTransport = URLSessionTransport()
+package struct AppStoreService: Sendable {
+    package static let sharedTransport = URLSessionTransport()
 
     /// The underlying OpenAPI client for the App Store Connect API.
-    let client: Client
+    package let client: Client
 
     /// Initializes AppStoreService with credentials (key can be a .p8 file path, raw PEM string, or Base64).
-    init(
+    package init(
         keyId: String,
         issuerId: String,
         key: String,

@@ -3,8 +3,8 @@ import OpenAPIRuntime
 
 /// A DateTranscoder that flexibly parses ISO8601 date strings with or without
 /// fractional seconds, and with various timezone representations returned by Apple APIs.
-public struct FlexibleDateTranscoder: DateTranscoder, Sendable {
-    public init() {}
+package struct FlexibleDateTranscoder: DateTranscoder, Sendable {
+    package init() {}
 
     public func encode(_ date: Date) throws -> String {
         let formatter = ISO8601DateFormatter()

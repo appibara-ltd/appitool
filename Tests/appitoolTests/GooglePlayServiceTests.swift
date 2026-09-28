@@ -3,6 +3,7 @@ import Foundation
 import HTTPTypes
 import OpenAPIRuntime
 @testable import appitool
+import GoogleServices
 import GooglePlayStoreAPI
 import GooglePlayReportingAPI
 import GooglePlayGamesConfigurationAPI

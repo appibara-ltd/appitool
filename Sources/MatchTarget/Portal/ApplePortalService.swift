@@ -2,6 +2,7 @@ import Foundation
 import OpenAPIURLSession
 import OpenAPIRuntime
 import AppStoreConnectAPI
+import AppleServices
 
 /// Interacts with the Apple Developer Portal (via App Store Connect API) to validate,
 /// generate, and revoke (nuke) certificates and provisioning profiles.
@@ -14,18 +15,13 @@ public final class ApplePortalService: Sendable {
         key: String,
         transport: any ClientTransport = URLSessionTransport()
     ) throws {
-        let middleware = try AppStoreConnectAuthMiddleware(
+        let appStoreService = try AppStoreService(
             keyId: keyId,
             issuerId: issuerId,
-            key: key
+            key: key,
+            transport: transport
         )
-        let configuration = Configuration(dateTranscoder: FlexibleDateTranscoder())
-        self.client = Client(
-            serverURL: try Servers.Server1.url(),
-            configuration: configuration,
-            transport: transport,
-            middlewares: [middleware]
-        )
+        self.client = appStoreService.client
     }
 
     // MARK: - Certificate Validation

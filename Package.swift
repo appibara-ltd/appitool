@@ -21,6 +21,8 @@ let package = Package(
     products: [
         .executable(name: "appitool", targets: ["appitool"]),
         .library(name: "MatchTarget", targets: ["MatchTarget"]),
+        .library(name: "AppleServices", targets: ["AppleServices"]),
+        .library(name: "GoogleServices", targets: ["GoogleServices"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.8.2"),
@@ -140,8 +142,38 @@ let package = Package(
             ]
         ),
         .target(
+            name: "AppleServices",
+            dependencies: [
+                "AppStoreConnectAPI",
+                .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
+                .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
+                .product(name: "Crypto", package: "swift-crypto"),
+                .product(name: "CryptoExtras", package: "swift-crypto"),
+            ],
+            swiftSettings: defaultSwiftSettings
+        ),
+        .target(
+            name: "GoogleServices",
+            dependencies: [
+                "GooglePlayStoreAPI",
+                "GooglePlayReportingAPI",
+                "GooglePlayGamesConfigurationAPI",
+                "GooglePlayIntegrityAPI",
+                "GooglePlayCustomAppAPI",
+                "GooglePlayGamesManagementAPI",
+                "FirebaseManagementAPI",
+                "FirebaseAppDistributionAPI",
+                .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
+                .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
+                .product(name: "Crypto", package: "swift-crypto"),
+                .product(name: "CryptoExtras", package: "swift-crypto"),
+            ],
+            swiftSettings: defaultSwiftSettings
+        ),
+        .target(
             name: "MatchTarget",
             dependencies: [
+                "AppleServices",
                 "AppStoreConnectAPI",
                 .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
                 .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
@@ -155,6 +187,8 @@ let package = Package(
         .executableTarget(
             name: "appitool",
             dependencies: [
+                "AppleServices",
+                "GoogleServices",
                 "MatchTarget",
                 "AppStoreConnectAPI",
                 "GooglePlayStoreAPI",
@@ -184,7 +218,12 @@ let package = Package(
 
         .testTarget(
             name: "appitoolTests",
-            dependencies: ["appitool"],
+            dependencies: [
+                "appitool",
+                "AppleServices",
+                "GoogleServices",
+                "MatchTarget",
+            ],
 //            swiftSettings: defaultSwiftSettings
         ),
     ]

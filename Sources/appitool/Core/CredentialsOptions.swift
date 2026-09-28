@@ -1,5 +1,7 @@
 import ArgumentParser
 import Foundation
+import AppleServices
+import GoogleServices
 
 /// Reusable CLI options and environment resolution for App Store Connect credentials.
 struct AppleCredentialsOptions: ParsableArguments, Sendable {
