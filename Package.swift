@@ -20,6 +20,7 @@ let package = Package(
     ],
     products: [
         .executable(name: "appitool", targets: ["appitool"]),
+        .library(name: "MatchTarget", targets: ["MatchTarget"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.8.2"),
@@ -138,10 +139,23 @@ let package = Package(
                 .plugin(name: "OpenAPIGenerator", package: "swift-openapi-generator"),
             ]
         ),
+        .target(
+            name: "MatchTarget",
+            dependencies: [
+                "AppStoreConnectAPI",
+                .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
+                .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
+                .product(name: "Crypto", package: "swift-crypto"),
+                .product(name: "CryptoExtras", package: "swift-crypto"),
+                .product(name: "Rainbow", package: "Rainbow"),
+            ],
+            swiftSettings: defaultSwiftSettings
+        ),
 
         .executableTarget(
             name: "appitool",
             dependencies: [
+                "MatchTarget",
                 "AppStoreConnectAPI",
                 "GooglePlayStoreAPI",
                 "GooglePlayReportingAPI",

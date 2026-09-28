@@ -6,3 +6,9 @@ filter:
   paths:
     - /v1/apps
     - /v1/builds
+    - /v1/certificates
+    - /v1/certificates/{id}
+    - /v1/bundleIds
+    - /v1/profiles
+    - /v1/profiles/{id}
+    - /v1/devices

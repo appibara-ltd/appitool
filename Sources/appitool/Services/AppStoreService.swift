@@ -8,6 +8,7 @@
 import OpenAPIURLSession
 import OpenAPIRuntime
 import AppStoreConnectAPI
+import MatchTarget
 
 /// Service providing access to the Apple App Store Connect API.
 struct AppStoreService: Sendable {
@@ -28,8 +29,10 @@ struct AppStoreService: Sendable {
             issuerId: issuerId,
             key: key
         )
+        let configuration = Configuration(dateTranscoder: FlexibleDateTranscoder())
         self.client = Client(
             serverURL: try Servers.Server1.url(),
+            configuration: configuration,
             transport: transport,
             middlewares: [authMiddleware]
         )

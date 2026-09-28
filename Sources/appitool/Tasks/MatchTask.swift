@@ -1,4 +1,5 @@
 import Foundation
+import MatchTarget
 
 /// A task that handles certificate and provisioning profile management compatible with Fastlane `match`,
 /// supporting GitHub repository synchronization.
@@ -31,6 +32,9 @@ public struct MatchTask: Task {
         /// Provisioning profile distribution type.
         public let type: ProfileType
 
+        /// Target platform (defaults to .ios).
+        public let platform: MatchPlatform
+
         /// List of bundle identifiers to sync profiles for.
         public let appIdentifiers: [String]
 
@@ -49,6 +53,15 @@ public struct MatchTask: Task {
         /// Apple Developer Team Name.
         public let teamName: String?
 
+        /// App Store Connect API Key ID.
+        public let apiKeyId: String?
+
+        /// App Store Connect API Issuer ID.
+        public let apiIssuerId: String?
+
+        /// App Store Connect API Private Key.
+        public let apiKey: String?
+
         /// Optional custom keychain name to import certificates into.
         public let keychainName: String?
 
@@ -63,12 +76,16 @@ public struct MatchTask: Task {
             gitBranch: String = "master",
             gitToken: String? = nil,
             type: ProfileType = .appstore,
+            platform: MatchPlatform = .ios,
             appIdentifiers: [String],
             password: String,
             action: Action = .sync,
             readonly: Bool = true,
             teamId: String? = nil,
             teamName: String? = nil,
+            apiKeyId: String? = nil,
+            apiIssuerId: String? = nil,
+            apiKey: String? = nil,
             keychainName: String? = nil,
             keychainPassword: String? = nil,
             force: Bool = false
@@ -77,12 +94,16 @@ public struct MatchTask: Task {
             self.gitBranch = gitBranch
             self.gitToken = gitToken
             self.type = type
+            self.platform = platform
             self.appIdentifiers = appIdentifiers
             self.password = password
             self.action = action
             self.readonly = readonly
             self.teamId = teamId
             self.teamName = teamName
+            self.apiKeyId = apiKeyId
+            self.apiIssuerId = apiIssuerId
+            self.apiKey = apiKey
             self.keychainName = keychainName
             self.keychainPassword = keychainPassword
             self.force = force
@@ -158,7 +179,51 @@ public struct MatchTask: Task {
 
     @discardableResult
     public func run(_ input: Input) async throws -> Output {
-        // Boilerplate placeholder
-        return Output()
+        let profileType: MatchProfileType
+        switch input.type {
+        case .development: profileType = .development
+        case .adhoc: profileType = .adhoc
+        case .appstore: profileType = .appstore
+        case .enterprise: profileType = .enterprise
+        }
+
+        let config = MatchConfig(
+            gitUrl: input.gitUrl,
+            gitBranch: input.gitBranch,
+            gitToken: input.gitToken,
+            type: profileType,
+            platform: input.platform,
+            appIdentifiers: input.appIdentifiers,
+            password: input.password,
+            action: input.action == .sync ? .sync : .nuke,
+            readonly: input.readonly,
+            teamId: input.teamId,
+            teamName: input.teamName,
+            apiKeyId: input.apiKeyId,
+            apiIssuerId: input.apiIssuerId,
+            apiKey: input.apiKey,
+            keychainName: input.keychainName,
+            keychainPassword: input.keychainPassword,
+            force: input.force
+        )
+
+        let runner = MatchRunner()
+        let result = try await runner.run(config)
+
+        let installedCerts = result.installedCertificates.map { $0.name }
+        var installedProfiles: [String: ProfileInfo] = [:]
+        for (bundleId, profile) in result.installedProfiles {
+            installedProfiles[bundleId] = ProfileInfo(
+                name: profile.name,
+                uuid: profile.uuid,
+                path: profile.path,
+                bundleId: profile.bundleId
+            )
+        }
+
+        return Output(
+            installedCertificates: installedCerts,
+            installedProfiles: installedProfiles
+        )
     }
 }

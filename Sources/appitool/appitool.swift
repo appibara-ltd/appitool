@@ -14,6 +14,7 @@ struct appitool: AsyncParsableCommand {
             FlowCommand.self,
             KokonoCommand.self,
             SelfUpdateCommand.self,
+            MatchCommand.self,
         ]
     )
 }
