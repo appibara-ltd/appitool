@@ -149,6 +149,7 @@ let package = Package(
                 .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
                 .product(name: "Crypto", package: "swift-crypto"),
                 .product(name: "CryptoExtras", package: "swift-crypto"),
+                .product(name: "Rainbow", package: "Rainbow"),
             ],
             swiftSettings: defaultSwiftSettings
         ),

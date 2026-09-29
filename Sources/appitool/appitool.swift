@@ -15,6 +15,7 @@ struct appitool: AsyncParsableCommand {
             KokonoCommand.self,
             SelfUpdateCommand.self,
             MatchCommand.self,
+            AppleCommand.self,
         ]
     )
 }

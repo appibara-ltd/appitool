@@ -9,6 +9,9 @@ filter:
     - /v1/certificates
     - /v1/certificates/{id}
     - /v1/bundleIds
+    - /v1/bundleIds/{id}
     - /v1/profiles
     - /v1/profiles/{id}
     - /v1/devices
+    - /v1/bundleIdCapabilities
+    - /v1/bundleIds/{id}/bundleIdCapabilities
