@@ -173,7 +173,7 @@ extension AppStoreService {
             profile: CreatedProfileInfo(
                 id: created.id,
                 name: created.name,
-                uuid: created.uuid,i
+                uuid: created.uuid,
                 profileData: created.profileData
             ),
             profileType: targetProfileType,
