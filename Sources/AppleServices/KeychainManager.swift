@@ -72,13 +72,30 @@ package struct KeychainManager: Sendable {
         }
     }
 
-    /// Prepares the keychain: creates it if it doesn't exist, sets timeout, unlocks it, and adds to user keychain search list.
+    /// Resolved path to the existing keychain file on disk (handles both modern .keychain-db and legacy .keychain extensions).
+    package var resolvedKeychainPath: String {
+        #if !os(macOS)
+        return keychainPath
+        #else
+        let fm = FileManager.default
+        let legacyPath = keychainPath.replacingOccurrences(of: "-db", with: "")
+        if fm.fileExists(atPath: keychainPath) {
+            return keychainPath
+        } else if fm.fileExists(atPath: legacyPath) {
+            return legacyPath
+        }
+        return keychainPath
+        #endif
+    }
+
+    /// Prepares the keychain: creates it if it doesn't exist, unlocks it, updates settings to avoid auto-lock, and adds to user keychain search list.
     package func prepareKeychainIfNeeded() async throws {
         #if !os(macOS)
         // Keychain is only supported on macOS; no-op on other platforms
         return
         #else
         let fm = FileManager.default
+        let targetPath = resolvedKeychainPath
         let legacyPath = keychainPath.replacingOccurrences(of: "-db", with: "")
 
         if !fm.fileExists(atPath: keychainPath) && !fm.fileExists(atPath: legacyPath) {
@@ -86,13 +103,19 @@ package struct KeychainManager: Sendable {
             guard createExit == 0 else {
                 throw KeychainManagerError.executionFailed(command: "create-keychain", status: createExit, output: createOut)
             }
-
-            // Set timeout settings (2 hours = 7200s)
-            _ = try await runSecurity(["set-keychain-settings", "-lut", "7200", keychainPath])
         }
 
-        // Unlock keychain
-        _ = try await runSecurity(["unlock-keychain", "-p", keychainPassword, keychainPath])
+        // Always unlock the keychain with the configured password
+        let (unlockExit, _) = try await runSecurity(["unlock-keychain", "-p", keychainPassword, targetPath])
+        if unlockExit != 0 && targetPath != legacyPath && fm.fileExists(atPath: legacyPath) {
+            _ = try await runSecurity(["unlock-keychain", "-p", keychainPassword, legacyPath])
+        }
+
+        // Configure keychain settings: remove sleep/timeout auto-lock to keep it unlocked for automation
+        _ = try await runSecurity(["set-keychain-settings", targetPath])
+        if targetPath != legacyPath && fm.fileExists(atPath: legacyPath) {
+            _ = try await runSecurity(["set-keychain-settings", legacyPath])
+        }
 
         // Add to user keychain search list if not already present
         let (_, listOut) = try await runSecurity(["list-keychains", "-d", "user"])
@@ -101,9 +124,9 @@ package struct KeychainManager: Sendable {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\"")) }
             .filter { !$0.isEmpty }
 
-        if !existingKeychains.contains(keychainPath) {
+        if !existingKeychains.contains(targetPath) && !existingKeychains.contains(legacyPath) {
             var updated = existingKeychains
-            updated.insert(keychainPath, at: 0)
+            updated.insert(targetPath, at: 0)
             _ = try await runSecurity(["list-keychains", "-d", "user", "-s"] + updated)
         }
         #endif
@@ -188,18 +211,20 @@ package struct KeychainManager: Sendable {
         // info as a no-op without running macOS /usr/bin/security commands, indicating not imported into Keychain.
         return parseCertificateInfo(p12Path: p12Path, password: password, cerPath: cerPath, isKeychainImported: false)
         #else
+        let targetPath = resolvedKeychainPath
+
         // 1. Optionally import .cer
         if let cerPath, FileManager.default.fileExists(atPath: cerPath) {
-            let (cerExit, cerOut) = try await runSecurity(["add-certificates", "-k", keychainPath, cerPath])
+            let (cerExit, cerOut) = try await runSecurity(["add-certificates", "-k", targetPath, cerPath])
             if cerExit != 0 && !cerOut.localizedCaseInsensitiveContains("already exists") {
-                _ = try await runSecurity(["import", cerPath, "-k", keychainPath, "-f", "x509", "-t", "cert"])
+                _ = try await runSecurity(["import", cerPath, "-k", targetPath, "-f", "x509", "-t", "cert"])
             }
         }
 
         // 2. Import .p12 with codesign / security tools allowed
         let p12Args = [
             "import", p12Path,
-            "-k", keychainPath,
+            "-k", targetPath,
             "-P", password,
             "-T", "/usr/bin/codesign",
             "-T", "/usr/bin/security",
@@ -243,7 +268,7 @@ package struct KeychainManager: Sendable {
                     if repackageProcess.terminationStatus == 0 {
                         let retryArgs = [
                             "import", tempP12,
-                            "-k", keychainPath,
+                            "-k", targetPath,
                             "-P", tempPassword,
                             "-T", "/usr/bin/codesign",
                             "-T", "/usr/bin/security",
@@ -268,7 +293,7 @@ package struct KeychainManager: Sendable {
             "-S", "apple-tool:,apple:,codesign:",
             "-s",
             "-k", keychainPassword,
-            keychainPath
+            targetPath
         ])
 
         // 4. Extract and return certificate info
@@ -442,7 +467,7 @@ package struct KeychainManager: Sendable {
         #if !os(macOS)
         return false
         #else
-        let (exit, _) = (try? await runSecurity(["find-certificate", "-k", keychainPath, "-c", name])) ?? (-1, "")
+        let (exit, _) = (try? await runSecurity(["find-certificate", "-k", resolvedKeychainPath, "-c", name])) ?? (-1, "")
         return exit == 0
         #endif
     }

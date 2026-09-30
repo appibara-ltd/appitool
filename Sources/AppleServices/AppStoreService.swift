@@ -811,6 +811,40 @@ package struct AppStoreService: Sendable {
         }
     }
 
+    // MARK: - Nuke Operations
+
+    /// Revokes all certificates and deletes all provisioning profiles of the given type and platform from Apple Developer Portal.
+    @discardableResult
+    package func nuke(
+        type: String,
+        platform: String = "ios"
+    ) async throws -> (revokedCertIds: [String], deletedProfileIds: [String]) {
+        var revokedCerts: [String] = []
+        var deletedProfiles: [String] = []
+
+        // 1. Revoke certificates matching the profile type and platform
+        let certTypes = AppleTypeMapper.appleCertificateTypesForProfile(type: type, platform: platform)
+        let certs = try await fetchCertificates(types: certTypes)
+        for cert in certs {
+            if try await deleteCertificate(id: cert.id) {
+                revokedCerts.append(cert.id)
+            }
+        }
+
+        // 2. Delete provisioning profiles matching the profile type and platform
+        let profiles = try await fetchProfiles()
+        for profile in profiles {
+            let profTypeStr = profile.attributes?.profileType?.rawValue ?? ""
+            if AppleTypeMapper.matchesProfileType(profTypeStr: profTypeStr, targetType: type, platform: platform) {
+                if try await deleteProfile(id: profile.id) {
+                    deletedProfiles.append(profile.id)
+                }
+            }
+        }
+
+        return (revokedCerts, deletedProfiles)
+    }
+
     // MARK: - Error Formatting
 
     /// Formats errors from Apple Developer Portal API into a readable string.

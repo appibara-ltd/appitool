@@ -8,11 +8,14 @@ import Rainbow
 struct MatchCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "match",
-        abstract: "Syncs or nukes certificates and provisioning profiles using Git storage (Fastlane match equivalent)."
+        abstract: "Syncs, nukes, or prunes certificates and provisioning profiles using Git storage (Fastlane match equivalent)."
     )
 
-    @Argument(help: "Provisioning profile distribution type (appstore, development, adhoc, enterprise, developer_id) or action (nuke).")
+    @Argument(help: "Provisioning profile distribution type (appstore, development, adhoc, enterprise, developer_id) or action (nuke, prune).")
     var actionOrType: String?
+
+    @Argument(help: "Optional distribution type (appstore, development, adhoc, enterprise, developer_id) or 'all' when the first argument is an action.")
+    var targetType: String?
 
     @Option(name: .shortAndLong, help: "Provisioning profile distribution type (appstore, development, adhoc, enterprise, developer_id). Defaults to MATCH_TYPE in .env or appstore.")
     var type: String?
@@ -37,6 +40,12 @@ struct MatchCommand: AsyncParsableCommand {
 
     @Flag(name: .shortAndLong, help: "Run in read-only mode (prevents creating new certificates/profiles on Apple Developer Portal).")
     var readonly: Bool = false
+
+    @Flag(name: .long, help: "Prune invalid or expired certificates and provisioning profiles from Git storage.")
+    var prune: Bool = false
+
+    @Flag(name: [.customShort("A"), .long], help: "Operate across all distribution types when pruning.")
+    var all: Bool = false
 
     @Flag(name: .long, help: "Nuke (revoke and delete) certificates and provisioning profiles on Apple Developer Portal and in Git storage.")
     var nuke: Bool = false
@@ -73,18 +82,27 @@ struct MatchCommand: AsyncParsableCommand {
         var resolvedAction: MatchAction = .sync
         if nuke || actionOrType?.lowercased() == "nuke" {
             resolvedAction = .nuke
+        } else if prune || actionOrType?.lowercased() == "prune" {
+            resolvedAction = .prune
         }
 
         // 2. Resolve Profile Type
+        let isActionArg = actionOrType?.lowercased() == "nuke" || actionOrType?.lowercased() == "prune"
         let rawTypeStr: String?
-        if let actionOrType, actionOrType.lowercased() != "nuke" {
+        if isActionArg {
+            rawTypeStr = targetType ?? type
+        } else if let actionOrType {
             rawTypeStr = actionOrType
         } else {
             rawTypeStr = type
         }
 
+        let isAllTypes = all || rawTypeStr?.lowercased() == "all"
+
         let resolvedType: MatchProfileType
-        if let rawTypeStr {
+        if isAllTypes {
+            resolvedType = .appstore
+        } else if let rawTypeStr {
             switch rawTypeStr.lowercased() {
             case "appstore", "app_store":
                 resolvedType = .appstore
@@ -97,7 +115,7 @@ struct MatchCommand: AsyncParsableCommand {
             case "developer_id", "developerid", "developer-id":
                 resolvedType = .developerId
             default:
-                print("Error: ".red.bold + "Unsupported match type '\(rawTypeStr)'. Valid types: appstore, development, adhoc, enterprise, developer_id.")
+                print("Error: ".red.bold + "Unsupported match type '\(rawTypeStr)'. Valid types: appstore, development, adhoc, enterprise, developer_id, all.")
                 throw ExitCode.failure
             }
         } else {
@@ -163,6 +181,7 @@ struct MatchCommand: AsyncParsableCommand {
             password: resolvedPassword,
             action: resolvedAction,
             readonly: resolvedReadonly,
+            allTypes: isAllTypes,
             teamId: resolvedTeamId,
             teamName: resolvedTeamName,
             apiKeyId: appleCreds?.keyId,
@@ -192,6 +211,8 @@ struct MatchCommand: AsyncParsableCommand {
                         print("  • \(bundleId): \(profile.name) [\(profile.uuid)]".dim)
                     }
                 }
+            } else if resolvedAction == .prune && !silent {
+                print("✨ Match prune completed successfully.".green.bold)
             }
         } catch {
             print("Error: ".red.bold + "\(error.localizedDescription)")

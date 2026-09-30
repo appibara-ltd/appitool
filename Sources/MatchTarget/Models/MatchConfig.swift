@@ -90,6 +90,7 @@ public enum MatchPlatform: String, Sendable, CaseIterable {
 public enum MatchAction: String, Sendable, CaseIterable {
     case sync
     case nuke
+    case prune
 }
 
 /// Information about an installed provisioning profile.
@@ -155,6 +156,9 @@ public struct MatchConfig: Sendable {
     /// If true, only read existing repository assets and do not generate new ones.
     public let readonly: Bool
 
+    /// If true, operate across all distribution types (appstore, development, adhoc, enterprise, developer_id).
+    public let allTypes: Bool
+
     /// Optional Apple Developer Team ID.
     public let teamId: String?
 
@@ -195,6 +199,7 @@ public struct MatchConfig: Sendable {
         password: String,
         action: MatchAction = .sync,
         readonly: Bool = true,
+        allTypes: Bool = false,
         teamId: String? = nil,
         teamName: String? = nil,
         apiKeyId: String? = nil,
@@ -215,6 +220,7 @@ public struct MatchConfig: Sendable {
         self.password = password
         self.action = action
         self.readonly = readonly
+        self.allTypes = allTypes
         self.teamId = teamId
         self.teamName = teamName
         self.apiKeyId = apiKeyId

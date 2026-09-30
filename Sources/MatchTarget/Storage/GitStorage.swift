@@ -82,19 +82,47 @@ public final class GitStorage: Sendable {
     }
 
     /// Commits and pushes changes in `workingDirectory` back to the remote repository.
-    public func saveChanges(commitMessage: String = "[appitool] Updated code signing certificates and profiles") async throws {
-        // Stage all changes
-        let (addExit, addOut) = try await runGit(args: ["add", "-A"], in: workingDirectory)
-        guard addExit == 0 else {
-            throw MatchError.gitOperationFailed("git add failed: \(addOut)")
+    /// If `filesToCommit` or `filesToDelete` are specified, only those specific files/directories are staged (matching Fastlane behavior).
+    /// If both are nil, falls back to staging all changes via `git add -A`.
+    public func saveChanges(
+        filesToCommit: [String]? = nil,
+        filesToDelete: [String]? = nil,
+        commitMessage: String = "[appitool] Updated code signing certificates and profiles"
+    ) async throws {
+        if filesToCommit != nil || filesToDelete != nil {
+            let toCommit = filesToCommit ?? []
+            let toDelete = (filesToDelete ?? []).filter { !toCommit.contains($0) }
+            guard !toCommit.isEmpty || !toDelete.isEmpty else {
+                return
+            }
+
+            for file in toDelete {
+                let (rmExit, rmOut) = try await runGit(args: ["rm", "-r", "--ignore-unmatch", file], in: workingDirectory)
+                guard rmExit == 0 else {
+                    throw MatchError.gitOperationFailed("git rm '\(file)' failed: \(rmOut)")
+                }
+            }
+
+            for file in toCommit {
+                let (addExit, addOut) = try await runGit(args: ["add", file], in: workingDirectory)
+                guard addExit == 0 else {
+                    throw MatchError.gitOperationFailed("git add '\(file)' failed: \(addOut)")
+                }
+            }
+        } else {
+            // Stage all changes
+            let (addExit, addOut) = try await runGit(args: ["add", "-A"], in: workingDirectory)
+            guard addExit == 0 else {
+                throw MatchError.gitOperationFailed("git add failed: \(addOut)")
+            }
         }
 
-        // Check if there is anything to commit
+        // Check if there is anything to commit in the staging index
         let (headExit, _) = try await runGit(args: ["rev-parse", "--verify", "HEAD"], in: workingDirectory)
         if headExit == 0 {
-            let (diffExit, _) = try await runGit(args: ["diff-index", "--quiet", "HEAD", "--"], in: workingDirectory)
+            let (diffExit, _) = try await runGit(args: ["diff-index", "--quiet", "--cached", "HEAD", "--"], in: workingDirectory)
             if diffExit == 0 {
-                // Clean working tree, nothing to commit
+                // Clean index, nothing staged to commit
                 return
             }
         }

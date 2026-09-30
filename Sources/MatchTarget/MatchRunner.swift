@@ -1,5 +1,6 @@
 import Foundation
 import Rainbow
+import AppleServices
 
 /// Coordinates the complete Match execution lifecycle: Git cloning, decryption,
 /// Apple Developer Portal integration, Keychain certificate import, local provisioning
@@ -57,8 +58,8 @@ public final class MatchRunner: Sendable {
             if !config.silent {
                 print("💥 [Match] Nuking certificates and provisioning profiles for \(config.type.rawValue)...".red.bold)
             }
-            let portal = try ApplePortalService(keyId: keyId, issuerId: issuerId, key: key)
-            let (revokedCerts, deletedProfiles) = try await portal.nuke(type: config.type, platform: config.platform)
+            let appStoreService = try AppStoreService(keyId: keyId, issuerId: issuerId, key: key)
+            let (revokedCerts, deletedProfiles) = try await appStoreService.nuke(type: config.type.rawValue, platform: config.platform.rawValue)
             if !config.silent {
                 print("   Revoked \(revokedCerts.count) certificates on Apple Developer Portal".dim)
                 print("   Deleted \(deletedProfiles.count) profiles on Apple Developer Portal".dim)
@@ -73,20 +74,23 @@ public final class MatchRunner: Sendable {
                 .appendingPathComponent(config.type.profileDirectoryName).path
 
             let fm = FileManager.default
-            var deletedAny = false
+            var filesToDelete: [String] = []
             if fm.fileExists(atPath: certsDir) {
                 try? fm.removeItem(atPath: certsDir)
-                deletedAny = true
+                filesToDelete.append(certsDir)
             }
             if fm.fileExists(atPath: profilesDir) {
                 try? fm.removeItem(atPath: profilesDir)
-                deletedAny = true
+                filesToDelete.append(profilesDir)
             }
 
-            if deletedAny {
+            if !filesToDelete.isEmpty {
                 // Re-encrypt remaining files before committing
                 try encryption.encryptDirectory(storage.workingDirectory, password: config.password)
-                try await storage.saveChanges(commitMessage: "[appitool] Nuked \(config.type.rawValue) certificates and profiles")
+                try await storage.saveChanges(
+                    filesToDelete: filesToDelete,
+                    commitMessage: "[appitool] Nuked \(config.type.rawValue) certificates and profiles"
+                )
             }
 
             if !config.silent {
@@ -95,22 +99,127 @@ public final class MatchRunner: Sendable {
             return MatchResult()
         }
 
-        // 4. Handle Sync Action
-        let portal: ApplePortalService?
+        // 4. Handle Prune Action
+        if config.action == .prune {
+            guard let keyId = config.apiKeyId, let issuerId = config.apiIssuerId, let key = config.apiKey else {
+                throw MatchError.portalAuthenticationRequired("App Store Connect API credentials are required for prune operation.")
+            }
+
+            let typesToPrune: [MatchProfileType] = config.allTypes ? MatchProfileType.allCases : [config.type]
+            let scopeDesc = config.allTypes ? "all types" : config.type.rawValue
+            if !config.silent {
+                print("🧹 [Match] Pruning invalid certificates and provisioning profiles for \(scopeDesc)...".cyan.bold)
+            }
+
+            let appStoreService = try AppStoreService(keyId: keyId, issuerId: issuerId, key: key)
+            let activeCertIds = try await appStoreService.fetchActiveCertificateIds(limit: 200)
+
+            let fm = FileManager.default
+            var filesToDelete: [String] = []
+
+            for targetType in typesToPrune {
+                let activeProfileUUIDs = try await appStoreService.fetchActiveProfileUUIDs(
+                    platform: config.platform.rawValue,
+                    type: targetType.rawValue
+                )
+
+                // 1. Prune invalid certificates in certsDir
+                let certsDir = URL(fileURLWithPath: storage.workingDirectory)
+                    .appendingPathComponent("certs")
+                    .appendingPathComponent(targetType.certDirectoryName).path
+
+                if let certFiles = try? fm.contentsOfDirectory(atPath: certsDir) {
+                    let cerFiles = Set(certFiles.filter { ($0 as NSString).pathExtension.lowercased() == "cer" }.map { ($0 as NSString).deletingPathExtension })
+                    let p12Files = Set(certFiles.filter { ($0 as NSString).pathExtension.lowercased() == "p12" }.map { ($0 as NSString).deletingPathExtension })
+                    let allCandidateIds = cerFiles.union(p12Files)
+                    let invalidIds = allCandidateIds.subtracting(activeCertIds)
+
+                    for id in invalidIds {
+                        let cerPath = URL(fileURLWithPath: certsDir).appendingPathComponent("\(id).cer").path
+                        let p12Path = URL(fileURLWithPath: certsDir).appendingPathComponent("\(id).p12").path
+                        if fm.fileExists(atPath: cerPath) {
+                            try? fm.removeItem(atPath: cerPath)
+                            filesToDelete.append(cerPath)
+                        }
+                        if fm.fileExists(atPath: p12Path) {
+                            try? fm.removeItem(atPath: p12Path)
+                            filesToDelete.append(p12Path)
+                        }
+                        if !config.silent {
+                            print("   Pruned certificate \(id) (.cer / .p12)".yellow)
+                        }
+                    }
+                }
+
+                // 2. Prune invalid profiles in profilesDir
+                let profilesDir = URL(fileURLWithPath: storage.workingDirectory)
+                    .appendingPathComponent("profiles")
+                    .appendingPathComponent(targetType.profileDirectoryName).path
+
+                if let profileFiles = try? fm.contentsOfDirectory(atPath: profilesDir) {
+                    let validExtensions: Set<String> = ["mobileprovision", "provisionprofile"]
+                    let prefix = "\(targetType.profilePrefix)_"
+                    let installer = ProfileInstaller()
+
+                    for file in profileFiles {
+                        let ext = (file as NSString).pathExtension.lowercased()
+                        guard file.hasPrefix(prefix) && validExtensions.contains(ext) else { continue }
+                        let filePath = URL(fileURLWithPath: profilesDir).appendingPathComponent(file).path
+
+                        let uuid = installer.profileUUID(atPath: filePath)
+                        let isExpired = installer.isProfileExpired(atPath: filePath)
+                        let isRevokedOnPortal = (uuid == nil) || !activeProfileUUIDs.contains(uuid!)
+
+                        if isRevokedOnPortal || isExpired {
+                            let profileName = installer.profileName(atPath: filePath)
+                            let reason = isRevokedOnPortal ? "revoked on portal" : "expired"
+                            if !config.silent {
+                                print("   Pruned profile '\(profileName)' (\(reason))".yellow)
+                            }
+                            try? fm.removeItem(atPath: filePath)
+                            filesToDelete.append(filePath)
+                        }
+                    }
+                }
+            }
+
+            if filesToDelete.isEmpty {
+                if !config.silent {
+                    print("✓ [Match] No invalid certificates or profiles found. Git repository is already clean!".green.bold)
+                }
+                return MatchResult()
+            }
+
+            // Re-encrypt remaining files before committing
+            try encryption.encryptDirectory(storage.workingDirectory, password: config.password)
+            try await storage.saveChanges(
+                filesToDelete: filesToDelete,
+                commitMessage: "[appitool] Pruned invalid code signing certificates and profiles for \(scopeDesc)"
+            )
+
+            if !config.silent {
+                print("🧹 [Match] Successfully pruned \(filesToDelete.count) invalid file(s) from Git storage!".green.bold)
+            }
+            return MatchResult()
+        }
+
+        // 5. Handle Sync Action
+        let appStoreService: AppStoreService?
         if let keyId = config.apiKeyId, let issuerId = config.apiIssuerId, let key = config.apiKey {
-            portal = try ApplePortalService(keyId: keyId, issuerId: issuerId, key: key)
+            appStoreService = try AppStoreService(keyId: keyId, issuerId: issuerId, key: key)
         } else {
-            portal = nil
+            appStoreService = nil
         }
 
         var activeCertIds: Set<String>? = nil
         var activeProfileUUIDs: Set<String>? = nil
-        if let portal {
-            activeCertIds = try await portal.fetchActiveCertificateIds(for: config.type)
-            activeProfileUUIDs = try await portal.fetchActiveProfileUUIDs(for: config.type, platform: config.platform)
+        if let appStoreService {
+            activeCertIds = try await appStoreService.fetchActiveCertificateIds(limit: 200)
+            activeProfileUUIDs = try await appStoreService.fetchActiveProfileUUIDs(platform: config.platform.rawValue, type: config.type.rawValue)
         }
 
-        var hasNewAssets = false
+        var filesToCommit: [String] = []
+        var filesToDelete: [String] = []
 
         // Discover or create certificate
         let certsDirURL = URL(fileURLWithPath: storage.workingDirectory)
@@ -122,7 +231,12 @@ public final class MatchRunner: Sendable {
         let selectedCerPath: String
         let selectedP12Path: String
 
-        if let matched = findCertificatePair(in: certsDir, activeCertIds: activeCertIds) {
+        if let matched = findCertificatePair(
+            in: certsDir,
+            activeCertIds: activeCertIds,
+            readonly: config.readonly,
+            filesToDelete: &filesToDelete
+        ) {
             selectedCertId = matched.id
             selectedCerPath = matched.cer
             selectedP12Path = matched.p12
@@ -130,39 +244,70 @@ public final class MatchRunner: Sendable {
             if config.readonly {
                 throw MatchError.certificateNotFound(type: config.type, expectedDir: certsDir)
             }
-            guard let portal else {
+            guard let appStoreService else {
                 throw MatchError.portalAuthenticationRequired("App Store Connect API credentials are required to create a new certificate.")
             }
             if !config.silent {
                 print("✨ [Match] Generating new \(config.type.rawValue) certificate on Apple Developer Portal...".yellow)
             }
-            let (newCertId, cerData, p12Data) = try await portal.createCertificate(type: config.type, teamName: config.teamName)
+            let certData: SigningCertificateData
+            do {
+                certData = try await appStoreService.createSigningCertificateData(
+                    type: config.type.rawValue,
+                    name: config.teamName,
+                    p12Password: ""
+                )
+            } catch {
+                throw MatchError.keychainError(error.localizedDescription)
+            }
             try FileManager.default.createDirectory(at: certsDirURL, withIntermediateDirectories: true)
-            let newCerPath = certsDirURL.appendingPathComponent("\(newCertId).cer").path
-            let newP12Path = certsDirURL.appendingPathComponent("\(newCertId).p12").path
-            try cerData.write(to: URL(fileURLWithPath: newCerPath))
-            try p12Data.write(to: URL(fileURLWithPath: newP12Path))
+            let newCerPath = certsDirURL.appendingPathComponent("\(certData.id).cer").path
+            let newP12Path = certsDirURL.appendingPathComponent("\(certData.id).p12").path
+            try certData.cerData.write(to: URL(fileURLWithPath: newCerPath))
+            try certData.p12Data.write(to: URL(fileURLWithPath: newP12Path))
 
-            selectedCertId = newCertId
+            selectedCertId = certData.id
             selectedCerPath = newCerPath
             selectedP12Path = newP12Path
-            hasNewAssets = true
+            filesToCommit.append(newCerPath)
+            filesToCommit.append(newP12Path)
             if !config.silent {
-                print("✓ [Match] Created Certificate: ".green.bold + "\(newCertId)")
+                print("✓ [Match] Created Certificate: ".green.bold + "\(certData.id)")
             }
         }
 
         // Prepare Keychain and import certificate
-        let keychain = KeychainManager(
-            keychainName: config.keychainName,
-            keychainPassword: config.keychainPassword
+        let keychain = AppleServices.KeychainManager(
+            keychainName: (config.keychainName?.isEmpty == false) ? config.keychainName! : "appitool",
+            keychainPassword: (config.keychainPassword?.isEmpty == false) ? config.keychainPassword! : "appipass"
         )
-        try await keychain.prepareKeychainIfNeeded()
+        do {
+            try await keychain.prepareKeychainIfNeeded()
+        } catch {
+            throw MatchError.keychainError(error.localizedDescription)
+        }
 
         if !config.silent {
             print("🔑 [Match] Installing certificate into Keychain...".dim)
         }
-        let certInfo = try await keychain.importCertificate(cerPath: selectedCerPath, p12Path: selectedP12Path)
+        let imported: ImportedCertificateInfo
+        do {
+            imported = try await keychain.importP12(
+                p12Path: selectedP12Path,
+                password: "",
+                cerPath: selectedCerPath
+            )
+        } catch {
+            throw MatchError.keychainError(error.localizedDescription)
+        }
+
+        let certInfo = MatchCertificateInfo(
+            id: imported.id,
+            name: imported.name,
+            sha1: imported.sha1,
+            cerPath: selectedCerPath,
+            p12Path: selectedP12Path
+        )
         if !config.silent {
             print("✓ [Match] Installed Certificate: ".green.bold + "\(certInfo.name)".bold + " [Cert: \(selectedCertId)]".dim)
         }
@@ -182,6 +327,21 @@ public final class MatchRunner: Sendable {
             targetIdentifiers = discoverAllProfileBundleIds(in: profilesDir, type: config.type)
         } else {
             targetIdentifiers = config.appIdentifiers
+        }
+
+        // Discover and prune invalid provisioning profiles if portal API is available
+        if let activeProfileUUIDs {
+            pruneInvalidProfiles(
+                in: profilesDir,
+                type: config.type,
+                platform: config.platform,
+                activeProfileUUIDs: activeProfileUUIDs,
+                selectedCerPath: selectedCerPath,
+                targetIdentifiers: targetIdentifiers,
+                readonly: config.readonly,
+                silent: config.silent,
+                filesToDelete: &filesToDelete
+            )
         }
 
         for bundleId in targetIdentifiers {
@@ -231,24 +391,35 @@ public final class MatchRunner: Sendable {
             }
 
             if needsCreation {
-                guard let portal else {
+                guard let appStoreService else {
                     throw MatchError.portalAuthenticationRequired("App Store Connect API credentials are required to create provisioning profiles.")
                 }
                 if !config.silent {
                     print("✨ [Match] Generating new profile for \(bundleId) on Apple Developer Portal...".yellow)
                 }
-                let (_, _, profileData) = try await portal.createProfile(
-                    type: config.type,
-                    platform: config.platform,
-                    bundleId: bundleId,
-                    certificateId: selectedCertId
-                )
+                let result: CreateProfileResult
+                do {
+                    result = try await appStoreService.createProvisioningProfile(
+                        bundleId: bundleId,
+                        type: config.type.rawValue,
+                        platform: config.platform.rawValue,
+                        certificateId: selectedCertId
+                    )
+                } catch {
+                    throw MatchError.profileParsingFailed(error.localizedDescription)
+                }
                 try FileManager.default.createDirectory(at: profilesDirURL, withIntermediateDirectories: true)
                 let newFileName = config.type.profileFileName(bundleId: bundleId, platform: config.platform)
                 let newPath = profilesDirURL.appendingPathComponent(newFileName).path
-                try profileData.write(to: URL(fileURLWithPath: newPath))
+                try result.profile.profileData.write(to: URL(fileURLWithPath: newPath))
+                if let existing = profilePath, existing != newPath {
+                    if FileManager.default.fileExists(atPath: existing) {
+                        try? FileManager.default.removeItem(atPath: existing)
+                        filesToDelete.append(existing)
+                    }
+                }
                 profilePath = newPath
-                hasNewAssets = true
+                filesToCommit.append(newPath)
             }
 
             guard let finalPath = profilePath else {
@@ -272,16 +443,26 @@ public final class MatchRunner: Sendable {
             }
         }
 
-        // Encrypt and commit changes if new assets were generated
-        if hasNewAssets && !config.readonly {
+        // Encrypt and commit changes if assets were modified or cleaned up
+        let hasChanges = (!filesToCommit.isEmpty || !filesToDelete.isEmpty) && !config.readonly
+        if hasChanges {
             if !config.silent {
-                print("🔒 [Match] Encrypting updated assets...".dim)
+                if !filesToDelete.isEmpty {
+                    print("🧹 [Match] Cleaning up \(filesToDelete.count) invalid file(s)...".yellow)
+                }
+                if !filesToCommit.isEmpty {
+                    print("🔒 [Match] Encrypting updated assets...".dim)
+                }
             }
             try encryption.encryptDirectory(storage.workingDirectory, password: config.password)
             if !config.silent {
                 print("📤 [Match] Pushing updated certificates and profiles to Git remote...".dim)
             }
-            try await storage.saveChanges(commitMessage: "[appitool] Updated code signing certificates and profiles for \(config.type.rawValue)")
+            try await storage.saveChanges(
+                filesToCommit: filesToCommit,
+                filesToDelete: filesToDelete,
+                commitMessage: "[appitool] Updated code signing certificates and profiles for \(config.type.rawValue)"
+            )
         }
 
         if !config.silent {
@@ -297,7 +478,12 @@ public final class MatchRunner: Sendable {
 
     // MARK: - Private Helpers
 
-    private func findCertificatePair(in directory: String, activeCertIds: Set<String>? = nil) -> (id: String, cer: String, p12: String)? {
+    private func findCertificatePair(
+        in directory: String,
+        activeCertIds: Set<String>? = nil,
+        readonly: Bool = false,
+        filesToDelete: inout [String]
+    ) -> (id: String, cer: String, p12: String)? {
         let fm = FileManager.default
         guard let files = try? fm.contentsOfDirectory(atPath: directory) else {
             return nil
@@ -307,7 +493,24 @@ public final class MatchRunner: Sendable {
         let p12Files = Set(files.filter { ($0 as NSString).pathExtension.lowercased() == "p12" }.map { ($0 as NSString).deletingPathExtension })
 
         var commonIds = cerFiles.intersection(p12Files)
-        if let activeCertIds, !activeCertIds.isEmpty {
+        if let activeCertIds {
+            let allCandidateIds = cerFiles.union(p12Files)
+            let invalidIds = allCandidateIds.subtracting(activeCertIds)
+
+            if !readonly && !invalidIds.isEmpty {
+                for id in invalidIds {
+                    let cerPath = URL(fileURLWithPath: directory).appendingPathComponent("\(id).cer").path
+                    let p12Path = URL(fileURLWithPath: directory).appendingPathComponent("\(id).p12").path
+                    if fm.fileExists(atPath: cerPath) {
+                        try? fm.removeItem(atPath: cerPath)
+                        filesToDelete.append(cerPath)
+                    }
+                    if fm.fileExists(atPath: p12Path) {
+                        try? fm.removeItem(atPath: p12Path)
+                        filesToDelete.append(p12Path)
+                    }
+                }
+            }
             commonIds = commonIds.intersection(activeCertIds)
         }
         guard !commonIds.isEmpty else { return nil }
@@ -345,6 +548,64 @@ public final class MatchRunner: Sendable {
             }
         }
         return bundleIds
+    }
+
+    private func pruneInvalidProfiles(
+        in directory: String,
+        type: MatchProfileType,
+        platform: MatchPlatform,
+        activeProfileUUIDs: Set<String>,
+        selectedCerPath: String,
+        targetIdentifiers: [String],
+        readonly: Bool,
+        silent: Bool,
+        filesToDelete: inout [String]
+    ) {
+        guard !readonly else { return }
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(atPath: directory) else { return }
+
+        let validExtensions: Set<String> = ["mobileprovision", "provisionprofile"]
+        let prefix = "\(type.profilePrefix)_"
+        let installer = ProfileInstaller()
+        let certData = try? Data(contentsOf: URL(fileURLWithPath: selectedCerPath))
+        let targetSet = Set(targetIdentifiers)
+
+        for file in files {
+            let ext = (file as NSString).pathExtension.lowercased()
+            guard file.hasPrefix(prefix) && validExtensions.contains(ext) else { continue }
+            let filePath = URL(fileURLWithPath: directory).appendingPathComponent(file).path
+
+            let uuid = installer.profileUUID(atPath: filePath)
+            let isExpired = installer.isProfileExpired(atPath: filePath)
+            let isRevokedOnPortal = (uuid == nil) || !activeProfileUUIDs.contains(uuid!)
+            let hasCert = (certData != nil) && installer.profileContainsCertificate(atPath: filePath, certificateData: certData!)
+
+            let isInvalid = isRevokedOnPortal || isExpired || !hasCert
+            guard isInvalid else { continue }
+
+            // Extract bundle ID
+            var pattern = String((file as NSString).deletingPathExtension.dropFirst(prefix.count))
+            if !platform.profileFilenameSuffix.isEmpty && pattern.hasSuffix(platform.profileFilenameSuffix) {
+                pattern = String(pattern.dropLast(platform.profileFilenameSuffix.count))
+            }
+            let fileBundleId = pattern
+
+            let willBeRenewed = targetSet.contains(fileBundleId)
+            let standardFileName = type.profileFileName(bundleId: fileBundleId, platform: platform)
+            let standardPath = URL(fileURLWithPath: directory).appendingPathComponent(standardFileName).path
+
+            // If it won't be renewed in the current run, or its filename doesn't match standardPath (so it won't be overwritten), delete it.
+            if !willBeRenewed || filePath != standardPath {
+                let profileName = installer.profileName(atPath: filePath)
+                if !silent {
+                    let reason = isRevokedOnPortal ? "revoked on portal" : (isExpired ? "expired" : "certificate mismatch")
+                    print("🧹 [Match] Pruning invalid profile '\(profileName)' (\(reason))...".yellow)
+                }
+                try? fm.removeItem(atPath: filePath)
+                filesToDelete.append(filePath)
+            }
+        }
     }
 
     private func findProfileFile(in directory: String, type: MatchProfileType, platform: MatchPlatform, bundleId: String) -> String? {
