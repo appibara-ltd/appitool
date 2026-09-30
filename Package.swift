@@ -29,8 +29,10 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-openapi-runtime.git", from: "1.12.1"),
         .package(url: "https://github.com/apple/swift-openapi-urlsession.git", from: "1.3.1"),
         .package(url: "https://github.com/apple/swift-crypto.git", from: "5.0.0"),
+        .package(url: "https://github.com/apple/swift-asn1.git", from: "1.7.3"),
         .package(url: "https://github.com/apple/swift-openapi-generator.git", from: "1.6.0"),
         .package(url: "https://github.com/onevcat/Rainbow.git", from: "4.2.2"),
+        .package(url: "https://github.com/apple/swift-certificates.git", .upToNextMajor(from: "1.21.0")),
     ],
     targets: [
         // Apple App Store Connect API (library target with generator plugin)
@@ -149,6 +151,8 @@ let package = Package(
                 .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
                 .product(name: "Crypto", package: "swift-crypto"),
                 .product(name: "CryptoExtras", package: "swift-crypto"),
+                .product(name: "SwiftASN1", package: "swift-asn1"),
+                .product(name: "X509", package: "swift-certificates"),
                 .product(name: "Rainbow", package: "Rainbow"),
             ],
             swiftSettings: defaultSwiftSettings

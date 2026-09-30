@@ -42,29 +42,21 @@ public final class ApplePortalService: Sendable {
         }
 
         let keyPath = tempDir.appendingPathComponent("private_key.pem").path
-        let csrPath = tempDir.appendingPathComponent("request.csr").path
         let cerPath = tempDir.appendingPathComponent("certificate.cer").path
         let p12Path = tempDir.appendingPathComponent("certificate.p12").path
 
         let cn = teamName ?? "Appitool Match \(type.rawValue.capitalized)"
 
-        // 1. Generate RSA 2048-bit Private Key and CSR
-        let reqProcess = Process()
-        reqProcess.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
-        reqProcess.arguments = [
-            "req", "-new", "-newkey", "rsa:2048", "-nodes",
-            "-keyout", keyPath,
-            "-out", csrPath,
-            "-subj", "/CN=\(cn)/C=US"
-        ]
-        reqProcess.standardInput = FileHandle.nullDevice
-        try reqProcess.run()
-        reqProcess.waitUntilExit()
-
-        guard reqProcess.terminationStatus == 0,
-              let csrContent = try? String(contentsOfFile: csrPath, encoding: .utf8) else {
-            throw MatchError.keychainError("Failed to generate RSA private key and CSR.")
+        // 1. Generate RSA 2048-bit Private Key and CSR using swift-crypto
+        let csrResult: CSRGenerator.CSRResult
+        do {
+            csrResult = try CSRGenerator.generate(commonName: cn)
+        } catch {
+            throw MatchError.keychainError("Failed to generate RSA private key and CSR: \(error.localizedDescription)")
         }
+
+        // Write private key to temp file for openssl pkcs12 consumption
+        try Data(csrResult.privateKeyPEM.utf8).write(to: URL(fileURLWithPath: keyPath))
 
         // 2. Submit CSR to Apple Developer Portal via AppleServices
         let targetType: Components.Schemas.CertificateType
@@ -79,7 +71,7 @@ public final class ApplePortalService: Sendable {
 
         let instance: Components.Schemas.Certificate
         do {
-            instance = try await appStoreService.createCertificate(csrContent: csrContent, certificateType: targetType)
+            instance = try await appStoreService.createCertificate(csrContent: csrResult.csrPEM, certificateType: targetType)
         } catch {
             throw MatchError.keychainError(error.localizedDescription)
         }
@@ -92,42 +84,17 @@ public final class ApplePortalService: Sendable {
 
         try cerData.write(to: URL(fileURLWithPath: cerPath))
 
-        // 3. Convert DER certificate to PEM format for OpenSSL pkcs12 export
-        let pemCertPath = tempDir.appendingPathComponent("cert.pem").path
-        let x509Process = Process()
-        x509Process.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
-        x509Process.arguments = [
-            "x509", "-inform", "DER",
-            "-in", cerPath,
-            "-out", pemCertPath
-        ]
-        x509Process.standardInput = FileHandle.nullDevice
-        try x509Process.run()
-        x509Process.waitUntilExit()
-
-        guard x509Process.terminationStatus == 0 else {
-            throw MatchError.keychainError("Failed to convert certificate from DER to PEM.")
-        }
-
-        // 4. Package .pem certificate and private key into passwordless .p12
-        let p12Process = Process()
-        p12Process.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
-        p12Process.arguments = [
-            "pkcs12", "-export",
-            "-inkey", keyPath,
-            "-in", pemCertPath,
-            "-out", p12Path,
-            "-passout", "pass:"
-        ]
-        p12Process.standardInput = FileHandle.nullDevice
-        p12Process.standardOutput = FileHandle.nullDevice
-        p12Process.standardError = FileHandle.nullDevice
-        try p12Process.run()
-        p12Process.waitUntilExit()
-
-        guard p12Process.terminationStatus == 0,
-              let p12Data = try? Data(contentsOf: URL(fileURLWithPath: p12Path)) else {
-            throw MatchError.keychainError("Failed to export .p12 certificate archive.")
+        // 3. Package .pem certificate and private key into passwordless .p12 using P12Exporter
+        let p12Data: Data
+        do {
+            p12Data = try P12Exporter.export(
+                cerData: cerData,
+                privateKeyPEM: csrResult.privateKeyPEM,
+                password: ""
+            )
+            try p12Data.write(to: URL(fileURLWithPath: p12Path))
+        } catch {
+            throw MatchError.keychainError("Failed to export .p12 certificate archive: \(error.localizedDescription)")
         }
 
         return (certId, cerData, p12Data)

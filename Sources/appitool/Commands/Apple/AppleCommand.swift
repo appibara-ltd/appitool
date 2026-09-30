@@ -16,6 +16,7 @@ struct AppleCommand: AsyncParsableCommand {
             AppleDeleteProfileCommand.self,
             ApplePruneProfilesCommand.self,
             AppleListCertificatesCommand.self,
+            AppleCreateCertificateCommand.self,
             AppleDeleteCertificateCommand.self,
             ApplePruneCertificatesCommand.self,
         ]
