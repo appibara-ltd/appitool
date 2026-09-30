@@ -69,9 +69,91 @@ package struct PruneCertificatesResult: Sendable {
     }
 }
 
+/// In-memory result of generating a signing certificate.
+package struct SigningCertificateData: Sendable {
+    package let certificate: Components.Schemas.Certificate
+    package let typeLabel: String
+    package let commonName: String
+    package let cerData: Data
+    package let privateKeyPEM: String
+    package let p12Data: Data
+
+    package var id: String { certificate.id }
+
+    package init(
+        certificate: Components.Schemas.Certificate,
+        typeLabel: String,
+        commonName: String,
+        cerData: Data,
+        privateKeyPEM: String,
+        p12Data: Data
+    ) {
+        self.certificate = certificate
+        self.typeLabel = typeLabel
+        self.commonName = commonName
+        self.cerData = cerData
+        self.privateKeyPEM = privateKeyPEM
+        self.p12Data = p12Data
+    }
+}
+
 extension AppStoreService {
 
+    /// Generates a local RSA key and CSR, submits to Apple Developer Portal, and returns certificate, key, and .p12 Data in-memory.
+    package func createSigningCertificateData(
+        type: String = "distribution",
+        name: String? = nil,
+        p12Password: String = ""
+    ) async throws -> SigningCertificateData {
+        let (certType, typeLabel) = try AppleTypeMapper.parseCertificateType(type)
+        return try await createSigningCertificateData(
+            certificateType: certType,
+            typeLabel: typeLabel,
+            name: name,
+            p12Password: p12Password
+        )
+    }
+
+    /// Generates a local RSA key and CSR, submits to Apple Developer Portal with the specified `CertificateType`, and returns certificate, key, and .p12 Data in-memory.
+    package func createSigningCertificateData(
+        certificateType: Components.Schemas.CertificateType,
+        typeLabel: String? = nil,
+        name: String? = nil,
+        p12Password: String = ""
+    ) async throws -> SigningCertificateData {
+        let label = typeLabel ?? "\(certificateType.rawValue)"
+        let cn = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Appitool \(label)"
+
+        // 1. Generate RSA 2048-bit Private Key and CSR
+        let csrResult = try CSRGenerator.generate(commonName: cn)
+
+        // 2. Submit CSR to Apple Developer Portal
+        let certificate = try await createCertificate(csrContent: csrResult.csrPEM, certificateType: certificateType)
+
+        guard let base64Cert = certificate.attributes?.certificateContent,
+              let cerData = Data(base64Encoded: base64Cert, options: [.ignoreUnknownCharacters]) else {
+            throw AppStoreServiceError.invalidResponse("Apple Developer Portal returned invalid certificate content.")
+        }
+
+        // 3. Package .cer and private key into .p12 data
+        let p12Data = try P12Exporter.export(
+            cerData: cerData,
+            privateKeyPEM: csrResult.privateKeyPEM,
+            password: p12Password
+        )
+
+        return SigningCertificateData(
+            certificate: certificate,
+            typeLabel: label,
+            commonName: certificate.attributes?.name ?? cn,
+            cerData: cerData,
+            privateKeyPEM: csrResult.privateKeyPEM,
+            p12Data: p12Data
+        )
+    }
+
     /// Generates a local RSA key and CSR, submits to Apple Developer Portal, and saves certificate and key files.
+    /// When `saveToKeychain` is true, imports directly from memory into Keychain without writing files to disk (unless files were explicitly requested).
     package func createSigningCertificate(
         type: String = "distribution",
         name: String? = nil,
@@ -81,21 +163,21 @@ extension AppStoreService {
         saveToKeychain: Bool = false,
         keychainName: String = "appitool"
     ) async throws -> CreateCertificateResult {
-        let (certType, typeLabel) = try AppleTypeMapper.parseCertificateType(type)
-        let cn = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Appitool \(typeLabel)"
+        let shouldExportP12 = exportP12 || p12Password != nil
+        let resolvedP12Password = p12Password ?? "appipass"
 
-        // 1. Generate RSA 2048-bit Private Key and CSR
-        let csrResult = try CSRGenerator.generate(commonName: cn)
+        // 1. Generate in-memory signing certificate data
+        let certData = try await createSigningCertificateData(
+            type: type,
+            name: name,
+            p12Password: resolvedP12Password
+        )
 
-        // 2. Submit CSR to Apple Developer Portal
-        let certificate = try await createCertificate(csrContent: csrResult.csrPEM, certificateType: certType)
+        let sanitizedName = certData.commonName
+            .replacingOccurrences(of: " ", with: "_")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: ":", with: "_")
 
-        guard let base64Cert = certificate.attributes?.certificateContent,
-              let cerData = Data(base64Encoded: base64Cert, options: [.ignoreUnknownCharacters]) else {
-            throw AppStoreServiceError.invalidResponse("Apple Developer Portal returned invalid certificate content.")
-        }
-
-        // 3. Save files to output directory (default: ~/.appitool/certs/{type}/)
         let resolvedOutput: String
         if let userOutput = outputDirectory {
             resolvedOutput = userOutput
@@ -104,59 +186,43 @@ extension AppStoreService {
             resolvedOutput = "\(home)/.appitool/certs/\(type.lowercased())/"
         }
         let outputDir = URL(fileURLWithPath: resolvedOutput)
-        try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
-
-        let certName = certificate.attributes?.name ?? cn
-        let sanitizedName = certName
-            .replacingOccurrences(of: " ", with: "_")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: ":", with: "_")
-
         let cerFile = outputDir.appendingPathComponent("\(sanitizedName).cer")
-        try cerData.write(to: cerFile)
-
         let keyFile = outputDir.appendingPathComponent("\(sanitizedName).private_key.pem")
-        try Data(csrResult.privateKeyPEM.utf8).write(to: keyFile)
-
-        // 4. Optionally export .p12
         var p12File: URL? = nil
-        let shouldExportP12 = exportP12 || p12Password != nil || saveToKeychain
-        let resolvedP12Password = p12Password ?? "appipass"
-        if shouldExportP12 {
-            let dest = outputDir.appendingPathComponent("\(sanitizedName).p12")
-            try P12Exporter.export(
-                cerData: cerData,
-                privateKeyPEM: csrResult.privateKeyPEM,
-                to: dest,
-                password: resolvedP12Password
-            )
-            p12File = dest
-        }
 
-        // 5. Optionally import into Keychain
+        // 2. Optionally import into Keychain directly from memory
         var keychainImportSucceeded = false
-        if saveToKeychain, let p12Dest = p12File {
+        if saveToKeychain {
             let keychainManager = KeychainManager(keychainName: keychainName, keychainPassword: "")
             try await keychainManager.prepareKeychainIfNeeded()
-            let importedInfo = try await keychainManager.importP12(
-                p12Path: p12Dest.path,
+            let importedInfo = try await keychainManager.importP12Data(
+                p12Data: certData.p12Data,
                 password: resolvedP12Password,
-                cerPath: cerFile.path
+                cerData: certData.cerData,
+                certId: certData.certificate.id
             )
             keychainImportSucceeded = importedInfo.isKeychainImported
+        }
 
-            // Clean up temporary local files (.p12, .cer, private_key.pem) ONLY if successfully stored in Keychain
-            if keychainImportSucceeded {
-                try? FileManager.default.removeItem(atPath: importedInfo.p12Path)
-                try? FileManager.default.removeItem(at: cerFile)
-                try? FileManager.default.removeItem(at: keyFile)
+        // 3. Write files to disk ONLY if Keychain import was not performed / failed (e.g. non-macOS),
+        // OR if the user explicitly requested output files via outputDirectory or exportP12.
+        let shouldWriteDiskFiles = !keychainImportSucceeded || exportP12 || outputDirectory != nil
+        if shouldWriteDiskFiles {
+            try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
+            try certData.cerData.write(to: cerFile)
+            try Data(certData.privateKeyPEM.utf8).write(to: keyFile)
+
+            if shouldExportP12 {
+                let dest = outputDir.appendingPathComponent("\(sanitizedName).p12")
+                try certData.p12Data.write(to: dest)
+                p12File = dest
             }
         }
 
         return CreateCertificateResult(
-            certificate: certificate,
-            typeLabel: typeLabel,
-            commonName: certName,
+            certificate: certData.certificate,
+            typeLabel: certData.typeLabel,
+            commonName: certData.commonName,
             cerFile: cerFile,
             keyFile: keyFile,
             p12File: p12File,

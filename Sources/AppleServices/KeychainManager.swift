@@ -8,7 +8,7 @@ package struct ImportedCertificateInfo: Sendable, Equatable {
     package let name: String
     package let sha1: String?
     package let cerPath: String?
-    package let p12Path: String
+    package let p12Path: String?
     package let isKeychainImported: Bool
 
     package init(
@@ -16,7 +16,7 @@ package struct ImportedCertificateInfo: Sendable, Equatable {
         name: String,
         sha1: String? = nil,
         cerPath: String? = nil,
-        p12Path: String,
+        p12Path: String? = nil,
         isKeychainImported: Bool = false
     ) {
         self.id = id
@@ -276,18 +276,80 @@ package struct KeychainManager: Sendable {
         #endif
     }
 
+    /// Imports a `.p12` archive and optional `.cer` data directly from memory into the keychain via an ephemeral temporary file.
+    /// The temporary file is immediately removed upon completion so nothing is written to user or workspace directories.
+    /// On non-macOS platforms, this is a graceful no-op that parses certificate info without importing into Keychain.
+    @discardableResult
+    package func importP12Data(
+        p12Data: Data,
+        password: String = "",
+        cerData: Data? = nil,
+        certId: String? = nil
+    ) async throws -> ImportedCertificateInfo {
+        #if !os(macOS)
+        // Keychain is only supported on macOS; no-op on other platforms
+        return parseCertificateInfo(
+            certData: cerData,
+            p12Data: p12Data,
+            password: password,
+            fallbackId: certId,
+            isKeychainImported: false
+        )
+        #else
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: tempDir)
+        }
+
+        let tempP12Path = tempDir.appendingPathComponent("import.p12").path
+        try p12Data.write(to: URL(fileURLWithPath: tempP12Path))
+
+        var tempCerPath: String? = nil
+        if let cerData {
+            let path = tempDir.appendingPathComponent("import.cer").path
+            try cerData.write(to: URL(fileURLWithPath: path))
+            tempCerPath = path
+        }
+
+        let importedInfo = try await importP12(
+            p12Path: tempP12Path,
+            password: password,
+            cerPath: tempCerPath
+        )
+
+        return parseCertificateInfo(
+            certData: cerData,
+            p12Data: p12Data,
+            password: password,
+            fallbackId: certId,
+            isKeychainImported: importedInfo.isKeychainImported
+        )
+        #endif
+    }
+
     private func parseCertificateInfo(
-        p12Path: String,
-        password: String,
-        cerPath: String?,
+        p12Path: String? = nil,
+        certData inputCertData: Data? = nil,
+        p12Data: Data? = nil,
+        password: String = "",
+        cerPath: String? = nil,
+        fallbackId: String? = nil,
         isKeychainImported: Bool = false
     ) -> ImportedCertificateInfo {
-        let certId = (cerPath != nil)
-            ? URL(fileURLWithPath: cerPath!).deletingPathExtension().lastPathComponent
-            : URL(fileURLWithPath: p12Path).deletingPathExtension().lastPathComponent
+        let certId: String
+        if let fallbackId, !fallbackId.isEmpty {
+            certId = fallbackId
+        } else if let cerPath {
+            certId = URL(fileURLWithPath: cerPath).deletingPathExtension().lastPathComponent
+        } else if let p12Path {
+            certId = URL(fileURLWithPath: p12Path).deletingPathExtension().lastPathComponent
+        } else {
+            certId = "certificate"
+        }
 
-        var certData: Data? = nil
-        if let cerPath, let data = try? Data(contentsOf: URL(fileURLWithPath: cerPath)) {
+        var certData: Data? = inputCertData
+        if certData == nil, let cerPath, let data = try? Data(contentsOf: URL(fileURLWithPath: cerPath)) {
             certData = data
         }
 
@@ -313,10 +375,20 @@ package struct KeychainManager: Sendable {
         if certData == nil {
             let derProcess = Process()
             derProcess.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
-            derProcess.arguments = [
-                "pkcs12", "-in", p12Path, "-clcerts", "-nokeys", "-passin", "pass:\(password)"
-            ]
-            derProcess.standardInput = FileHandle.nullDevice
+            if let p12Path {
+                derProcess.arguments = [
+                    "pkcs12", "-in", p12Path, "-clcerts", "-nokeys", "-passin", "pass:\(password)"
+                ]
+                derProcess.standardInput = FileHandle.nullDevice
+            } else if let p12Data {
+                derProcess.arguments = [
+                    "pkcs12", "-clcerts", "-nokeys", "-passin", "pass:\(password)"
+                ]
+                let inPipe = Pipe()
+                derProcess.standardInput = inPipe
+                try? inPipe.fileHandleForWriting.write(contentsOf: p12Data)
+                try? inPipe.fileHandleForWriting.close()
+            }
             let derPipe = Pipe()
             derProcess.standardOutput = derPipe
             derProcess.standardError = FileHandle.nullDevice

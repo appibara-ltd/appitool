@@ -219,7 +219,8 @@ package struct AppleTypeMapper: Sendable {
             guard let cls = device.attributes?.deviceClass else { return device.id }
             switch normalizedPlatform {
             case "ios":
-                if cls != .IPHONE && cls != .IPAD && cls != .IPOD { return nil }
+                // Only iPhones, iPads, iPods, and Apple Vision Pro (exclude Macs, TVs, Watches)
+                if cls == .MAC || cls == .APPLE_TV || cls == .APPLE_WATCH { return nil }
             case "tvos":
                 if cls != .APPLE_TV { return nil }
             case "macos", "mac", "catalyst":
@@ -228,6 +229,62 @@ package struct AppleTypeMapper: Sendable {
                 break
             }
             return device.id
+        }
+    }
+
+    /// Checks whether a raw profile type string from the portal matches the requested target profile type and platform.
+    package static func matchesProfileType(profTypeStr: String, targetType: String, platform: String) -> Bool {
+        let normPlatform = platform.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normTarget = targetType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        let prefixMatches: Bool
+        switch normPlatform {
+        case "ios": prefixMatches = profTypeStr.hasPrefix("IOS_")
+        case "tvos": prefixMatches = profTypeStr.hasPrefix("TVOS_")
+        case "macos", "mac": prefixMatches = profTypeStr.hasPrefix("MAC_APP_")
+        case "catalyst": prefixMatches = profTypeStr.hasPrefix("MAC_CATALYST_")
+        default: prefixMatches = false
+        }
+        guard prefixMatches else { return false }
+
+        switch normTarget {
+        case "appstore", "app-store":
+            return profTypeStr.contains("APP_STORE") || profTypeStr.contains("STORE")
+        case "adhoc", "ad-hoc":
+            return profTypeStr.contains("ADHOC")
+        case "development", "dev":
+            return profTypeStr.contains("DEVELOPMENT")
+        case "enterprise", "inhouse":
+            return profTypeStr.contains("INHOUSE") || profTypeStr.contains("DIRECT")
+        case "developer-id", "developer_id", "direct":
+            return profTypeStr.contains("DIRECT")
+        default:
+            return false
+        }
+    }
+
+    // MARK: - Device Filters
+
+    /// Parses string representation to Device Platform query filter.
+    package static func parseDevicePlatformFilter(
+        _ raw: String
+    ) -> Operations.devices_getCollection.Input.Query.filter_lbrack_platform_rbrack_PayloadPayload? {
+        switch raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "ios": return .IOS
+        case "macos", "mac": return .MAC_OS
+        case "universal": return .UNIVERSAL
+        default: return nil
+        }
+    }
+
+    /// Parses string representation to Device Status query filter.
+    package static func parseDeviceStatusFilter(
+        _ raw: String
+    ) -> Operations.devices_getCollection.Input.Query.filter_lbrack_status_rbrack_PayloadPayload? {
+        switch raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "enabled", "active", "enable": return .ENABLED
+        case "disabled", "inactive", "disable": return .DISABLED
+        default: return nil
         }
     }
 

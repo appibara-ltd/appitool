@@ -448,19 +448,37 @@ package struct AppStoreService: Sendable {
 
     // MARK: - Device Operations
 
-    /// Fetches all registered and enabled devices for a given platform, with auto-pagination.
+    /// Fetches registered devices from Apple Developer Portal with optional filtering and auto-pagination.
     package func fetchDevices(
-        platform: Operations.devices_getCollection.Input.Query.filter_lbrack_platform_rbrack_PayloadPayload,
+        platform: Operations.devices_getCollection.Input.Query.filter_lbrack_platform_rbrack_PayloadPayload? = nil,
+        status: Operations.devices_getCollection.Input.Query.filter_lbrack_status_rbrack_PayloadPayload? = nil,
+        udid: String? = nil,
         limit: Int? = nil
     ) async throws -> [Components.Schemas.Device] {
         let pageLimit = min(limit ?? 200, 200)
         let response = try await client.devices_getCollection(query: .init(
-            filter_lbrack_platform_rbrack_: [platform],
-            filter_lbrack_status_rbrack_: [.ENABLED],
+            filter_lbrack_platform_rbrack_: platform.map { [$0] },
+            filter_lbrack_udid_rbrack_: udid.map { [$0] },
+            filter_lbrack_status_rbrack_: status.map { [$0] },
             limit: pageLimit
         ))
         guard case .ok(let okResp) = response, case .json(let collection) = okResp.body else {
-            return []
+            switch response {
+            case .badRequest(let badReq):
+                let msg = formatAppleErrors(try? badReq.body.json.errors)
+                throw AppStoreServiceError.apiError(status: 400, message: msg)
+            case .forbidden(let forbidden):
+                let msg = formatAppleErrors(try? forbidden.body.json.errors)
+                throw AppStoreServiceError.apiError(status: 403, message: msg)
+            case .unauthorized(let unauth):
+                let msg = formatAppleErrors(try? unauth.body.json.errors)
+                throw AppStoreServiceError.apiError(status: 401, message: msg)
+            case .tooManyRequests(let tmr):
+                let msg = formatAppleErrors(try? tmr.body.json.errors)
+                throw AppStoreServiceError.apiError(status: 429, message: msg)
+            default:
+                return []
+            }
         }
 
         var allItems = collection.data
@@ -477,6 +495,164 @@ package struct AppStoreService: Sendable {
             return Array(allItems.prefix(limit))
         }
         return allItems
+    }
+
+    /// Fetches devices with string-based platform, status, and name filters.
+    package func fetchDevices(
+        matchingName: String? = nil,
+        platform: String? = nil,
+        status: String? = nil,
+        udid: String? = nil,
+        limit: Int? = nil
+    ) async throws -> [Components.Schemas.Device] {
+        let parsedPlatform = platform.flatMap { AppleTypeMapper.parseDevicePlatformFilter($0) }
+        let parsedStatus = status.flatMap { AppleTypeMapper.parseDeviceStatusFilter($0) }
+
+        var devices = try await fetchDevices(
+            platform: parsedPlatform,
+            status: parsedStatus,
+            udid: udid,
+            limit: matchingName != nil ? nil : limit
+        )
+
+        if let matchingName, !matchingName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let filter = matchingName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            devices = devices.filter { ($0.attributes?.name ?? "").localizedCaseInsensitiveContains(filter) }
+            if let limit, devices.count > limit {
+                devices = Array(devices.prefix(limit))
+            }
+        }
+
+        return devices
+    }
+
+    /// Registers a new device on Apple Developer Portal.
+    package func registerDevice(
+        name: String,
+        udid: String,
+        platform: String = "ios"
+    ) async throws -> Components.Schemas.Device {
+        let parsedPlatform = try AppleTypeMapper.parseBundleIdPlatform(platform)
+        let requestBody = Components.Schemas.DeviceCreateRequest(
+            data: .init(
+                _type: .devices,
+                attributes: .init(
+                    name: name,
+                    platform: parsedPlatform,
+                    udid: udid
+                )
+            )
+        )
+
+        let response = try await client.devices_createInstance(body: .json(requestBody))
+        switch response {
+        case .created(let createdResp):
+            guard case .json(let deviceResp) = createdResp.body else {
+                throw AppStoreServiceError.invalidResponse("Invalid response format when creating device.")
+            }
+            return deviceResp.data
+        case .badRequest(let badReq):
+            let msg = formatAppleErrors(try? badReq.body.json.errors)
+            throw AppStoreServiceError.apiError(status: 400, message: msg)
+        case .forbidden(let forbidden):
+            let msg = formatAppleErrors(try? forbidden.body.json.errors)
+            throw AppStoreServiceError.apiError(status: 403, message: msg)
+        case .unauthorized(let unauth):
+            let msg = formatAppleErrors(try? unauth.body.json.errors)
+            throw AppStoreServiceError.apiError(status: 401, message: msg)
+        case .conflict(let conflict):
+            let msg = formatAppleErrors(try? conflict.body.json.errors)
+            throw AppStoreServiceError.apiError(status: 409, message: msg)
+        case .unprocessableContent(let unproc):
+            let msg = formatAppleErrors(try? unproc.body.json.errors)
+            throw AppStoreServiceError.apiError(status: 422, message: msg)
+        case .tooManyRequests(let tmr):
+            let msg = formatAppleErrors(try? tmr.body.json.errors)
+            throw AppStoreServiceError.apiError(status: 429, message: msg)
+        case .undocumented(let statusCode, _):
+            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        }
+    }
+
+    /// Disables a device on Apple Developer Portal.
+    /// Note: Apple Developer Portal REST API does not allow deleting devices; disabling prevents inclusion in provisioning profiles.
+    package func disableDevice(id: String) async throws -> Components.Schemas.Device {
+        let requestBody = Components.Schemas.DeviceUpdateRequest(
+            data: .init(
+                _type: .devices,
+                id: id,
+                attributes: .init(
+                    status: .DISABLED
+                )
+            )
+        )
+
+        let response = try await client.devices_updateInstance(
+            path: .init(id: id),
+            body: .json(requestBody)
+        )
+        switch response {
+        case .ok(let okResp):
+            guard case .json(let deviceResp) = okResp.body else {
+                throw AppStoreServiceError.invalidResponse("Invalid response format when updating device.")
+            }
+            return deviceResp.data
+        case .badRequest(let badReq):
+            let msg = formatAppleErrors(try? badReq.body.json.errors)
+            throw AppStoreServiceError.apiError(status: 400, message: msg)
+        case .forbidden(let forbidden):
+            let msg = formatAppleErrors(try? forbidden.body.json.errors)
+            throw AppStoreServiceError.apiError(status: 403, message: msg)
+        case .unauthorized(let unauth):
+            let msg = formatAppleErrors(try? unauth.body.json.errors)
+            throw AppStoreServiceError.apiError(status: 401, message: msg)
+        case .notFound(let notFound):
+            let msg = formatAppleErrors(try? notFound.body.json.errors)
+            throw AppStoreServiceError.apiError(status: 404, message: msg)
+        case .conflict(let conflict):
+            let msg = formatAppleErrors(try? conflict.body.json.errors)
+            throw AppStoreServiceError.apiError(status: 409, message: msg)
+        case .unprocessableContent(let unproc):
+            let msg = formatAppleErrors(try? unproc.body.json.errors)
+            throw AppStoreServiceError.apiError(status: 422, message: msg)
+        case .tooManyRequests(let tmr):
+            let msg = formatAppleErrors(try? tmr.body.json.errors)
+            throw AppStoreServiceError.apiError(status: 429, message: msg)
+        case .undocumented(let statusCode, _):
+            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        }
+    }
+
+    /// Finds a device by UDID using portal query filter.
+    package func findDevice(udid: String) async throws -> Components.Schemas.Device? {
+        let trimmed = udid.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let devices = try await fetchDevices(udid: trimmed)
+        for dev in devices {
+            if let devUdid = dev.attributes?.udid, devUdid.caseInsensitiveCompare(trimmed) == .orderedSame {
+                return dev
+            }
+        }
+        return nil
+    }
+
+    /// Finds a device by ID, UDID, or exact name.
+    package func findDevice(identifier: String) async throws -> Components.Schemas.Device? {
+        let trimmed = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let allDevices = try await fetchDevices(limit: 200)
+        for device in allDevices {
+            if device.id == trimmed { return device }
+            if let udid = device.attributes?.udid, udid.caseInsensitiveCompare(trimmed) == .orderedSame {
+                return device
+            }
+            if let name = device.attributes?.name, name.caseInsensitiveCompare(trimmed) == .orderedSame {
+                return device
+            }
+        }
+        return nil
     }
 
     // MARK: - Provisioning Profile Operations

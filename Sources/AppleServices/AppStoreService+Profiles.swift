@@ -126,10 +126,7 @@ extension AppStoreService {
         if let explicitDevices = deviceIds, !explicitDevices.isEmpty {
             resolvedDeviceIds = explicitDevices
         } else if isDevOrAdhoc {
-            let platformFilter: Operations.devices_getCollection.Input.Query.filter_lbrack_platform_rbrack_PayloadPayload =
-                (normalizedPlatform == "macos" || normalizedPlatform == "mac" || normalizedPlatform == "catalyst") ? .MAC_OS : .IOS
-            let allDevices = try await fetchDevices(platform: platformFilter)
-            resolvedDeviceIds = AppleTypeMapper.filterDeviceIds(allDevices, for: normalizedPlatform)
+            resolvedDeviceIds = try await fetchActiveDeviceIds(for: normalizedPlatform)
             guard !resolvedDeviceIds.isEmpty else {
                 throw AppStoreServiceError.invalidResponse("Development/AdHoc profiles require at least one registered device, but no enabled devices were found on Apple Developer Portal.")
             }
@@ -176,7 +173,7 @@ extension AppStoreService {
             profile: CreatedProfileInfo(
                 id: created.id,
                 name: created.name,
-                uuid: created.uuid,
+                uuid: created.uuid,i
                 profileData: created.profileData
             ),
             profileType: targetProfileType,
@@ -293,5 +290,37 @@ extension AppStoreService {
             deletedCount: deletedCount,
             failedProfiles: failed
         )
+    }
+
+    // MARK: - Active Profile and Device Queries
+
+    /// Fetches all active, non-invalidated profile UUIDs from Apple Developer Portal matching the given platform and type.
+    package func fetchActiveProfileUUIDs(
+        platform: String,
+        type: String,
+        limit: Int = 200
+    ) async throws -> Set<String> {
+        let profiles = try await fetchProfiles(limit: limit)
+
+        var activeUUIDs = Set<String>()
+        for profile in profiles {
+            let profTypeStr = profile.attributes?.profileType?.rawValue ?? ""
+            let state = profile.attributes?.profileState
+            if AppleTypeMapper.matchesProfileType(profTypeStr: profTypeStr, targetType: type, platform: platform) && state == .ACTIVE {
+                if let uuid = profile.attributes?.uuid {
+                    activeUUIDs.insert(uuid)
+                }
+            }
+        }
+        return activeUUIDs
+    }
+
+    /// Fetches all active, enabled device IDs registered on Apple Developer Portal matching the target platform.
+    package func fetchActiveDeviceIds(for platform: String) async throws -> [String] {
+        let normalizedPlatform = platform.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let platformFilter: Operations.devices_getCollection.Input.Query.filter_lbrack_platform_rbrack_PayloadPayload =
+            (normalizedPlatform == "macos" || normalizedPlatform == "mac" || normalizedPlatform == "catalyst") ? .MAC_OS : .IOS
+        let devices = try await fetchDevices(platform: platformFilter)
+        return AppleTypeMapper.filterDeviceIds(devices, for: normalizedPlatform)
     }
 }

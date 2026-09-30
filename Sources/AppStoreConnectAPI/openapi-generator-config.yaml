@@ -13,5 +13,6 @@ filter:
     - /v1/profiles
     - /v1/profiles/{id}
     - /v1/devices
+    - /v1/devices/{id}
     - /v1/bundleIdCapabilities
     - /v1/bundleIds/{id}/bundleIdCapabilities

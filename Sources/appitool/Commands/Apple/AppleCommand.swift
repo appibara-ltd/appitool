@@ -19,6 +19,9 @@ struct AppleCommand: AsyncParsableCommand {
             AppleCreateCertificateCommand.self,
             AppleDeleteCertificateCommand.self,
             ApplePruneCertificatesCommand.self,
+            AppleListDevicesCommand.self,
+            AppleAddDeviceCommand.self,
+            AppleDisableDeviceCommand.self,
         ]
     )
 }
