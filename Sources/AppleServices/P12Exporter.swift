@@ -2,12 +2,12 @@ import Foundation
 import X509
 
 /// Errors that can occur during PKCS#12 (.p12) archiving.
-public enum P12ExporterError: LocalizedError, Sendable {
+package enum P12ExporterError: LocalizedError, Sendable {
     case conversionFailed(String)
     case exportFailed(String)
     case fileReadError(String)
 
-    public var errorDescription: String? {
+    package var errorDescription: String? {
         switch self {
         case .conversionFailed(let msg):
             return "Failed to convert DER certificate to PEM: \(msg)"
@@ -20,7 +20,7 @@ public enum P12ExporterError: LocalizedError, Sendable {
 }
 
 /// Utility for packaging X.509 DER certificates and private keys into PKCS#12 (.p12) archives.
-public struct P12Exporter: Sendable {
+package struct P12Exporter: Sendable {
 
     /// Exports a `.cer` (DER format) and private key (PEM format) into PKCS#12 (`.p12`) archive bytes.
     ///
@@ -29,7 +29,7 @@ public struct P12Exporter: Sendable {
     ///   - privateKeyPEM: The PEM-encoded private key string (PKCS#8 or PKCS#1).
     ///   - password: The password to encrypt the `.p12` archive (defaults to empty string for passwordless).
     /// - Returns: The generated `.p12` data.
-    public static func export(
+    package static func export(
         cerData: Data,
         privateKeyPEM: String,
         password: String = ""
@@ -116,7 +116,7 @@ public struct P12Exporter: Sendable {
     ///   - privateKeyPEM: The PEM-encoded private key string.
     ///   - destinationURL: Destination file URL for the `.p12` file.
     ///   - password: The password to encrypt the `.p12` archive (defaults to empty string for passwordless).
-    public static func export(
+    package static func export(
         cerData: Data,
         privateKeyPEM: String,
         to destinationURL: URL,
@@ -135,7 +135,7 @@ public struct P12Exporter: Sendable {
     ///   - keyPath: Path to the private key `.pem` file.
     ///   - destinationURL: Destination file URL for the `.p12` file.
     ///   - password: The password to encrypt the `.p12` archive (defaults to empty string for passwordless).
-    public static func export(
+    package static func export(
         cerPath: String,
         keyPath: String,
         to destinationURL: URL,

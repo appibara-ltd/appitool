@@ -27,27 +27,7 @@ struct AppleListCertificatesCommand: AsyncParsableCommand {
             return
         }
 
-        var certTypes: [Operations.certificates_getCollection.Input.Query.filter_lbrack_certificateType_rbrack_PayloadPayload]? = nil
-        if let typeFilter = type?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !typeFilter.isEmpty {
-            switch typeFilter {
-            case "distribution", "dist":
-                certTypes = [.DISTRIBUTION, .IOS_DISTRIBUTION, .MAC_APP_DISTRIBUTION]
-            case "development", "dev":
-                certTypes = [.DEVELOPMENT, .IOS_DEVELOPMENT, .MAC_APP_DEVELOPMENT]
-            case "developer-id", "developer_id", "direct":
-                certTypes = [.DEVELOPER_ID_APPLICATION]
-            case "ios-distribution":
-                certTypes = [.IOS_DISTRIBUTION, .DISTRIBUTION]
-            case "ios-development":
-                certTypes = [.IOS_DEVELOPMENT, .DEVELOPMENT]
-            case "mac-distribution":
-                certTypes = [.MAC_APP_DISTRIBUTION]
-            case "mac-development":
-                certTypes = [.MAC_APP_DEVELOPMENT]
-            default:
-                break
-            }
-        }
+        let certTypes = type.flatMap { AppleTypeMapper.parseCertificateQueryFilter($0) }
 
         print("🔍 Fetching certificates from Apple Developer Portal...".dim)
         let certs = try await service.fetchCertificates(types: certTypes, limit: limit)

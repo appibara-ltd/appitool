@@ -28,31 +28,18 @@ struct ApplePruneProfilesCommand: AsyncParsableCommand {
         }
 
         print("🔍 Inspecting provisioning profiles on Apple Developer Portal...".dim)
-        let profiles = try await service.fetchProfiles()
+        let result = try await service.pruneProfiles(includeExpired: includeExpired, dryRun: dryRun)
 
-        let now = Date()
-        let toPrune = profiles.compactMap { profile in
-            let isInvalid = profile.attributes?.profileState == .INVALID
-            let isExpired = includeExpired && (profile.attributes?.expirationDate != nil) && (profile.attributes!.expirationDate! < now)
-
-            if isInvalid {
-                return (profile: profile, reason: "INVALID")
-            } else if isExpired {
-                return (profile: profile, reason: "EXPIRED")
-            }
-            return nil
-        }
-
-        if toPrune.isEmpty {
+        if result.candidates.isEmpty {
             let scopeMsg = includeExpired ? "invalid or expired" : "invalid"
             print("✓ No \(scopeMsg) provisioning profiles found on Apple Developer Portal. Portal is clean!".green.bold)
             return
         }
 
         let modePrefix = dryRun ? "[Dry Run] ".yellow.bold : ""
-        print("\n\(modePrefix)Found \(toPrune.count) candidate profile(s) for pruning:".bold)
+        print("\n\(modePrefix)Found \(result.candidates.count) candidate profile(s) for pruning:".bold)
 
-        for (p, reason) in toPrune {
+        for (p, reason) in result.candidates {
             let nameStr = p.attributes?.name ?? "unnamed"
             let uuidStr = p.attributes?.uuid ?? "-"
             let typeStr = p.attributes?.profileType?.rawValue ?? "UNKNOWN"
@@ -67,26 +54,15 @@ struct ApplePruneProfilesCommand: AsyncParsableCommand {
             return
         }
 
-        var deletedCount = 0
-        var failedCount = 0
-
-        for (p, _) in toPrune {
+        for (p, _) in result.candidates {
             let nameStr = p.attributes?.name ?? "unnamed"
-            do {
-                let success = try await service.deleteProfile(id: p.id)
-                if success {
-                    deletedCount += 1
-                    print("  ✓ Pruned: ".green + "\(nameStr)".bold)
-                } else {
-                    failedCount += 1
-                    print("  ⚠️ Already deleted: ".yellow + "\(nameStr)")
-                }
-            } catch {
-                failedCount += 1
-                print("  ❌ Failed to delete '\(nameStr)': \(error.localizedDescription)".red)
+            if let fail = result.failedProfiles.first(where: { $0.name == nameStr }) {
+                print("  ❌ Failed to delete '\(nameStr)': \(fail.error)".red)
+            } else {
+                print("  ✓ Pruned: ".green + "\(nameStr)".bold)
             }
         }
 
-        print("\n✓ Pruning finished: \(deletedCount) profile(s) deleted".green.bold + (failedCount > 0 ? ", \(failedCount) failed/skipped.".yellow : "."))
+        print("\n✓ Pruning finished: \(result.deletedCount) profile(s) deleted".green.bold + (result.failedProfiles.count > 0 ? ", \(result.failedProfiles.count) failed/skipped.".yellow : "."))
     }
 }

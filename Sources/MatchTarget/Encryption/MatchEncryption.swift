@@ -4,14 +4,14 @@ import CommonCrypto
 
 /// Handles encryption and decryption of certificate and provisioning profile files,
 /// with 100% binary and algorithm compatibility with Fastlane Match (both V1 AES-256-CBC and V2 AES-256-GCM).
-public final class MatchEncryption: Sendable {
+package final class MatchEncryption: Sendable {
     private static let v2Prefix = "match_encrypted_v2__" // 20 bytes
     private static let v1Prefix = "Salted__"             // 8 bytes
 
-    public init() {}
+    package init() {}
 
     /// Recursively decrypts all match files in the specified directory.
-    public func decryptDirectory(_ directoryPath: String, password: String) throws {
+    package func decryptDirectory(_ directoryPath: String, password: String) throws {
         let files = findMatchFiles(in: directoryPath)
         for file in files {
             try decryptFile(atPath: file, password: password)
@@ -19,7 +19,7 @@ public final class MatchEncryption: Sendable {
     }
 
     /// Recursively encrypts all match files in the specified directory.
-    public func encryptDirectory(_ directoryPath: String, password: String) throws {
+    package func encryptDirectory(_ directoryPath: String, password: String) throws {
         let files = findMatchFiles(in: directoryPath)
         for file in files {
             try encryptFile(atPath: file, password: password)
@@ -27,7 +27,7 @@ public final class MatchEncryption: Sendable {
     }
 
     /// Decrypts a single file in-place if encrypted.
-    public func decryptFile(atPath path: String, password: String) throws {
+    package func decryptFile(atPath path: String, password: String) throws {
         guard let rawContent = try? Data(contentsOf: URL(fileURLWithPath: path)), !rawContent.isEmpty else {
             return
         }
@@ -77,7 +77,7 @@ public final class MatchEncryption: Sendable {
     }
 
     /// Encrypts a single file in-place using Match V2 (AES-256-GCM).
-    public func encryptFile(atPath path: String, password: String) throws {
+    package func encryptFile(atPath path: String, password: String) throws {
         let rawData = try Data(contentsOf: URL(fileURLWithPath: path))
 
         // Check if already encrypted

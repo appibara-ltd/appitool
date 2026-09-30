@@ -24,13 +24,9 @@ struct AppleDeleteCertificateCommand: AsyncParsableCommand {
     func run() async throws {
         _ = try? EnvLoader.loadEnv()
 
-        let trimmedId = portalId?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedSerial = serialNumber?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard (trimmedId != nil && !trimmedId!.isEmpty) ||
-              (trimmedName != nil && !trimmedName!.isEmpty) ||
-              (trimmedSerial != nil && !trimmedSerial!.isEmpty) else {
+        guard (portalId != nil && !portalId!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
+              (name != nil && !name!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
+              (serialNumber != nil && !serialNumber!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) else {
             print("Error: ".red.bold + "Missing target certificate. Provide -p, --portal-id, -n, --name, or -s, --serial-number.")
             return
         }
@@ -40,58 +36,22 @@ struct AppleDeleteCertificateCommand: AsyncParsableCommand {
             return
         }
 
-        // Direct delete if only portal ID is provided
-        if let directId = trimmedId, trimmedName == nil, trimmedSerial == nil {
-            print("🗑️ Deleting certificate by ID ".red + "\(directId)".bold + "...".dim)
-            do {
-                let deleted = try await service.deleteCertificate(id: directId)
-                if deleted {
-                    print("✓ Successfully deleted certificate (Portal ID: \(directId)) from Apple Developer Portal.".green.bold)
-                    print("ℹ️ Note: Any provisioning profiles tied to this certificate have been invalidated by Apple.".dim)
-                } else {
-                    print("ℹ️ Certificate (Portal ID: '\(directId)') was not found on Apple Developer Portal (already absent).".yellow)
-                }
-            } catch {
-                print("Error: ".red.bold + "Failed to delete certificate: \(error.localizedDescription)")
-            }
-            return
-        }
-
-        let targetDescription = trimmedName ?? trimmedSerial ?? trimmedId ?? "unknown"
+        let targetDescription = name ?? serialNumber ?? portalId ?? "unknown"
         print("🔍 Searching for certificate '\(targetDescription)' on Apple Developer Portal...".dim)
-        let certs = try await service.fetchCertificates()
-
-        let matched = certs.first { cert in
-            if let targetId = trimmedId, cert.id == targetId {
-                return true
-            }
-            if let targetSerial = trimmedSerial, cert.attributes?.serialNumber == targetSerial {
-                return true
-            }
-            if let targetName = trimmedName, cert.attributes?.name == targetName {
-                return true
-            }
-            return false
-        }
-
-        guard let targetCert = matched else {
-            print("ℹ️ Certificate '\(targetDescription)' does not exist on Apple Developer Portal (already absent).".yellow)
-            return
-        }
-
-        let certName = targetCert.attributes?.name ?? "unnamed"
-        let certType = targetCert.attributes?.certificateType?.rawValue ?? "UNKNOWN"
-        let portalId = targetCert.id
-
-        print("🗑️ Deleting certificate ".red + "\(certName)".bold + " [Type: \(certType), Portal ID: \(portalId)]...".dim)
 
         do {
-            let deleted = try await service.deleteCertificate(id: portalId)
-            if deleted {
-                print("✓ Successfully deleted certificate '\(certName)' from Apple Developer Portal.".green.bold)
+            let result = try await service.deleteSigningCertificate(
+                portalId: portalId,
+                name: name,
+                serialNumber: serialNumber
+            )
+
+            if result.deleted {
+                let displayName = result.matchedCertificate?.attributes?.name ?? result.targetDescription
+                print("✓ Successfully deleted certificate '\(displayName)' from Apple Developer Portal.".green.bold)
                 print("ℹ️ Note: Any provisioning profiles tied to this certificate have been invalidated by Apple.".dim)
             } else {
-                print("ℹ️ Certificate '\(certName)' was not found or already deleted on Apple Developer Portal.".yellow)
+                print("ℹ️ Certificate '\(result.targetDescription)' does not exist on Apple Developer Portal (already absent).".yellow)
             }
         } catch {
             print("Error: ".red.bold + "Failed to delete certificate: \(error.localizedDescription)")

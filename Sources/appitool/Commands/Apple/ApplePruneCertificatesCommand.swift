@@ -27,51 +27,23 @@ struct ApplePruneCertificatesCommand: AsyncParsableCommand {
             return
         }
 
-        var certTypes: [Operations.certificates_getCollection.Input.Query.filter_lbrack_certificateType_rbrack_PayloadPayload]? = nil
-        if let typeFilter = type?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !typeFilter.isEmpty {
-            switch typeFilter {
-            case "distribution", "dist":
-                certTypes = [.DISTRIBUTION, .IOS_DISTRIBUTION, .MAC_APP_DISTRIBUTION]
-            case "development", "dev":
-                certTypes = [.DEVELOPMENT, .IOS_DEVELOPMENT, .MAC_APP_DEVELOPMENT]
-            case "developer-id", "developer_id", "direct":
-                certTypes = [.DEVELOPER_ID_APPLICATION]
-            case "ios-distribution":
-                certTypes = [.IOS_DISTRIBUTION, .DISTRIBUTION]
-            case "ios-development":
-                certTypes = [.IOS_DEVELOPMENT, .DEVELOPMENT]
-            case "mac-distribution":
-                certTypes = [.MAC_APP_DISTRIBUTION]
-            case "mac-development":
-                certTypes = [.MAC_APP_DEVELOPMENT]
-            default:
-                break
-            }
-        }
-
         print("🔍 Inspecting certificates on Apple Developer Portal...".dim)
-        let certs = try await service.fetchCertificates(types: certTypes)
+        let result = try await service.pruneCertificates(typeFilter: type, dryRun: dryRun)
 
-        let now = Date()
-        let toPrune = certs.filter { cert in
-            guard let expirationDate = cert.attributes?.expirationDate else { return false }
-            return expirationDate < now
-        }
-
-        if toPrune.isEmpty {
+        if result.candidates.isEmpty {
             let filterDesc = type.map { " (\($0))" } ?? ""
             print("✓ No expired certificates\(filterDesc) found on Apple Developer Portal. Portal is clean!".green.bold)
             return
         }
 
         let modePrefix = dryRun ? "[Dry Run] ".yellow.bold : ""
-        print("\n\(modePrefix)Found \(toPrune.count) expired certificate(s) for pruning:".bold)
+        print("\n\(modePrefix)Found \(result.candidates.count) expired certificate(s) for pruning:".bold)
 
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
 
-        for cert in toPrune {
+        for cert in result.candidates {
             let nameStr = cert.attributes?.name ?? "unnamed"
             let typeStr = cert.attributes?.certificateType?.rawValue ?? "UNKNOWN"
             let serialStr = cert.attributes?.serialNumber ?? "-"
@@ -86,28 +58,17 @@ struct ApplePruneCertificatesCommand: AsyncParsableCommand {
             return
         }
 
-        var deletedCount = 0
-        var failedCount = 0
-
-        for cert in toPrune {
+        for cert in result.candidates {
             let nameStr = cert.attributes?.name ?? "unnamed"
-            do {
-                let success = try await service.deleteCertificate(id: cert.id)
-                if success {
-                    deletedCount += 1
-                    print("  ✓ Pruned: ".green + "\(nameStr)".bold)
-                } else {
-                    failedCount += 1
-                    print("  ⚠️ Already deleted: ".yellow + "\(nameStr)")
-                }
-            } catch {
-                failedCount += 1
-                print("  ❌ Failed to delete '\(nameStr)': \(error.localizedDescription)".red)
+            if let fail = result.failedCertificates.first(where: { $0.name == nameStr }) {
+                print("  ❌ Failed to delete '\(nameStr)': \(fail.error)".red)
+            } else {
+                print("  ✓ Pruned: ".green + "\(nameStr)".bold)
             }
         }
 
-        print("\n✓ Pruning finished: \(deletedCount) certificate(s) deleted".green.bold + (failedCount > 0 ? ", \(failedCount) failed/skipped.".yellow : "."))
-        if deletedCount > 0 {
+        print("\n✓ Pruning finished: \(result.deletedCount) certificate(s) deleted".green.bold + (result.failedCertificates.count > 0 ? ", \(result.failedCertificates.count) failed/skipped.".yellow : "."))
+        if result.deletedCount > 0 {
             print("ℹ️ Note: Any provisioning profiles that were tied to these pruned certificates have been invalidated by Apple.".dim)
         }
     }

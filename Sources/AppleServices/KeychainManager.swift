@@ -1,12 +1,40 @@
 import Foundation
+import Crypto
+import X509
+
+/// Information about an imported certificate and private key in the Keychain.
+package struct ImportedCertificateInfo: Sendable, Equatable {
+    package let id: String
+    package let name: String
+    package let sha1: String?
+    package let cerPath: String?
+    package let p12Path: String
+    package let isKeychainImported: Bool
+
+    package init(
+        id: String,
+        name: String,
+        sha1: String? = nil,
+        cerPath: String? = nil,
+        p12Path: String,
+        isKeychainImported: Bool = false
+    ) {
+        self.id = id
+        self.name = name
+        self.sha1 = sha1
+        self.cerPath = cerPath
+        self.p12Path = p12Path
+        self.isKeychainImported = isKeychainImported
+    }
+}
 
 /// Errors that can occur during macOS Keychain operations.
-public enum KeychainManagerError: LocalizedError, Sendable {
+package enum KeychainManagerError: LocalizedError, Sendable {
     case executionFailed(command: String, status: Int32, output: String)
     case fileNotFound(String)
     case protectedKeychain(String)
 
-    public var errorDescription: String? {
+    package var errorDescription: String? {
         switch self {
         case .executionFailed(let cmd, let status, let output):
             let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -21,12 +49,12 @@ public enum KeychainManagerError: LocalizedError, Sendable {
 
 /// Manages macOS Keychain operations for Apple services, including creating the `appitool` keychain
 /// and importing PKCS#12 (.p12) archives and certificates.
-public struct KeychainManager: Sendable {
-    public let keychainName: String
-    public let keychainPassword: String
-    public let keychainPath: String
+package struct KeychainManager: Sendable {
+    package let keychainName: String
+    package let keychainPassword: String
+    package let keychainPath: String
 
-    public init(keychainName: String = "appitool", keychainPassword: String = "") {
+    package init(keychainName: String = "appitool", keychainPassword: String = "appipass") {
         self.keychainName = keychainName
         self.keychainPassword = keychainPassword
 
@@ -45,7 +73,11 @@ public struct KeychainManager: Sendable {
     }
 
     /// Prepares the keychain: creates it if it doesn't exist, sets timeout, unlocks it, and adds to user keychain search list.
-    public func prepareKeychainIfNeeded() async throws {
+    package func prepareKeychainIfNeeded() async throws {
+        #if !os(macOS)
+        // Keychain is only supported on macOS; no-op on other platforms
+        return
+        #else
         let fm = FileManager.default
         let legacyPath = keychainPath.replacingOccurrences(of: "-db", with: "")
 
@@ -74,11 +106,16 @@ public struct KeychainManager: Sendable {
             updated.insert(keychainPath, at: 0)
             _ = try await runSecurity(["list-keychains", "-d", "user", "-s"] + updated)
         }
+        #endif
     }
 
     /// Deletes the keychain managed by this instance from macOS security database and cleans up remaining files from disk.
     /// Safety guard: Strictly restricted to this instance's keychainName and protects system keychains (login, System).
-    public func deleteKeychain() async throws {
+    package func deleteKeychain() async throws {
+        #if !os(macOS)
+        // Keychain is only supported on macOS; no-op on other platforms
+        return
+        #else
         // Safety guard: prevent accidental deletion of system or login keychains
         let protectedKeychains: Set<String> = ["login", "system", "login.keychain", "login.keychain-db", "system.keychain", "system.keychain-db"]
         let normalizedName = keychainName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -119,13 +156,18 @@ public struct KeychainManager: Sendable {
                 _ = try? await runSecurity(["list-keychains", "-d", "user", "-s"] + updated)
             }
         }
+        #endif
     }
 
     /// Checks whether the keychain file currently exists on disk.
-    public var keychainExists: Bool {
+    package var keychainExists: Bool {
+        #if !os(macOS)
+        return false
+        #else
         let fm = FileManager.default
         let legacyPath = keychainPath.replacingOccurrences(of: "-db", with: "")
         return fm.fileExists(atPath: keychainPath) || fm.fileExists(atPath: legacyPath)
+        #endif
     }
 
     /// Imports a `.p12` archive (PKCS#12) into the keychain, optionally including the matching `.cer`.
@@ -134,11 +176,18 @@ public struct KeychainManager: Sendable {
     ///   - p12Path: Path to the `.p12` file.
     ///   - password: Password protecting the `.p12` archive.
     ///   - cerPath: Optional path to the `.cer` file to import alongside the private key.
-    public func importP12(p12Path: String, password: String = "", cerPath: String? = nil) async throws {
+    /// - Returns: An `ImportedCertificateInfo` containing certificate ID, subject summary name, SHA-1 fingerprint, and paths.
+    @discardableResult
+    package func importP12(p12Path: String, password: String = "", cerPath: String? = nil) async throws -> ImportedCertificateInfo {
         guard FileManager.default.fileExists(atPath: p12Path) else {
             throw KeychainManagerError.fileNotFound(p12Path)
         }
 
+        #if !os(macOS)
+        // Keychain is only supported on macOS. On Linux/other platforms, gracefully parse certificate
+        // info as a no-op without running macOS /usr/bin/security commands, indicating not imported into Keychain.
+        return parseCertificateInfo(p12Path: p12Path, password: password, cerPath: cerPath, isKeychainImported: false)
+        #else
         // 1. Optionally import .cer
         if let cerPath, FileManager.default.fileExists(atPath: cerPath) {
             let (cerExit, cerOut) = try await runSecurity(["add-certificates", "-k", keychainPath, cerPath])
@@ -221,12 +270,109 @@ public struct KeychainManager: Sendable {
             "-k", keychainPassword,
             keychainPath
         ])
+
+        // 4. Extract and return certificate info
+        return parseCertificateInfo(p12Path: p12Path, password: password, cerPath: cerPath, isKeychainImported: true)
+        #endif
+    }
+
+    private func parseCertificateInfo(
+        p12Path: String,
+        password: String,
+        cerPath: String?,
+        isKeychainImported: Bool = false
+    ) -> ImportedCertificateInfo {
+        let certId = (cerPath != nil)
+            ? URL(fileURLWithPath: cerPath!).deletingPathExtension().lastPathComponent
+            : URL(fileURLWithPath: p12Path).deletingPathExtension().lastPathComponent
+
+        var certData: Data? = nil
+        if let cerPath, let data = try? Data(contentsOf: URL(fileURLWithPath: cerPath)) {
+            certData = data
+        }
+
+        var subjectName: String? = nil
+
+        // 1. Primary parser: swift-certificates (cross-platform pure Swift)
+        if let certData, let cert = try? Certificate(derEncoded: [UInt8](certData)) {
+            for rdn in cert.subject {
+                for attr in rdn {
+                    if attr.type == .RDNAttributeType.commonName {
+                        subjectName = String(attr.value)
+                        break
+                    }
+                }
+                if subjectName != nil { break }
+            }
+            if subjectName == nil {
+                subjectName = cert.subject.description
+            }
+        }
+
+        // 2. Fallback when cerPath is missing: extract certificate from .p12 via OpenSSL and decode with swift-certificates
+        if certData == nil {
+            let derProcess = Process()
+            derProcess.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
+            derProcess.arguments = [
+                "pkcs12", "-in", p12Path, "-clcerts", "-nokeys", "-passin", "pass:\(password)"
+            ]
+            derProcess.standardInput = FileHandle.nullDevice
+            let derPipe = Pipe()
+            derProcess.standardOutput = derPipe
+            derProcess.standardError = FileHandle.nullDevice
+            if (try? derProcess.run()) != nil {
+                let outData = derPipe.fileHandleForReading.readDataToEndOfFile()
+                derProcess.waitUntilExit()
+                if derProcess.terminationStatus == 0, let pemString = String(data: outData, encoding: .utf8) {
+                    let lines = pemString.components(separatedBy: .newlines)
+                    let base64 = lines.filter { !$0.hasPrefix("-----") && !$0.isEmpty }.joined()
+                    if let decoded = Data(base64Encoded: base64) {
+                        certData = decoded
+                        if let cert = try? Certificate(derEncoded: [UInt8](decoded)) {
+                            for rdn in cert.subject {
+                                for attr in rdn {
+                                    if attr.type == .RDNAttributeType.commonName {
+                                        subjectName = String(attr.value)
+                                        break
+                                    }
+                                }
+                                if subjectName != nil { break }
+                            }
+                            if subjectName == nil {
+                                subjectName = cert.subject.description
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let sha1Fingerprint: String?
+        if let certData {
+            let sha1Bytes = Insecure.SHA1.hash(data: certData)
+            sha1Fingerprint = sha1Bytes.map { String(format: "%02X", $0) }.joined()
+        } else {
+            sha1Fingerprint = nil
+        }
+
+        return ImportedCertificateInfo(
+            id: certId,
+            name: subjectName ?? "Apple Certificate (\(certId))",
+            sha1: sha1Fingerprint,
+            cerPath: cerPath,
+            p12Path: p12Path,
+            isKeychainImported: isKeychainImported
+        )
     }
 
     /// Verifies if a certificate with the specified name or common identifier exists in the keychain.
-    public func containsCertificate(named name: String) async -> Bool {
+    package func containsCertificate(named name: String) async -> Bool {
+        #if !os(macOS)
+        return false
+        #else
         let (exit, _) = (try? await runSecurity(["find-certificate", "-k", keychainPath, "-c", name])) ?? (-1, "")
         return exit == 0
+        #endif
     }
 
     private func runSecurity(_ args: [String]) async throws -> (Int32, String) {

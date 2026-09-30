@@ -1,0 +1,288 @@
+import Foundation
+import AppStoreConnectAPI
+
+/// Utilities for parsing and mapping CLI string representations to App Store Connect API types and schemas.
+package struct AppleTypeMapper: Sendable {
+
+    // MARK: - Bundle ID Platforms
+
+    /// Parses a string representation into a `BundleIdPlatform`.
+    package static func parseBundleIdPlatform(_ raw: String) throws -> Components.Schemas.BundleIdPlatform {
+        switch raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "universal":
+            return .UNIVERSAL
+        case "ios":
+            return .IOS
+        case "macos", "mac":
+            return .MAC_OS
+        default:
+            throw AppStoreServiceError.invalidResponse(
+                "Unsupported platform '\(raw)'. Supported: universal, ios, macos."
+            )
+        }
+    }
+
+    // MARK: - Capabilities
+
+    package struct CapabilityDescriptor: Sendable {
+        package let category: String
+        package let key: String
+        package let enumName: String
+        package let description: String
+
+        package init(category: String, key: String, enumName: String, description: String) {
+            self.category = category
+            self.key = key
+            self.enumName = enumName
+            self.description = description
+        }
+    }
+
+    /// Complete catalog of supported capabilities with categories, CLI keys, and descriptions.
+    package static let supportedCapabilities: [CapabilityDescriptor] = [
+        CapabilityDescriptor(category: "Push & Communication", key: "push-notifications", enumName: "PUSH_NOTIFICATIONS", description: "APNs remote push notifications (alias: push)"),
+        CapabilityDescriptor(category: "Push & Communication", key: "inter-app-audio", enumName: "INTER_APP_AUDIO", description: "Real-time audio streaming with host apps"),
+        CapabilityDescriptor(category: "Push & Communication", key: "coremedia-hls-low-latency", enumName: "COREMEDIA_HLS_LOW_LATENCY", description: "Low-Latency HTTP Live Streaming (HLS)"),
+        CapabilityDescriptor(category: "Authentication & Security", key: "sign-in-with-apple", enumName: "APPLE_ID_AUTH", description: "Sign in with Apple authentication (aliases: apple-sign-in, apple-id-auth)"),
+        CapabilityDescriptor(category: "Authentication & Security", key: "data-protection", enumName: "DATA_PROTECTION", description: "Hardware-based file-level encryption"),
+        CapabilityDescriptor(category: "Authentication & Security", key: "autofill-credential-provider", enumName: "AUTOFILL_CREDENTIAL_PROVIDER", description: "AutoFill password manager extensions"),
+        CapabilityDescriptor(category: "App Integration & Domains", key: "associated-domains", enumName: "ASSOCIATED_DOMAINS", description: "Universal Links, App Clips, Web Credentials"),
+        CapabilityDescriptor(category: "App Integration & Domains", key: "app-groups", enumName: "APP_GROUPS", description: "Shared container access for App Extensions & Widgets"),
+        CapabilityDescriptor(category: "App Integration & Domains", key: "icloud", enumName: "ICLOUD", description: "CloudKit database and iCloud document storage"),
+        CapabilityDescriptor(category: "App Integration & Domains", key: "game-center", enumName: "GAME_CENTER", description: "Game Center leaderboards, achievements & multiplayer"),
+        CapabilityDescriptor(category: "App Integration & Domains", key: "in-app-purchase", enumName: "IN_APP_PURCHASE", description: "In-App Purchases & StoreKit (alias: iap)"),
+        CapabilityDescriptor(category: "Payments & Wallet", key: "apple-pay", enumName: "APPLE_PAY", description: "Apple Pay in-app payment processing"),
+        CapabilityDescriptor(category: "Payments & Wallet", key: "wallet", enumName: "WALLET", description: "Passes, tickets, and boarding passes in Apple Wallet (alias: passbook)"),
+        CapabilityDescriptor(category: "Hardware & Networking", key: "nfc-tag-reading", enumName: "NFC_TAG_READING", description: "Near Field Communication (NFC) tag reading (alias: nfc)"),
+        CapabilityDescriptor(category: "Hardware & Networking", key: "access-wifi-information", enumName: "ACCESS_WIFI_INFORMATION", description: "Access current Wi-Fi network SSID/BSSID (alias: wifi-info)"),
+        CapabilityDescriptor(category: "Hardware & Networking", key: "hot-spot", enumName: "HOT_SPOT", description: "Wi-Fi HotSpot network configuration"),
+        CapabilityDescriptor(category: "Hardware & Networking", key: "personal-vpn", enumName: "PERSONAL_VPN", description: "Personal VPN tunnels and connections"),
+        CapabilityDescriptor(category: "Hardware & Networking", key: "network-extensions", enumName: "NETWORK_EXTENSIONS", description: "Custom network tunnels, DNS proxies, and content filters"),
+        CapabilityDescriptor(category: "Hardware & Networking", key: "network-custom-protocol", enumName: "NETWORK_CUSTOM_PROTOCOL", description: "Custom network protocol extensions"),
+        CapabilityDescriptor(category: "Hardware & Networking", key: "multipath", enumName: "MULTIPATH", description: "Multipath TCP for concurrent Wi-Fi and Cellular data"),
+        CapabilityDescriptor(category: "Hardware & Networking", key: "wireless-accessory-configuration", enumName: "WIRELESS_ACCESSORY_CONFIGURATION", description: "MFi accessory Wi-Fi configuration"),
+        CapabilityDescriptor(category: "Health & Home", key: "healthkit", enumName: "HEALTHKIT", description: "HealthKit health and fitness records"),
+        CapabilityDescriptor(category: "Health & Home", key: "homekit", enumName: "HOMEKIT", description: "HomeKit smart home automation & accessories"),
+        CapabilityDescriptor(category: "Siri & Maps & System", key: "sirikit", enumName: "SIRIKIT", description: "SiriKit voice shortcuts and intents"),
+        CapabilityDescriptor(category: "Siri & Maps & System", key: "maps", enumName: "MAPS", description: "MapKit turn-by-turn routing and directions"),
+        CapabilityDescriptor(category: "Siri & Maps & System", key: "classkit", enumName: "CLASSKIT", description: "ClassKit student progress & educational activities"),
+        CapabilityDescriptor(category: "Siri & Maps & System", key: "system-extension-install", enumName: "SYSTEM_EXTENSION_INSTALL", description: "macOS system extensions & driver extensions"),
+        CapabilityDescriptor(category: "Siri & Maps & System", key: "user-management", enumName: "USER_MANAGEMENT", description: "Multi-user management on Shared iPad"),
+    ]
+
+    /// Parses a CLI string representation into a `CapabilityType`.
+    package static func parseCapability(_ raw: String) -> Components.Schemas.CapabilityType? {
+        let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch normalized {
+        case "push", "push-notifications", "push_notifications":
+            return .PUSH_NOTIFICATIONS
+        case "iap", "in-app-purchase", "in_app_purchase":
+            return .IN_APP_PURCHASE
+        case "game-center", "game_center":
+            return .GAME_CENTER
+        case "icloud":
+            return .ICLOUD
+        case "sign-in-with-apple", "apple-id-auth", "apple_id_auth", "apple-sign-in":
+            return .APPLE_ID_AUTH
+        case "app-groups", "app_groups":
+            return .APP_GROUPS
+        case "associated-domains", "associated_domains":
+            return .ASSOCIATED_DOMAINS
+        case "apple-pay", "apple_pay":
+            return .APPLE_PAY
+        case "healthkit":
+            return .HEALTHKIT
+        case "homekit":
+            return .HOMEKIT
+        case "sirikit":
+            return .SIRIKIT
+        case "wallet", "passbook":
+            return .WALLET
+        case "nfc", "nfc-tag-reading", "nfc_tag_reading":
+            return .NFC_TAG_READING
+        case "maps":
+            return .MAPS
+        case "personal-vpn", "personal_vpn":
+            return .PERSONAL_VPN
+        case "network-extensions", "network_extensions":
+            return .NETWORK_EXTENSIONS
+        case "access-wifi-information", "wifi-info", "access_wifi_information":
+            return .ACCESS_WIFI_INFORMATION
+        case "data-protection", "data_protection":
+            return .DATA_PROTECTION
+        case "autofill-credential-provider", "autofill_credential_provider":
+            return .AUTOFILL_CREDENTIAL_PROVIDER
+        case "classkit":
+            return .CLASSKIT
+        case "multipath":
+            return .MULTIPATH
+        case "inter-app-audio", "inter_app_audio":
+            return .INTER_APP_AUDIO
+        case "wireless-accessory-configuration", "wireless_accessory_configuration":
+            return .WIRELESS_ACCESSORY_CONFIGURATION
+        case "system-extension-install", "system_extension_install":
+            return .SYSTEM_EXTENSION_INSTALL
+        case "user-management", "user_management":
+            return .USER_MANAGEMENT
+        case "coremedia-hls-low-latency", "coremedia_hls_low_latency":
+            return .COREMEDIA_HLS_LOW_LATENCY
+        case "network-custom-protocol", "network_custom_protocol":
+            return .NETWORK_CUSTOM_PROTOCOL
+        case "hot-spot", "hot_spot":
+            return .HOT_SPOT
+        default:
+            let rawEnum = raw.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "-", with: "_").uppercased()
+            return Components.Schemas.CapabilityType(rawValue: rawEnum)
+        }
+    }
+
+    // MARK: - Provisioning Profile Types
+
+    /// Maps platform and distribution type strings to `ProfileCreateRequest...profileTypePayload`.
+    package static func mapProfileType(
+        type: String,
+        platform: String
+    ) throws -> Components.Schemas.ProfileCreateRequest.dataPayload.attributesPayload.profileTypePayload {
+        let normalizedType = type.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalizedPlatform = platform.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        switch normalizedPlatform {
+        case "ios":
+            switch normalizedType {
+            case "appstore", "app-store": return .IOS_APP_STORE
+            case "adhoc", "ad-hoc": return .IOS_APP_ADHOC
+            case "development", "dev": return .IOS_APP_DEVELOPMENT
+            case "enterprise", "inhouse": return .IOS_APP_INHOUSE
+            default:
+                throw AppStoreServiceError.invalidResponse("Unsupported profile type '\(type)' for iOS. Supported: appstore, development, adhoc, enterprise")
+            }
+        case "tvos":
+            switch normalizedType {
+            case "appstore", "app-store": return .TVOS_APP_STORE
+            case "adhoc", "ad-hoc": return .TVOS_APP_ADHOC
+            case "development", "dev": return .TVOS_APP_DEVELOPMENT
+            case "enterprise", "inhouse": return .TVOS_APP_INHOUSE
+            default:
+                throw AppStoreServiceError.invalidResponse("Unsupported profile type '\(type)' for tvOS. Supported: appstore, development, adhoc, enterprise")
+            }
+        case "macos", "mac":
+            switch normalizedType {
+            case "appstore", "app-store": return .MAC_APP_STORE
+            case "adhoc", "ad-hoc", "development", "dev": return .MAC_APP_DEVELOPMENT
+            case "enterprise", "developer-id", "developer_id", "direct": return .MAC_APP_DIRECT
+            default:
+                throw AppStoreServiceError.invalidResponse("Unsupported profile type '\(type)' for macOS. Supported: appstore, development, adhoc, developer_id")
+            }
+        case "catalyst":
+            switch normalizedType {
+            case "appstore", "app-store": return .MAC_CATALYST_APP_STORE
+            case "adhoc", "ad-hoc", "development", "dev": return .MAC_CATALYST_APP_DEVELOPMENT
+            case "enterprise", "developer-id", "developer_id", "direct": return .MAC_CATALYST_APP_DIRECT
+            default:
+                throw AppStoreServiceError.invalidResponse("Unsupported profile type '\(type)' for Catalyst. Supported: appstore, development, adhoc, developer_id")
+            }
+        default:
+            throw AppStoreServiceError.invalidResponse("Unsupported platform '\(platform)'. Supported: ios, macos, tvos, catalyst")
+        }
+    }
+
+    /// Resolves certificate types matching a profile distribution type and platform.
+    package static func appleCertificateTypesForProfile(
+        type: String,
+        platform: String
+    ) -> [Operations.certificates_getCollection.Input.Query.filter_lbrack_certificateType_rbrack_PayloadPayload] {
+        let normalizedType = type.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalizedPlatform = platform.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        switch normalizedType {
+        case "development", "dev":
+            if normalizedPlatform == "macos" || normalizedPlatform == "mac" {
+                return [.DEVELOPMENT, .MAC_APP_DEVELOPMENT]
+            }
+            return [.DEVELOPMENT, .IOS_DEVELOPMENT]
+        case "adhoc", "ad-hoc", "appstore", "app-store", "enterprise", "inhouse":
+            if normalizedPlatform == "macos" || normalizedPlatform == "mac" {
+                return [.DISTRIBUTION, .MAC_APP_DISTRIBUTION]
+            }
+            return [.DISTRIBUTION, .IOS_DISTRIBUTION]
+        case "developer-id", "developer_id", "direct":
+            return [.DEVELOPER_ID_APPLICATION]
+        default:
+            return [.DISTRIBUTION, .IOS_DISTRIBUTION]
+        }
+    }
+
+    /// Filters device IDs matching a target platform.
+    package static func filterDeviceIds(_ devices: [Components.Schemas.Device], for platform: String) -> [String] {
+        let normalizedPlatform = platform.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return devices.compactMap { device in
+            guard let cls = device.attributes?.deviceClass else { return device.id }
+            switch normalizedPlatform {
+            case "ios":
+                if cls != .IPHONE && cls != .IPAD && cls != .IPOD { return nil }
+            case "tvos":
+                if cls != .APPLE_TV { return nil }
+            case "macos", "mac", "catalyst":
+                if cls != .MAC { return nil }
+            default:
+                break
+            }
+            return device.id
+        }
+    }
+
+    // MARK: - Certificate Types
+
+    /// Parses a certificate type string to `CertificateType` and human-readable label.
+    package static func parseCertificateType(_ raw: String) throws -> (certType: Components.Schemas.CertificateType, label: String) {
+        switch raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "development", "dev":
+            return (.DEVELOPMENT, "Development")
+        case "distribution", "dist":
+            return (.DISTRIBUTION, "Distribution")
+        case "developer-id", "developer_id", "developerid":
+            return (.DEVELOPER_ID_APPLICATION, "Developer ID Application")
+        case "ios-development":
+            return (.IOS_DEVELOPMENT, "iOS Development")
+        case "ios-distribution":
+            return (.IOS_DISTRIBUTION, "iOS Distribution")
+        case "mac-development":
+            return (.MAC_APP_DEVELOPMENT, "Mac Development")
+        case "mac-distribution":
+            return (.MAC_APP_DISTRIBUTION, "Mac App Distribution")
+        case "mac-installer":
+            return (.MAC_INSTALLER_DISTRIBUTION, "Mac Installer Distribution")
+        default:
+            throw AppStoreServiceError.invalidResponse(
+                "Unsupported certificate type '\(raw)'. Supported: development, distribution, developer-id, ios-development, ios-distribution, mac-development, mac-distribution, mac-installer"
+            )
+        }
+    }
+
+    /// Parses a certificate query filter string to array of API certificate types.
+    package static func parseCertificateQueryFilter(
+        _ raw: String
+    ) -> [Operations.certificates_getCollection.Input.Query.filter_lbrack_certificateType_rbrack_PayloadPayload]? {
+        let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalized.isEmpty else { return nil }
+
+        switch normalized {
+        case "distribution", "dist":
+            return [.DISTRIBUTION, .IOS_DISTRIBUTION, .MAC_APP_DISTRIBUTION]
+        case "development", "dev":
+            return [.DEVELOPMENT, .IOS_DEVELOPMENT, .MAC_APP_DEVELOPMENT]
+        case "developer-id", "developer_id", "direct":
+            return [.DEVELOPER_ID_APPLICATION]
+        case "ios-distribution":
+            return [.IOS_DISTRIBUTION, .DISTRIBUTION]
+        case "ios-development":
+            return [.IOS_DEVELOPMENT, .DEVELOPMENT]
+        case "mac-distribution":
+            return [.MAC_APP_DISTRIBUTION]
+        case "mac-development":
+            return [.MAC_APP_DEVELOPMENT]
+        default:
+            return nil
+        }
+    }
+}
