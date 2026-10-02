@@ -16,6 +16,7 @@ env:
 
 jobs:
   build-macos:
+    name: Build macOS (arm64)
     runs-on: macos-latest
     steps:
       - name: Checkout Code
@@ -36,14 +37,60 @@ jobs:
           # Create tar.gz archive
           tar -czf appitool-darwin-arm64.tar.gz -C "$(dirname "$BIN_PATH")" appitool
 
-          # Generate SHA256 checksum
-          shasum -a 256 appitool-darwin-arm64.tar.gz > checksums.txt
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appitool-darwin-arm64
+          path: appitool-darwin-arm64.tar.gz
+          retention-days: 1
+
+  build-linux:
+    name: Build Linux (x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Setup Swift 6.4
+        uses: swift-actions/setup-swift@v3
+        with:
+          swift-version: "6.4"
+
+      - name: Build and Package (Linux x86_64)
+        run: |
+          swift build -c release
+          BIN_PATH="$(swift build -c release --show-bin-path)/appitool"
+          strip "$BIN_PATH"
+
+          # Create tar.gz archive
+          tar -czf appitool-linux-x86_64.tar.gz -C "$(dirname "$BIN_PATH")" appitool
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appitool-linux-x86_64
+          path: appitool-linux-x86_64.tar.gz
+          retention-days: 1
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-macos, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Generate Checksums
+        run: |
+          sha256sum appitool-darwin-arm64.tar.gz appitool-linux-x86_64.tar.gz > checksums.txt
 
       - name: Generate Artifact Attestation
         uses: actions/attest-build-provenance@v2
         continue-on-error: true
         with:
-          subject-path: 'appitool-darwin-arm64.tar.gz'
+          subject-path: 'appitool-*.tar.gz'
 
       - name: Create GitHub Release
         env:
@@ -51,6 +98,7 @@ jobs:
         run: |
           gh release create "${{ github.ref_name }}" \
             appitool-darwin-arm64.tar.gz \
+            appitool-linux-x86_64.tar.gz \
             checksums.txt \
             --title "${{ github.ref_name }}" \
             --generate-notes
