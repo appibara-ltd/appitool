@@ -1,6 +1,8 @@
 import Foundation
 import Crypto
+#if canImport(CommonCrypto)
 import CommonCrypto
+#endif
 
 // MARK: - Match V1 (Legacy AES-256-CBC) Implementation
 
@@ -79,6 +81,7 @@ extension MatchEncryption {
     }
 
     package func decryptAes256Cbc(data: Data, key: Data, iv: Data) throws -> Data {
+        #if canImport(CommonCrypto)
         var outData = Data(count: data.count + kCCBlockSizeAES128)
         var numBytesDecrypted: size_t = 0
 
@@ -109,6 +112,31 @@ extension MatchEncryption {
         }
         outData.count = numBytesDecrypted
         return outData
+        #else
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
+        let keyHex = key.map { String(format: "%02x", $0) }.joined()
+        let ivHex = iv.map { String(format: "%02x", $0) }.joined()
+        process.arguments = ["enc", "-d", "-aes-256-cbc", "-K", keyHex, "-iv", ivHex]
+
+        let inPipe = Pipe()
+        let outPipe = Pipe()
+        process.standardInput = inPipe
+        process.standardOutput = outPipe
+        process.standardError = FileHandle.nullDevice
+
+        try process.run()
+        try inPipe.fileHandleForWriting.write(contentsOf: data)
+        try inPipe.fileHandleForWriting.close()
+
+        let decryptedData = outPipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0, !decryptedData.isEmpty else {
+            throw MatchError.decryptionFailed("AES-256-CBC decryption via openssl failed.")
+        }
+        return decryptedData
+        #endif
     }
 
     package func isValidDecryptedPayload(_ data: Data) -> Bool {

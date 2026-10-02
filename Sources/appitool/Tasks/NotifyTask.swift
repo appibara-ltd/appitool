@@ -1,5 +1,8 @@
 import Crypto
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Rainbow
 
 /// A task that dispatches notifications to configured webhook channels (Slack, KokoNo).

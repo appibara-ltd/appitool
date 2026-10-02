@@ -1,4 +1,4 @@
-// swift-tools-version: 6.4
+// swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -214,7 +214,6 @@ let package = Package(
             swiftSettings: defaultSwiftSettings,
             linkerSettings: [
                 .unsafeFlags([
-                    "-Xlinker", "-dead_strip",
                     "-Xlinker", "-x",
                     "-Xlinker", "-S",
                 ], .when(configuration: .release)),

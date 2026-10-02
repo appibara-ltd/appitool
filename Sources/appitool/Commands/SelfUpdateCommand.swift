@@ -1,6 +1,9 @@
 import ArgumentParser
 import Crypto
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Rainbow
 
 struct SelfUpdateCommand: AsyncParsableCommand {
