@@ -31,16 +31,27 @@ struct FlowIOSCommand: AsyncParsableCommand {
         let notifications = notificationOptions.resolve()
         let resolvedBundleId = bundleId ?? ProcessInfo.processInfo.environment["APPLE_BUNDLE_ID"]
 
-        let runner = FlowRunner(
+        let preset: (any FlowPreset) = {
+            switch distribution {
+            case .adhoc, .development:
+                return IOSAdHocPreset()
+            case .appstore:
+                return IOSInternalPreset()
+            }
+        }()
+
+        var context = FlowContext(
             platform: .ios,
             distribution: distribution,
             isDryRun: dryRun,
             bundleId: resolvedBundleId,
             slackUrl: notifications.slackUrl,
             kokonoUrl: notifications.kokonoUrl,
-            kokonoPublicKey: notifications.kokonoPublicKey
+            kokonoPublicKey: notifications.kokonoPublicKey,
+            preset: preset
         )
 
-        try await runner.run()
+        let runner = FlowRunner()
+        try await runner.run(context: &context)
     }
 }

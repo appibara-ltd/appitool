@@ -61,7 +61,7 @@ struct BuildIOSCommand: AsyncParsableCommand {
         let env = ProcessInfo.processInfo.environment
 
         // 1. Resolve Workspace / Project
-        let detected = autoDetectWorkspaceOrProject()
+        let detected = XCodeTasks.autoDetect()
         let resolvedWorkspace = workspace ?? env["XCODE_WORKSPACE"] ?? detected.workspace
         let resolvedProject = project ?? env["XCODE_PROJECT"] ?? detected.project
 
@@ -214,24 +214,5 @@ struct BuildIOSCommand: AsyncParsableCommand {
             print("\n" + "❌ Build Failed: ".red.bold + "\(error.localizedDescription)")
             throw ExitCode.failure
         }
-    }
-
-    // MARK: - Auto Discovery Helper
-
-    private func autoDetectWorkspaceOrProject() -> (workspace: String?, project: String?) {
-        let fm = FileManager.default
-        let currentDir = fm.currentDirectoryPath
-        let searchDirs = [currentDir, "\(currentDir)/ios"]
-
-        for dir in searchDirs {
-            guard let items = try? fm.contentsOfDirectory(atPath: dir) else { continue }
-            if let ws = items.first(where: { $0.hasSuffix(".xcworkspace") && !$0.hasPrefix(".") }) {
-                return (workspace: "\(dir)/\(ws)", project: nil)
-            }
-            if let proj = items.first(where: { $0.hasSuffix(".xcodeproj") && !$0.hasPrefix(".") }) {
-                return (workspace: nil, project: "\(dir)/\(proj)")
-            }
-        }
-        return (workspace: nil, project: nil)
     }
 }

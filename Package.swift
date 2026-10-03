@@ -33,6 +33,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-openapi-generator.git", from: "1.6.0"),
         .package(url: "https://github.com/onevcat/Rainbow.git", from: "4.2.2"),
         .package(url: "https://github.com/apple/swift-certificates.git", .upToNextMajor(from: "1.21.0")),
+        .package(url: "https://github.com/tuist/XcodeProj.git", from: "8.25.0"),
     ],
     targets: [
         // Apple App Store Connect API (library target with generator plugin)
@@ -210,6 +211,7 @@ let package = Package(
                 .product(name: "Crypto", package: "swift-crypto"),
                 .product(name: "CryptoExtras", package: "swift-crypto"),
                 .product(name: "Rainbow", package: "Rainbow"),
+                .product(name: "XcodeProj", package: "XcodeProj"),
             ],
             swiftSettings: defaultSwiftSettings,
             linkerSettings: [

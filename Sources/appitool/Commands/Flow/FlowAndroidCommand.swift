@@ -31,16 +31,27 @@ struct FlowAndroidCommand: AsyncParsableCommand {
         let notifications = notificationOptions.resolve()
         let resolvedPackageName = packageName ?? ProcessInfo.processInfo.environment["GOOGLE_PACKAGE_NAME"]
 
-        let runner = FlowRunner(
+        let preset: (any FlowPreset) = {
+            switch distribution {
+            case .adhoc, .development:
+                return AndroidAdHocPreset()
+            case .appstore:
+                return AndroidInternalPreset()
+            }
+        }()
+
+        var context = FlowContext(
             platform: .android,
             distribution: distribution,
             isDryRun: dryRun,
             bundleId: resolvedPackageName,
             slackUrl: notifications.slackUrl,
             kokonoUrl: notifications.kokonoUrl,
-            kokonoPublicKey: notifications.kokonoPublicKey
+            kokonoPublicKey: notifications.kokonoPublicKey,
+            preset: preset
         )
 
-        try await runner.run()
+        let runner = FlowRunner()
+        try await runner.run(context: &context)
     }
 }

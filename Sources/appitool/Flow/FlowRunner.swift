@@ -8,8 +8,8 @@ protocol FlowStageHandler: Sendable {
 
 /// The execution engine that orchestrates the 7-stage flow pipeline and handles error boundaries.
 struct FlowRunner: Sendable {
-    let platform: FlowContext.Platform
-    let distribution: BuildCommand.Distribution
+    let platform: FlowContext.Platform?
+    let distribution: BuildCommand.Distribution?
     let isDryRun: Bool
     let bundleId: String?
     let slackUrl: String?
@@ -17,8 +17,8 @@ struct FlowRunner: Sendable {
     let kokonoPublicKey: String?
 
     init(
-        platform: FlowContext.Platform,
-        distribution: BuildCommand.Distribution,
+        platform: FlowContext.Platform? = nil,
+        distribution: BuildCommand.Distribution? = nil,
         isDryRun: Bool = false,
         bundleId: String? = nil,
         slackUrl: String? = nil,
@@ -34,10 +34,34 @@ struct FlowRunner: Sendable {
         self.kokonoPublicKey = kokonoPublicKey
     }
 
-    /// Runs the complete flow through its 7 sequential stages.
+    /// Runs the complete flow using an existing context, automatically resolving preset stage handlers.
     func run(
-        stageHandlers: [FlowStage: FlowStageHandler] = [:]
+        context: inout FlowContext,
+        stageHandlers: [FlowStage: any FlowStageHandler] = [:]
     ) async throws {
+        printHeader(context: context)
+
+        // Resolve handlers: context.preset handlers as baseline, overridden by any custom stageHandlers
+        let effectiveHandlers = (context.preset?.stageHandlers ?? [:]).merging(stageHandlers) { _, custom in custom }
+
+        do {
+            for stage in FlowStage.allCases {
+                try await runStage(stage, context: &context, handler: effectiveHandlers[stage])
+            }
+            printSuccessSummary(context: context)
+        } catch {
+            await handleFailure(error: error, context: context)
+            throw error
+        }
+    }
+
+    /// Runs the complete flow through its 7 sequential stages using context built from runner properties.
+    func run(
+        stageHandlers: [FlowStage: any FlowStageHandler] = [:]
+    ) async throws {
+        guard let platform, let distribution else {
+            fatalError("FlowRunner must be initialized with platform and distribution, or run(context:stageHandlers:) must be called.")
+        }
         var context = FlowContext(
             platform: platform,
             distribution: distribution,
@@ -47,18 +71,7 @@ struct FlowRunner: Sendable {
             kokonoUrl: kokonoUrl,
             kokonoPublicKey: kokonoPublicKey
         )
-
-        printHeader(context: context)
-
-        do {
-            for stage in FlowStage.allCases {
-                try await runStage(stage, context: &context, customHandler: stageHandlers[stage])
-            }
-            printSuccessSummary(context: context)
-        } catch {
-            await handleFailure(error: error, context: context)
-            throw error
-        }
+        try await run(context: &context, stageHandlers: stageHandlers)
     }
 
     // MARK: - Stage Execution
@@ -66,41 +79,21 @@ struct FlowRunner: Sendable {
     private func runStage(
         _ stage: FlowStage,
         context: inout FlowContext,
-        customHandler: FlowStageHandler?
+        handler: (any FlowStageHandler)?
     ) async throws {
         context.currentStage = stage
         let stageStart = Date()
 
-        print("\n\(stage.emoji)  [\(stage.rawValue.uppercased())] ".cyan.bold + stage.displayName.bold)
+        print("\n\(stage.emoji) [\(stage.rawValue.uppercased())] ".cyan.bold + stage.displayName.bold)
         print("   " + "─".repeated(50).dim)
 
-        let handler = customHandler ?? defaultHandler(for: stage)
-        try await handler.execute(context: &context)
+        if let handler {
+            try await handler.execute(context: &context)
+        }
 
         let duration = Date().timeIntervalSince(stageStart)
         context.stageDurations[stage] = duration
         print("   ✓ ".green.bold + "\(stage.displayName) completed in \(String(format: "%.2fs", duration))".dim)
-    }
-
-    // MARK: - Default Modular Stage Handlers
-
-    private func defaultHandler(for stage: FlowStage) -> FlowStageHandler {
-        switch stage {
-        case .setup:
-            return SetupStage()
-        case .prebuild:
-            return PreBuildStage()
-        case .build:
-            return BuildStage()
-        case .postbuild:
-            return PostBuildStage()
-        case .prerelease:
-            return PreReleaseStage()
-        case .release:
-            return ReleaseStage()
-        case .postrelease:
-            return PostReleaseStage()
-        }
     }
 
     // MARK: - Global Error Handling
@@ -157,6 +150,9 @@ struct FlowRunner: Sendable {
 
     private func printHeader(context: FlowContext) {
         print("\n" + "🌊 Starting AppiFlow: \(context.platform.rawValue.uppercased()) (\(context.distribution.rawValue))".cyan.bold)
+        if let preset = context.preset {
+            print("   Preset: \(preset.name)".magenta.bold + " - \(preset.description)".dim)
+        }
         print("   Working Directory: \(context.projectDirectory.path)".dim)
         if context.isDryRun {
             print("   Mode: DRY RUN (No mutations will be performed)".yellow.bold)

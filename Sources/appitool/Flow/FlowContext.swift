@@ -27,6 +27,10 @@ struct FlowContext: Sendable {
     // Configuration / Project Identifiers
     var bundleId: String? // Bundle ID (iOS) or Package Name (Android)
     var projectPath: URL?
+    var workspacePath: String?
+    var xcodeProjectPath: String?
+    var scheme: String?
+    var targetName: String?
 
     // Pre-build state
     var version: String?
@@ -46,15 +50,23 @@ struct FlowContext: Sendable {
     var kokonoUrl: String?
     var kokonoPublicKey: String?
 
+    // Preconfigured flow preset
+    var preset: (any FlowPreset)?
+
     init(
         platform: Platform,
         distribution: BuildCommand.Distribution,
         projectDirectory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
         isDryRun: Bool = false,
         bundleId: String? = nil,
+        workspacePath: String? = nil,
+        xcodeProjectPath: String? = nil,
+        scheme: String? = nil,
+        targetName: String? = nil,
         slackUrl: String? = nil,
         kokonoUrl: String? = nil,
-        kokonoPublicKey: String? = nil
+        kokonoPublicKey: String? = nil,
+        preset: (any FlowPreset)? = nil
     ) {
         self.platform = platform
         self.distribution = distribution
@@ -62,8 +74,13 @@ struct FlowContext: Sendable {
         self.isDryRun = isDryRun
         self.startTime = Date()
         self.bundleId = bundleId
+        self.workspacePath = workspacePath
+        self.xcodeProjectPath = xcodeProjectPath
+        self.scheme = scheme
+        self.targetName = targetName
         self.slackUrl = slackUrl
         self.kokonoUrl = kokonoUrl
         self.kokonoPublicKey = kokonoPublicKey
+        self.preset = preset
     }
 }

@@ -1,0 +1,2 @@
+[tasks.build]
+run = "swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx13.0"

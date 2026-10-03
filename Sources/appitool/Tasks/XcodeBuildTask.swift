@@ -346,74 +346,42 @@ public struct XcodeBuildTask: Task {
 
     // MARK: - Scheme Resolution & Discovery
 
-    public struct ProjectInfo: Sendable {
-        public let name: String?
-        public let schemes: [String]
-        public let targets: [String]
+    public typealias ProjectInfo = XCodeTasks.ProjectInfo
+
+    /// Automatically scans the specified directory and its `ios/` subdirectory for `.xcworkspace` or `.xcodeproj`.
+    public static func autoDetect(
+        in directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) -> (workspace: String?, project: String?) {
+        XCodeTasks.autoDetect(in: directory)
     }
 
-    /// Lists project/workspace information (name, schemes, targets) using `xcodebuild -list -json`.
+    /// Lists project/workspace information (name, schemes, targets) using `XCodeTasks`.
     public static func inspectProject(
         workspace: String? = nil,
-        project: String? = nil
+        project: String? = nil,
+        in directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     ) async throws -> ProjectInfo {
-        guard workspace != nil || project != nil else {
-            throw XcodeBuildError.missingWorkspaceOrProject
-        }
-
-        var arguments = ["-list", "-json"]
-        if let workspace {
-            arguments.append(contentsOf: ["-workspace", workspace])
-        } else if let project {
-            arguments.append(contentsOf: ["-project", project])
-        }
-
-        let result = try await runDirectProcess(binary: "xcodebuild", arguments: arguments)
-        guard result.exitCode == 0 else {
-            throw XcodeBuildError.schemeListFailed(result.output)
-        }
-
-        let output = result.output
-        guard let startIndex = output.firstIndex(of: "{"),
-              let endIndex = output.lastIndex(of: "}") else {
-            throw XcodeBuildError.schemeListFailed("Invalid output from xcodebuild -list -json")
-        }
-
-        let jsonSubstring = output[startIndex...endIndex]
-        guard let jsonData = jsonSubstring.data(using: .utf8) else {
-            throw XcodeBuildError.schemeListFailed("Failed to encode xcodebuild -list JSON output.")
-        }
-
-        struct ListResponse: Decodable {
-            struct Entity: Decodable {
-                let name: String?
-                let schemes: [String]?
-                let targets: [String]?
-            }
-            let workspace: Entity?
-            let project: Entity?
-        }
-
-        do {
-            let decoded = try JSONDecoder().decode(ListResponse.self, from: jsonData)
-            let entity = decoded.project ?? decoded.workspace
-            return ProjectInfo(
-                name: entity?.name,
-                schemes: entity?.schemes ?? [],
-                targets: entity?.targets ?? []
-            )
-        } catch {
-            throw XcodeBuildError.schemeListFailed("Failed to parse JSON: \(error.localizedDescription)")
-        }
+        try await XCodeTasks.inspectProject(workspace: workspace, project: project, in: directory)
     }
 
     /// Lists all schemes available in the workspace or project using `xcodebuild -list -json`.
     public static func listSchemes(
         workspace: String? = nil,
-        project: String? = nil
+        project: String? = nil,
+        in directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     ) async throws -> [String] {
-        let info = try await inspectProject(workspace: workspace, project: project)
+        let info = try await inspectProject(workspace: workspace, project: project, in: directory)
         return info.schemes
+    }
+
+    /// Lists all targets available in the workspace or project using `xcodebuild -list -json`.
+    public static func listTargets(
+        workspace: String? = nil,
+        project: String? = nil,
+        in directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) async throws -> [String] {
+        let info = try await inspectProject(workspace: workspace, project: project, in: directory)
+        return info.targets
     }
 
     /// Resolves the primary target name built by the given scheme:
