@@ -1,5 +1,7 @@
 import Foundation
 import Rainbow
+import Subprocess
+import System
 
 /// A task that handles building Android applications using Gradle (`gradlew`),
 /// producing Android App Bundles (AAB) or APK artifacts.
@@ -529,84 +531,63 @@ public struct GradleTask: Task {
 
         let buffer = OutputBuffer()
 
-        return try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let process = Process()
-                if let formatter, !formatter.isEmpty {
-                    let formatterBin = formatter.split(separator: " ").first.map(String.init) ?? ""
-                    if hasExecutable(formatterBin) {
-                        process.executableURL = URL(fileURLWithPath: "/bin/bash")
-                        process.arguments = ["-c", "set -o pipefail && \"\(executable)\" \(escapedArgs) | \(formatter)"]
-                    } else {
-                        process.executableURL = URL(fileURLWithPath: executable)
-                        process.arguments = arguments
+        let exec: Subprocess.Executable
+        let args: [String]
+
+        if let formatter, !formatter.isEmpty {
+            let formatterBin = formatter.split(separator: " ").first.map(String.init) ?? ""
+            if hasExecutable(formatterBin) {
+                exec = .name("bash")
+                args = ["-c", "set -o pipefail && \"\(executable)\" \(escapedArgs) | \(formatter)"]
+            } else {
+                exec = executable.hasPrefix("/") ? .path(FilePath(executable)) : .name(executable)
+                args = arguments
+            }
+        } else {
+            exec = executable.hasPrefix("/") ? .path(FilePath(executable)) : .name(executable)
+            args = arguments
+        }
+
+        var envConfig: Subprocess.Environment = .inherit
+        if let environment {
+            var updates: [Subprocess.Environment.Key: String?] = [:]
+            for (k, v) in environment {
+                updates[Subprocess.Environment.Key(stringLiteral: k)] = v
+            }
+            envConfig = envConfig.updating(updates)
+        }
+
+        let workDir: FilePath? = !workingDirectory.isEmpty ? FilePath(workingDirectory) : nil
+
+        let result = try await Subprocess.run(
+            exec,
+            arguments: Arguments(args),
+            environment: envConfig,
+            workingDirectory: workDir,
+            input: .none,
+            output: .sequence,
+            error: .combinedWithOutput
+        ) { execution in
+            for try await bufferChunk in execution.standardOutput {
+                let data = Data(buffer: bufferChunk)
+                if !data.isEmpty {
+                    buffer.append(data)
+                    if !silent {
+                        FileHandle.standardOutput.write(data)
                     }
-                } else {
-                    process.executableURL = URL(fileURLWithPath: executable)
-                    process.arguments = arguments
-                }
-                process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
-
-                if let environment {
-                    process.environment = environment
-                }
-
-                let pipe = Pipe()
-                process.standardOutput = pipe
-                process.standardError = pipe
-                process.standardInput = FileHandle.nullDevice
-
-                let handle = pipe.fileHandleForReading
-
-                handle.readabilityHandler = { fileHandle in
-                    let data = fileHandle.availableData
-                    if !data.isEmpty {
-                        buffer.append(data)
-                        if !silent {
-                            FileHandle.standardOutput.write(data)
-                        }
-                    }
-                }
-
-                final class State: @unchecked Sendable {
-                    private let lock = NSLock()
-                    private var resumed = false
-                    func finishOnce(continuation: CheckedContinuation<CommandResult, Error>, result: Result<CommandResult, Error>) {
-                        lock.lock()
-                        defer { lock.unlock() }
-                        guard !resumed else { return }
-                        resumed = true
-                        continuation.resume(with: result)
-                    }
-                }
-                let state = State()
-
-                process.terminationHandler = { proc in
-                    handle.readabilityHandler = nil
-                    let remaining = handle.availableData
-                    if !remaining.isEmpty {
-                        buffer.append(remaining)
-                        if !silent {
-                            FileHandle.standardOutput.write(remaining)
-                        }
-                    }
-                    try? handle.close()
-
-                    state.finishOnce(continuation: continuation, result: .success(CommandResult(
-                        exitCode: proc.terminationStatus,
-                        output: buffer.stringValue
-                    )))
-                }
-
-                do {
-                    try process.run()
-                } catch {
-                    handle.readabilityHandler = nil
-                    try? handle.close()
-                    state.finishOnce(continuation: continuation, result: .failure(error))
                 }
             }
         }
+
+        let exitCode: Int32 = switch result.terminationStatus {
+        case .exited(let code): code
+        case .signaled(let code): code
+        }
+
+        return CommandResult(
+            exitCode: exitCode,
+            output: buffer.stringValue
+        )
     }
 
     private func hasExecutable(_ name: String) -> Bool {

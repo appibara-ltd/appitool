@@ -5,6 +5,7 @@ import Foundation
 import FoundationNetworking
 #endif
 import Rainbow
+import Subprocess
 
 struct SelfUpdateCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -138,7 +139,7 @@ struct SelfUpdateCommand: AsyncParsableCommand {
         print("   ✓ Checksum verified.")
 
         print("   ℹ Unpacking archive...")
-        try runProcess("tar", arguments: ["-xzf", tarballPath.path, "-C", tempDir.path])
+        try await runProcess("tar", arguments: ["-xzf", tarballPath.path, "-C", tempDir.path])
         let extractedBinary = tempDir.appendingPathComponent("appitool")
         guard FileManager.default.fileExists(atPath: extractedBinary.path) else {
             print("❌ Error: 'appitool' binary was not found in the extracted archive.".red)
@@ -246,50 +247,28 @@ struct SelfUpdateCommand: AsyncParsableCommand {
         return nil
     }
 
-    private func resolveExecutable(_ name: String) -> URL? {
-        if name.hasPrefix("/") {
-            return FileManager.default.isExecutableFile(atPath: name) ? URL(fileURLWithPath: name) : nil
-        }
-        if let pathEnv = ProcessInfo.processInfo.environment["PATH"] {
-            for dir in pathEnv.split(separator: ":") {
-                let candidate = URL(fileURLWithPath: String(dir)).appendingPathComponent(name)
-                if FileManager.default.isExecutableFile(atPath: candidate.path) {
-                    return candidate
-                }
-            }
-        }
-        for fallback in ["/usr/bin/\(name)", "/bin/\(name)"] {
-            if FileManager.default.isExecutableFile(atPath: fallback) {
-                return URL(fileURLWithPath: fallback)
-            }
-        }
-        return nil
-    }
-
     @discardableResult
-    private func runProcess(_ executable: String, arguments: [String]) throws -> String {
-        guard let executableURL = resolveExecutable(executable) else {
-            throw ValidationError("Executable '\(executable)' not found in PATH or standard system directories.")
+    private func runProcess(_ executable: String, arguments: [String]) async throws -> String {
+        do {
+            let result = try await Subprocess.run(
+                .name(executable),
+                arguments: Arguments(arguments),
+                output: .string(limit: 10 * 1024 * 1024),
+                error: .combinedWithOutput
+            )
+            guard result.terminationStatus.isSuccess else {
+                let code = switch result.terminationStatus {
+                case .exited(let c): c
+                case .signaled(let c): c
+                }
+                throw ValidationError("Process '\(executable) \(arguments.joined(separator: " "))' failed (exit code \(code)): \(result.standardOutput)")
+            }
+            return result.standardOutput
+        } catch let error as ValidationError {
+            throw error
+        } catch {
+            throw ValidationError("Process '\(executable) \(arguments.joined(separator: " "))' failed: \(error.localizedDescription)")
         }
-
-        let process = Process()
-        process.executableURL = executableURL
-        process.arguments = arguments
-
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-
-        try process.run()
-        process.waitUntilExit()
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: data, encoding: .utf8) ?? ""
-
-        guard process.terminationStatus == 0 else {
-            throw ValidationError("Process '\(executable) \(arguments.joined(separator: " "))' failed (exit code \(process.terminationStatus)): \(output)")
-        }
-        return output
     }
 }
 

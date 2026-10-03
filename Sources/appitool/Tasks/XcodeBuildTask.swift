@@ -1,5 +1,7 @@
 import Foundation
 import Rainbow
+import Subprocess
+import System
 
 /// A task that handles building, archiving, and packaging iOS applications using `xcodebuild`
 /// providing full functional parity with Fastlane's `build_app` (`gym`) and `@cmd-bin/react-native`.
@@ -615,28 +617,17 @@ public struct XcodeBuildTask: Task {
         binary: String,
         arguments: [String]
     ) async throws -> (exitCode: Int32, output: String) {
-        return try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
-                process.arguments = [binary] + arguments
-
-                let pipe = Pipe()
-                process.standardOutput = pipe
-                process.standardError = pipe
-
-                do {
-                    try process.run()
-                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                    process.waitUntilExit()
-
-                    let outputString = String(data: data, encoding: .utf8) ?? ""
-                    continuation.resume(returning: (process.terminationStatus, outputString))
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
+        let result = try await Subprocess.run(
+            .name("xcrun"),
+            arguments: Arguments([binary] + arguments),
+            output: .string(limit: 10 * 1024 * 1024),
+            error: .combinedWithOutput
+        )
+        let exitCode: Int32 = switch result.terminationStatus {
+        case .exited(let code): code
+        case .signaled(let code): code
         }
+        return (exitCode, result.standardOutput)
     }
 
     // MARK: - Archive Execution
@@ -798,12 +789,13 @@ public struct XcodeBuildTask: Task {
             if fileManager.fileExists(atPath: zipPath) {
                 try? fileManager.removeItem(atPath: zipPath)
             }
-            let zipProcess = Process()
-            zipProcess.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
-            zipProcess.arguments = ["-q", "-r", zipPath, "."]
-            zipProcess.currentDirectoryURL = URL(fileURLWithPath: dsymInArchive)
-            try? zipProcess.run()
-            zipProcess.waitUntilExit()
+            _ = try? await Subprocess.run(
+                .name("zip"),
+                arguments: ["-q", "-r", zipPath, "."],
+                workingDirectory: FilePath(dsymInArchive),
+                output: .discarded,
+                error: .discarded
+            )
 
             if fileManager.fileExists(atPath: zipPath) {
                 resolvedDsym = zipPath
@@ -939,53 +931,33 @@ public struct XcodeBuildTask: Task {
 
         let buffer = OutputBuffer()
 
-        return try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: "/bin/bash")
-                process.arguments = ["-c", fullCommand]
-
-                let pipe = Pipe()
-                process.standardOutput = pipe
-                process.standardError = pipe
-
-                let handle = pipe.fileHandleForReading
-
-                // Read output dynamically
-                handle.readabilityHandler = { fileHandle in
-                    let data = fileHandle.availableData
-                    if !data.isEmpty {
-                        buffer.append(data)
-                        if !silent {
-                            FileHandle.standardOutput.write(data)
-                        }
+        let result = try await Subprocess.run(
+            .name("bash"),
+            arguments: ["-c", fullCommand],
+            input: .none,
+            output: .sequence,
+            error: .combinedWithOutput
+        ) { execution in
+            for try await bufferChunk in execution.standardOutput {
+                let data = Data(buffer: bufferChunk)
+                if !data.isEmpty {
+                    buffer.append(data)
+                    if !silent {
+                        FileHandle.standardOutput.write(data)
                     }
-                }
-
-                do {
-                    try process.run()
-                    process.waitUntilExit()
-                    handle.readabilityHandler = nil
-
-                    // Read any remainder
-                    let remaining = handle.readDataToEndOfFile()
-                    if !remaining.isEmpty {
-                        buffer.append(remaining)
-                        if !silent {
-                            FileHandle.standardOutput.write(remaining)
-                        }
-                    }
-
-                    continuation.resume(returning: CommandResult(
-                        exitCode: process.terminationStatus,
-                        output: buffer.stringValue
-                    ))
-                } catch {
-                    handle.readabilityHandler = nil
-                    continuation.resume(throwing: error)
                 }
             }
         }
+
+        let exitCode: Int32 = switch result.terminationStatus {
+        case .exited(let code): code
+        case .signaled(let code): code
+        }
+
+        return CommandResult(
+            exitCode: exitCode,
+            output: buffer.stringValue
+        )
     }
 
     private func hasExecutable(_ name: String) -> Bool {

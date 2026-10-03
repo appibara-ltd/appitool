@@ -1,6 +1,8 @@
 import Foundation
 import PathKit
 import Rainbow
+import Subprocess
+import System
 import XcodeProj
 
 /// A suite of atomic Xcode project operations powered exclusively by `XcodeProj`.
@@ -451,8 +453,8 @@ public enum XCodeTasks {
         workspaceName: String? = nil,
         scheme: String? = nil,
         configuration: String? = nil
-    ) throws -> IosIdentifiersResult {
-        try getIosIdentifiers(
+    ) async throws -> IosIdentifiersResult {
+        try await getIosIdentifiers(
             GetIosIdentifiersOptions(
                 workspaceRoot: workspaceRoot,
                 workspaceName: workspaceName,
@@ -466,7 +468,7 @@ public enum XCodeTasks {
     /// Follows the 3-tier resolution strategy: buildSettings -> xcodebuild -showBuildSettings -> xcconfig.
     public static func getIosIdentifiers(
         _ options: GetIosIdentifiersOptions = GetIosIdentifiersOptions()
-    ) throws -> IosIdentifiersResult {
+    ) async throws -> IosIdentifiersResult {
         let fm = FileManager.default
         let wsRoot = options.workspaceRoot
         let iosDir = fm.fileExists(atPath: wsRoot.appendingPathComponent("ios").path)
@@ -584,7 +586,7 @@ public enum XCodeTasks {
         if needsXcodebuildResolution {
             let wsPathString = fm.fileExists(atPath: workspaceUrl.path) ? workspaceUrl.path : nil
             let projPathString = projectUrl.path
-            if let output = captureXcodebuildBuildSettings(
+            if let output = await captureXcodebuildBuildSettings(
                 workspacePath: wsPathString,
                 projectPath: wsPathString == nil ? projPathString : nil,
                 scheme: resolvedScheme,
@@ -869,7 +871,7 @@ public enum XCodeTasks {
         scheme: String,
         configurationName: String,
         workingDirectory: URL
-    ) -> String? {
+    ) async -> String? {
         var args = ["-scheme", scheme, "-configuration", configurationName, "-showBuildSettings"]
         if let ws = workspacePath {
             args.append(contentsOf: ["-workspace", ws])
@@ -877,21 +879,16 @@ public enum XCodeTasks {
             args.append(contentsOf: ["-project", proj])
         }
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
-        process.currentDirectoryURL = workingDirectory
-        process.arguments = ["xcodebuild"] + args
-
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-
         do {
-            try process.run()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            guard process.terminationStatus == 0 else { return nil }
-            return String(data: data, encoding: .utf8)
+            let result = try await Subprocess.run(
+                .name("xcrun"),
+                arguments: Arguments(["xcodebuild"] + args),
+                workingDirectory: FilePath(workingDirectory.path),
+                output: .string(limit: 10 * 1024 * 1024),
+                error: .discarded
+            )
+            guard result.terminationStatus.isSuccess else { return nil }
+            return result.standardOutput
         } catch {
             return nil
         }

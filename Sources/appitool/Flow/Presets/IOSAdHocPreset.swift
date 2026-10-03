@@ -23,7 +23,7 @@ struct IOSAdHocPreset: FlowPreset {
             in: context.projectDirectory
         )
         print("   🔍 [\(name)] Inspected project targets: \(info.targets)".dim)
-        let result = try XCodeTasks.getIosIdentifiers(
+        let result = try await XCodeTasks.getIosIdentifiers(
             workspaceRoot: URL(fileURLWithPath: "."),
             // scheme: "base",
             configuration: "Release"
