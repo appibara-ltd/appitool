@@ -54,7 +54,6 @@ struct FirebaseListReleasesCommand: AsyncParsableCommand {
         for r in releases {
             let version = r.displayVersion ?? "-"
             let build = r.buildVersion ?? "-"
-            let releaseName = r.name ?? "-"
             let created = formatHumanReadableDate(r.createTime)
             let notes = r.releaseNotes?.text?.replacingOccurrences(of: "\n", with: " ") ?? "-"
 
