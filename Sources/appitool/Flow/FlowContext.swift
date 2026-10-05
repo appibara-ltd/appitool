@@ -46,6 +46,10 @@ struct FlowContext: Sendable {
     var appleIssuerId: String?
     var appleKey: String?
 
+    // Firebase Configuration
+    var firebaseAppId: String?
+    var googleKey: String?
+
     // Match / Code Signing Artifacts
     var installedCertificates: [String] = []
     var installedProfiles: [String: MatchTask.ProfileInfo] = [:]
@@ -93,6 +97,8 @@ struct FlowContext: Sendable {
         appleKeyId: String? = nil,
         appleIssuerId: String? = nil,
         appleKey: String? = nil,
+        firebaseAppId: String? = nil,
+        googleKey: String? = nil,
         slackUrl: String? = nil,
         kokonoUrl: String? = nil,
         kokonoPublicKey: String? = nil,
@@ -120,6 +126,8 @@ struct FlowContext: Sendable {
         self.appleKeyId = appleKeyId
         self.appleIssuerId = appleIssuerId
         self.appleKey = appleKey
+        self.firebaseAppId = firebaseAppId
+        self.googleKey = googleKey
         self.slackUrl = slackUrl
         self.kokonoUrl = kokonoUrl
         self.kokonoPublicKey = kokonoPublicKey

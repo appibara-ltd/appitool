@@ -8,6 +8,14 @@ struct IOSInternalPreset: FlowPreset {
 
     init() {}
 
+    func requirements(context: FlowContext) throws {
+        try validateRequirements([
+            ("APPLE_KEY_ID", context.appleKeyId, "App Store Connect Key ID"),
+            ("APPLE_ISSUER_ID", context.appleIssuerId, "App Store Connect Issuer ID"),
+            ("APPLE_KEY", context.appleKey, "App Store Connect API key (.p8/base64)"),
+        ], context: context)
+    }
+
     func setup(context: inout FlowContext) async throws {
         Log("   🔍 [\(name)] Validating App Store Connect credentials and Match AppStore profiles...".dim)
     }

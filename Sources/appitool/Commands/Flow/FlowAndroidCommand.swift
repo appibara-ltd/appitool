@@ -30,6 +30,8 @@ struct FlowAndroidCommand: AsyncParsableCommand {
 
         let notifications = notificationOptions.resolve()
         let resolvedPackageName = packageName ?? ProcessInfo.processInfo.environment["GOOGLE_PACKAGE_NAME"]
+        let resolvedFirebaseAppId = firebaseCredentials.firebaseAppId ?? ProcessInfo.processInfo.environment["FIREBASE_ANDROID_APP_ID"]
+        let resolvedGoogleKey = googleCredentials.resolveKey()
 
         let preset: (any FlowPreset) = {
             switch distribution {
@@ -45,6 +47,8 @@ struct FlowAndroidCommand: AsyncParsableCommand {
             distribution: distribution,
             isDryRun: dryRun,
             bundleId: resolvedPackageName,
+            firebaseAppId: resolvedFirebaseAppId,
+            googleKey: resolvedGoogleKey,
             slackUrl: notifications.slackUrl,
             kokonoUrl: notifications.kokonoUrl,
             kokonoPublicKey: notifications.kokonoPublicKey,

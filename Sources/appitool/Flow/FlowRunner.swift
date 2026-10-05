@@ -41,6 +41,11 @@ struct FlowRunner: Sendable {
     ) async throws {
         printHeader(context: context)
 
+        // Validate preset requirements before executing the flow pipeline
+        if let preset = context.preset {
+            try preset.requirements(context: context)
+        }
+
         // Resolve handlers: context.preset handlers as baseline, overridden by any custom stageHandlers
         let effectiveHandlers = (context.preset?.stageHandlers ?? [:]).merging(stageHandlers) { _, custom in custom }
 

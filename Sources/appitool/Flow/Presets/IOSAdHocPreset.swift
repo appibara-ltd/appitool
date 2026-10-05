@@ -1,4 +1,5 @@
 import Foundation
+import GoogleServices
 import Rainbow
 
 /// Preconfigured preset for building and distributing iOS Ad-Hoc releases.
@@ -7,6 +8,15 @@ struct IOSAdHocPreset: FlowPreset {
     let description: String = "Automated iOS release flow configured for Ad-Hoc distribution."
 
     init() {}
+
+    func requirements(context: FlowContext) throws {
+        try validateRequirements([
+            ("MATCH_GIT_URL", context.matchGitUrl, "Match Git repository URL"),
+            ("MATCH_PASSWORD", context.matchPassword, "Match encryption password"),
+            ("FIREBASE_IOS_APP_ID", context.firebaseAppId, "Firebase iOS App ID"),
+            ("GOOGLE_KEY", context.googleKey, "Google Service Account key for Firebase"),
+        ], context: context)
+    }
 
     func setup(context: inout FlowContext) async throws {
         Log(
@@ -33,18 +43,10 @@ struct IOSAdHocPreset: FlowPreset {
             configuration: context.configuration
         )
 
-        if context.scheme == nil {
-            context.scheme = result.scheme
-        }
-        if context.configuration == nil {
-            context.configuration = result.configuration
-        }
-        if context.targetName == nil {
-            context.targetName = result.mainAppTargetName
-        }
-        if context.bundleId == nil {
-            context.bundleId = result.bundleId
-        }
+        context.scheme ??= result.scheme
+        context.configuration ??= result.configuration
+        context.targetName ??= result.mainAppTargetName
+        context.bundleId ??= result.bundleId
 
         // Collect all target bundle identifiers to sync profiles for
         var appIdentifiers: [String] = []
@@ -60,27 +62,8 @@ struct IOSAdHocPreset: FlowPreset {
             appIdentifiers.append(mainBundleId)
         }
 
-        // Validate Match configuration
-        guard let gitUrl = context.matchGitUrl, !gitUrl.isEmpty else {
-            throw NSError(
-                domain: "IOSAdHocPreset",
-                code: 1,
-                userInfo: [
-                    NSLocalizedDescriptionKey:
-                        "Missing Match Git repository URL. Configure MATCH_GIT_URL in .env or pass --match-git-url."
-                ]
-            )
-        }
-
-        guard let password = context.matchPassword, !password.isEmpty else {
-            throw NSError(
-                domain: "IOSAdHocPreset",
-                code: 2,
-                userInfo: [
-                    NSLocalizedDescriptionKey:
-                        "Missing Match encryption password. Configure MATCH_PASSWORD in .env or pass --match-password."
-                ]
-            )
+        guard let gitUrl = context.matchGitUrl, let password = context.matchPassword else {
+            return
         }
 
         Log("   🔐 [\(name)] Running Match Ad-Hoc synchronization...".dim)
@@ -129,6 +112,35 @@ struct IOSAdHocPreset: FlowPreset {
 
         context.installedCertificates = output.installedCertificates
         context.installedProfiles = output.installedProfiles
+
+        // Fetch latest build number / version from Firebase App Distribution
+        Log("   🔥 [\(name)] Fetching latest build info from Firebase App Distribution...".dim)
+        guard let firebaseAppId = context.firebaseAppId,
+              let googleKey = context.googleKey,
+              let firebaseService = try FirebaseService.makeService(googleKey: googleKey) else {
+            return
+        }
+
+        Log.depth += 3
+        let buildTask = GetLatestBuildNumberTask()
+        let buildInfo = try await buildTask.run(
+            GetLatestBuildNumberTask.Input(
+                target: .ios(
+                    bundleId: context.bundleId,
+                    firebaseAppId: firebaseAppId,
+                    firebaseService: firebaseService
+                ),
+                distribution: .adhoc
+            )
+        )
+        Log.depth -= 3
+
+        context.version = buildInfo.version
+        context.buildNumber = buildInfo.buildNumber
+        context.metadata["firebase_version"] = buildInfo.version
+        context.metadata["firebase_build_number"] = buildInfo.buildNumber
+
+        Log("   ✓ [\(name)] Retrieved Firebase build info: Version: \(buildInfo.version.bold), Build Number: \(buildInfo.buildNumber.bold)".green)
     }
 
     func prebuild(context: inout FlowContext) async throws {

@@ -8,6 +8,12 @@ struct AndroidInternalPreset: FlowPreset {
 
     init() {}
 
+    func requirements(context: FlowContext) throws {
+        try validateRequirements([
+            ("GOOGLE_KEY", context.googleKey, "Google Service Account JSON key"),
+        ], context: context)
+    }
+
     func setup(context: inout FlowContext) async throws {
         Log("   🔍 [\(name)] Validating Google Play API service account and project setup...".dim)
     }

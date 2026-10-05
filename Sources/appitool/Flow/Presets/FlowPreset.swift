@@ -14,11 +14,23 @@ struct AnyFlowStageHandler: FlowStageHandler {
     }
 }
 
+/// Error thrown when required environment variables or options are missing for a flow preset.
+struct FlowRequirementError: LocalizedError, Sendable {
+    let presetName: String
+    let missing: [String]
+
+    var errorDescription: String? {
+        let list = missing.map { "  • \($0)" }.joined(separator: "\n")
+        return "Missing required configuration for '\(presetName)':\n\(list)\nPlease configure them in your .env file or provide them as command-line arguments."
+    }
+}
+
 /// A contract defining the lifecycle functions executed across the 7 stages of a release flow.
 protocol FlowPreset: Sendable {
     var name: String { get }
     var description: String { get }
 
+    func requirements(context: FlowContext) throws
     func setup(context: inout FlowContext) async throws
     func prebuild(context: inout FlowContext) async throws
     func build(context: inout FlowContext) async throws
@@ -63,12 +75,33 @@ extension FlowPreset {
     }
 
     // Default no-op implementations for stages that a preset does not need to customize
+    func requirements(context: FlowContext) throws {}
     func setup(context: inout FlowContext) async throws {}
     func prebuild(context: inout FlowContext) async throws {}
     func build(context: inout FlowContext) async throws {}
     func postbuild(context: inout FlowContext) async throws {}
     func prerelease(context: inout FlowContext) async throws {}
     func release(context: inout FlowContext) async throws {}
+
+    /// Validates a list of required configuration key-value pairs, printing missing items and throwing if any are missing.
+    func validateRequirements(_ items: [(key: String, value: String?, description: String?)], context: FlowContext) throws {
+        var missing: [String] = []
+        for item in items {
+            guard let val = item.value?.trimmingCharacters(in: .whitespacesAndNewlines), !val.isEmpty else {
+                let desc = item.description.map { " (\($0))" } ?? ""
+                missing.append("\(item.key)\(desc)")
+                continue
+            }
+        }
+        if !missing.isEmpty {
+            Log("   ❌ [\(name)] Missing \(missing.count) required configuration value(s):".red.bold)
+            for m in missing {
+                Log("      • \(m)".red)
+            }
+            throw FlowRequirementError(presetName: name, missing: missing)
+        }
+        Log("   ✓ [\(name)] Requirements verified (\(items.count) checked).".green)
+    }
 
     /// Default post-release handler sends configured success notifications (Slack, KokoNo).
     func postrelease(context: inout FlowContext) async throws {

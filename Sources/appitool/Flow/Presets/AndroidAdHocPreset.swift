@@ -8,6 +8,13 @@ struct AndroidAdHocPreset: FlowPreset {
 
     init() {}
 
+    func requirements(context: FlowContext) throws {
+        try validateRequirements([
+            ("FIREBASE_ANDROID_APP_ID", context.firebaseAppId, "Firebase Android App ID"),
+            ("GOOGLE_KEY", context.googleKey, "Google Service Account key for Firebase"),
+        ], context: context)
+    }
+
     func setup(context: inout FlowContext) async throws {
         Log("   🔍 [\(name)] Checking Android SDK, Gradle environment, and signing keystores...".dim)
     }
