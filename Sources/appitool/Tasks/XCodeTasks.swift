@@ -1385,4 +1385,200 @@ public enum XCodeTasks {
         let trimmed = resolved.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }
+
+    // MARK: - Build Number / Version
+
+    public struct UpdateBuildNumberInput: Sendable {
+        public let projectPath: String?
+        public let workspacePath: String?
+        public let buildNumber: String
+        public let version: String?
+        public let targets: [String]?
+        public let configurations: [String]?
+
+        public init(
+            projectPath: String? = nil,
+            workspacePath: String? = nil,
+            buildNumber: String,
+            version: String? = nil,
+            targets: [String]? = nil,
+            configurations: [String]? = nil
+        ) {
+            self.projectPath = projectPath
+            self.workspacePath = workspacePath
+            self.buildNumber = buildNumber
+            self.version = version
+            self.targets = targets
+            self.configurations = configurations
+        }
+    }
+
+    /// Updates `CURRENT_PROJECT_VERSION` (build number) and optionally `MARKETING_VERSION` (version string)
+    /// in the Xcode project (`.xcodeproj`) using `XcodeProj`.
+    ///
+    /// - Parameters:
+    ///   - input: Options specifying the build number, optional version, target filters, and paths.
+    ///   - directory: The directory to search for project/workspace if paths are omitted.
+    /// - Returns: A list of target names that were updated.
+    @discardableResult
+    public static func updateBuildNumber(
+        _ input: UpdateBuildNumberInput,
+        in directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) throws -> [String] {
+        let effectiveProjectPath: String
+        if let proj = input.projectPath, !proj.isEmpty {
+            effectiveProjectPath = proj
+        } else {
+            let detected = autoDetect(in: directory)
+            if let proj = detected.project {
+                effectiveProjectPath = proj
+            } else if let ws = input.workspacePath ?? detected.workspace {
+                let companion = URL(fileURLWithPath: ws).deletingPathExtension().appendingPathExtension("xcodeproj").path
+                if FileManager.default.fileExists(atPath: companion) {
+                    effectiveProjectPath = companion
+                } else {
+                    throw NSError(
+                        domain: "XCodeTasks",
+                        code: 6,
+                        userInfo: [NSLocalizedDescriptionKey: "Could not find companion .xcodeproj for workspace '\(ws)'."]
+                    )
+                }
+            } else {
+                throw NSError(
+                    domain: "XCodeTasks",
+                    code: 7,
+                    userInfo: [NSLocalizedDescriptionKey: "No Xcode project found in current directory or ios/ subdirectory."]
+                )
+            }
+        }
+
+        let projectPath = Path(effectiveProjectPath)
+        let xcodeProj = try XcodeProj(path: projectPath)
+        let pbxproj = xcodeProj.pbxproj
+
+        var modifiedTargets: [String] = []
+
+        // 1. Update project-level build configurations if no target filter specified
+        if input.targets == nil || input.targets?.isEmpty == true {
+            if let projectConfigList = pbxproj.projects.first?.buildConfigurationList {
+                for config in projectConfigList.buildConfigurations {
+                    if let configFilter = input.configurations, !configFilter.isEmpty {
+                        guard configFilter.contains(config.name) else { continue }
+                    }
+                    config.buildSettings["CURRENT_PROJECT_VERSION"] = input.buildNumber
+                    if let version = input.version {
+                        config.buildSettings["MARKETING_VERSION"] = version
+                    }
+                }
+            }
+        }
+
+        // 2. Update target-level build configurations
+        let targetsToUpdate: [PBXTarget]
+        if let filterNames = input.targets, !filterNames.isEmpty {
+            targetsToUpdate = pbxproj.nativeTargets.filter { filterNames.contains($0.name) }
+        } else {
+            targetsToUpdate = pbxproj.nativeTargets.filter { isDistributableTarget($0) }
+        }
+
+        for target in targetsToUpdate {
+            guard let configList = target.buildConfigurationList else { continue }
+            var targetModified = false
+
+            for config in configList.buildConfigurations {
+                if let configFilter = input.configurations, !configFilter.isEmpty {
+                    guard configFilter.contains(config.name) else { continue }
+                }
+
+                config.buildSettings["CURRENT_PROJECT_VERSION"] = input.buildNumber
+                if let version = input.version {
+                    config.buildSettings["MARKETING_VERSION"] = version
+                }
+                targetModified = true
+            }
+
+            if targetModified {
+                modifiedTargets.append(target.name)
+            }
+        }
+
+        try xcodeProj.writePBXProj(path: projectPath, override: true, outputSettings: PBXOutputSettings())
+        return modifiedTargets
+    }
+
+    /// Reads the current `CURRENT_PROJECT_VERSION` (build number) and `MARKETING_VERSION` (version string)
+    /// from the Xcode project (`.xcodeproj`) using `XcodeProj`.
+    public static func getProjectVersion(
+        projectPath: String? = nil,
+        workspacePath: String? = nil,
+        targetName: String? = nil,
+        configuration: String? = nil,
+        in directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) throws -> (version: String?, buildNumber: String?) {
+        let effectiveProjectPath: String
+        if let proj = projectPath, !proj.isEmpty {
+            effectiveProjectPath = proj
+        } else {
+            let detected = autoDetect(in: directory)
+            if let proj = detected.project {
+                effectiveProjectPath = proj
+            } else if let ws = workspacePath ?? detected.workspace {
+                let companion = URL(fileURLWithPath: ws).deletingPathExtension().appendingPathExtension("xcodeproj").path
+                if FileManager.default.fileExists(atPath: companion) {
+                    effectiveProjectPath = companion
+                } else {
+                    throw NSError(
+                        domain: "XCodeTasks",
+                        code: 6,
+                        userInfo: [NSLocalizedDescriptionKey: "Could not find companion .xcodeproj for workspace '\(ws)'."]
+                    )
+                }
+            } else {
+                throw NSError(
+                    domain: "XCodeTasks",
+                    code: 7,
+                    userInfo: [NSLocalizedDescriptionKey: "No Xcode project found in current directory or ios/ subdirectory."]
+                )
+            }
+        }
+
+        let xcodeProj = try XcodeProj(path: Path(effectiveProjectPath))
+        let pbxproj = xcodeProj.pbxproj
+
+        // Check target first
+        let target = targetName != nil
+            ? pbxproj.nativeTargets.first(where: { $0.name == targetName })
+            : pbxproj.nativeTargets.first(where: { isApplicationTarget($0) }) ?? pbxproj.nativeTargets.first(where: { isDistributableTarget($0) })
+
+        if let target = target, let configList = target.buildConfigurationList {
+            let config = configuration != nil
+                ? configList.buildConfigurations.first(where: { $0.name == configuration })
+                : configList.buildConfigurations.first(where: { $0.name == "Release" }) ?? configList.buildConfigurations.first
+
+            if let config = config {
+                let buildNumber = config.buildSettings["CURRENT_PROJECT_VERSION"] as? String
+                let version = config.buildSettings["MARKETING_VERSION"] as? String
+                if buildNumber != nil || version != nil {
+                    return (version: version, buildNumber: buildNumber)
+                }
+            }
+        }
+
+        // Fallback to project-level configuration
+        if let projConfigList = pbxproj.projects.first?.buildConfigurationList {
+            let config = configuration != nil
+                ? projConfigList.buildConfigurations.first(where: { $0.name == configuration })
+                : projConfigList.buildConfigurations.first(where: { $0.name == "Release" }) ?? projConfigList.buildConfigurations.first
+
+            if let config = config {
+                let buildNumber = config.buildSettings["CURRENT_PROJECT_VERSION"] as? String
+                let version = config.buildSettings["MARKETING_VERSION"] as? String
+                return (version: version, buildNumber: buildNumber)
+            }
+        }
+
+        return (version: nil, buildNumber: nil)
+    }
 }
+
+

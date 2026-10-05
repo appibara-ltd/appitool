@@ -48,6 +48,18 @@ struct IOSAdHocPreset: FlowPreset {
         context.targetName ??= result.mainAppTargetName
         context.bundleId ??= result.bundleId
 
+        // Read project's current version and build number
+        if let projVersionInfo = try? XCodeTasks.getProjectVersion(
+            projectPath: context.xcodeProjectPath,
+            workspacePath: context.workspacePath,
+            targetName: context.targetName,
+            configuration: context.configuration,
+            in: context.projectDirectory
+        ) {
+            context.version = projVersionInfo.version
+            context.buildNumber = projVersionInfo.buildNumber
+        }
+
         // Collect all target bundle identifiers to sync profiles for
         var appIdentifiers: [String] = []
         if let explicit = context.bundleId, !explicit.isEmpty {
@@ -135,8 +147,6 @@ struct IOSAdHocPreset: FlowPreset {
         )
         Log.depth -= 3
 
-        context.version = buildInfo.version
-        context.buildNumber = buildInfo.buildNumber
         context.metadata["firebase_version"] = buildInfo.version
         context.metadata["firebase_build_number"] = buildInfo.buildNumber
 
@@ -198,6 +208,29 @@ struct IOSAdHocPreset: FlowPreset {
                 Log("        Profile: \(r.profileName) [UUID: \(r.profileUUID)]".dim)
                 Log("        Identity: \(r.identity), Team: \(r.teamId ?? "None")".dim)
             }
+        }
+
+        // Increment build number based on Firebase (or current project buildNumber) and update Xcode project
+        let baseBuildStr = context.metadata["firebase_build_number"] ?? context.buildNumber
+        if let baseBuildStr = baseBuildStr, let baseBuild = Int(baseBuildStr) {
+            let nextBuildNumber = String(baseBuild + 1)
+            let prevDisplay = context.buildNumber != nil ? "\(context.buildNumber!) (Firebase: \(baseBuildStr))" : baseBuildStr
+            Log("   🔢 [\(name)] Incrementing build number: \(prevDisplay.bold) -> \(nextBuildNumber.bold.green)".dim)
+
+            if !context.isDryRun {
+                try XCodeTasks.updateBuildNumber(
+                    XCodeTasks.UpdateBuildNumberInput(
+                        projectPath: context.xcodeProjectPath,
+                        workspacePath: context.workspacePath,
+                        buildNumber: nextBuildNumber,
+                        version: context.version,
+                        configurations: [configuration]
+                    ),
+                    in: context.projectDirectory
+                )
+            }
+
+            context.buildNumber = nextBuildNumber
         }
     }
 
