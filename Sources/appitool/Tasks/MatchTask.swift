@@ -1,5 +1,4 @@
 import Foundation
-import MatchTarget
 
 /// A task that handles certificate and provisioning profile management compatible with Fastlane `match`,
 /// supporting GitHub repository synchronization.

@@ -23,21 +23,21 @@ struct ApplePruneProfilesCommand: AsyncParsableCommand {
         _ = try? EnvLoader.loadEnv()
 
         guard let service = try appleCredentials.makeService() else {
-            print("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
+            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return
         }
 
-        print("🔍 Inspecting provisioning profiles on Apple Developer Portal...".dim)
+        Log("🔍 Inspecting provisioning profiles on Apple Developer Portal...".dim)
         let result = try await service.pruneProfiles(includeExpired: includeExpired, dryRun: dryRun)
 
         if result.candidates.isEmpty {
             let scopeMsg = includeExpired ? "invalid or expired" : "invalid"
-            print("✓ No \(scopeMsg) provisioning profiles found on Apple Developer Portal. Portal is clean!".green.bold)
+            Log("✓ No \(scopeMsg) provisioning profiles found on Apple Developer Portal. Portal is clean!".green.bold)
             return
         }
 
         let modePrefix = dryRun ? "[Dry Run] ".yellow.bold : ""
-        print("\n\(modePrefix)Found \(result.candidates.count) candidate profile(s) for pruning:".bold)
+        Log("\n\(modePrefix)Found \(result.candidates.count) candidate profile(s) for pruning:".bold)
 
         for (p, reason) in result.candidates {
             let nameStr = p.attributes?.name ?? "unnamed"
@@ -45,24 +45,24 @@ struct ApplePruneProfilesCommand: AsyncParsableCommand {
             let typeStr = p.attributes?.profileType?.rawValue ?? "UNKNOWN"
             let reasonStr = reason == "INVALID" ? "INVALID".red.bold : "EXPIRED".yellow.bold
 
-            print("  • ".cyan + "\(nameStr)".bold + " [Reason: \(reasonStr), Type: \(typeStr), UUID: \(uuidStr), Portal ID: \(p.id)]".dim)
+            Log("  • ".cyan + "\(nameStr)".bold + " [Reason: \(reasonStr), Type: \(typeStr), UUID: \(uuidStr), Portal ID: \(p.id)]".dim)
         }
-        print("")
+        Log("")
 
         if dryRun {
-            print("ℹ️ Dry run complete. No profiles were modified. Re-run without --dry-run (-d) to delete them.".yellow)
+            Log("ℹ️ Dry run complete. No profiles were modified. Re-run without --dry-run (-d) to delete them.".yellow)
             return
         }
 
         for (p, _) in result.candidates {
             let nameStr = p.attributes?.name ?? "unnamed"
             if let fail = result.failedProfiles.first(where: { $0.name == nameStr }) {
-                print("  ❌ Failed to delete '\(nameStr)': \(fail.error)".red)
+                Log("  ❌ Failed to delete '\(nameStr)': \(fail.error)".red)
             } else {
-                print("  ✓ Pruned: ".green + "\(nameStr)".bold)
+                Log("  ✓ Pruned: ".green + "\(nameStr)".bold)
             }
         }
 
-        print("\n✓ Pruning finished: \(result.deletedCount) profile(s) deleted".green.bold + (result.failedProfiles.count > 0 ? ", \(result.failedProfiles.count) failed/skipped.".yellow : "."))
+        Log("\n✓ Pruning finished: \(result.deletedCount) profile(s) deleted".green.bold + (result.failedProfiles.count > 0 ? ", \(result.failedProfiles.count) failed/skipped.".yellow : "."))
     }
 }

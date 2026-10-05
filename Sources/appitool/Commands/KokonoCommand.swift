@@ -25,7 +25,7 @@ struct KokonoCommand: AsyncParsableCommand {
 
         let resolvedUrl = url ?? ProcessInfo.processInfo.environment["KOKONO_URL"]
         guard let resolvedUrl, !resolvedUrl.isEmpty else {
-            print("Error: ".red.bold + "Missing KokoNo URL. Provide -u, --url or configure KOKONO_URL in .env.")
+            Log("Error: ".red.bold + "Missing KokoNo URL. Provide -u, --url or configure KOKONO_URL in .env.")
             throw ExitCode.failure
         }
 
@@ -50,9 +50,9 @@ struct KokonoCommand: AsyncParsableCommand {
                 kokonoUrl: resolvedUrl,
                 kokonoPublicKey: resolvedPublicKey
             ))
-            print("✓ ".green.bold + "KokoNo notification sent successfully.".bold)
+            Log("✓ ".green.bold + "KokoNo notification sent successfully.".bold)
         } catch {
-            print("Error: ".red.bold + "Failed to send KokoNo notification: \(error.localizedDescription)")
+            Log("Error: ".red.bold + "Failed to send KokoNo notification: \(error.localizedDescription)")
             throw ExitCode.failure
         }
     }

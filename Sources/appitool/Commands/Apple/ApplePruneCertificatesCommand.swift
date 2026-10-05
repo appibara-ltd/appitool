@@ -23,21 +23,21 @@ struct ApplePruneCertificatesCommand: AsyncParsableCommand {
         _ = try? EnvLoader.loadEnv()
 
         guard let service = try appleCredentials.makeService() else {
-            print("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
+            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return
         }
 
-        print("🔍 Inspecting certificates on Apple Developer Portal...".dim)
+        Log("🔍 Inspecting certificates on Apple Developer Portal...".dim)
         let result = try await service.pruneCertificates(typeFilter: type, dryRun: dryRun)
 
         if result.candidates.isEmpty {
             let filterDesc = type.map { " (\($0))" } ?? ""
-            print("✓ No expired certificates\(filterDesc) found on Apple Developer Portal. Portal is clean!".green.bold)
+            Log("✓ No expired certificates\(filterDesc) found on Apple Developer Portal. Portal is clean!".green.bold)
             return
         }
 
         let modePrefix = dryRun ? "[Dry Run] ".yellow.bold : ""
-        print("\n\(modePrefix)Found \(result.candidates.count) expired certificate(s) for pruning:".bold)
+        Log("\n\(modePrefix)Found \(result.candidates.count) expired certificate(s) for pruning:".bold)
 
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -49,27 +49,27 @@ struct ApplePruneCertificatesCommand: AsyncParsableCommand {
             let serialStr = cert.attributes?.serialNumber ?? "-"
             let expirationStr = cert.attributes?.expirationDate.map { formatter.string(from: $0) } ?? "-"
 
-            print("  • ".cyan + "\(nameStr)".bold + " [Reason: " + "EXPIRED".red.bold + ", Type: \(typeStr), Serial: \(serialStr), Expires: \(expirationStr), Portal ID: \(cert.id)]".dim)
+            Log("  • ".cyan + "\(nameStr)".bold + " [Reason: " + "EXPIRED".red.bold + ", Type: \(typeStr), Serial: \(serialStr), Expires: \(expirationStr), Portal ID: \(cert.id)]".dim)
         }
-        print("")
+        Log("")
 
         if dryRun {
-            print("ℹ️ Dry run complete. No certificates were modified. Re-run without --dry-run (-d) to delete them.".yellow)
+            Log("ℹ️ Dry run complete. No certificates were modified. Re-run without --dry-run (-d) to delete them.".yellow)
             return
         }
 
         for cert in result.candidates {
             let nameStr = cert.attributes?.name ?? "unnamed"
             if let fail = result.failedCertificates.first(where: { $0.name == nameStr }) {
-                print("  ❌ Failed to delete '\(nameStr)': \(fail.error)".red)
+                Log("  ❌ Failed to delete '\(nameStr)': \(fail.error)".red)
             } else {
-                print("  ✓ Pruned: ".green + "\(nameStr)".bold)
+                Log("  ✓ Pruned: ".green + "\(nameStr)".bold)
             }
         }
 
-        print("\n✓ Pruning finished: \(result.deletedCount) certificate(s) deleted".green.bold + (result.failedCertificates.count > 0 ? ", \(result.failedCertificates.count) failed/skipped.".yellow : "."))
+        Log("\n✓ Pruning finished: \(result.deletedCount) certificate(s) deleted".green.bold + (result.failedCertificates.count > 0 ? ", \(result.failedCertificates.count) failed/skipped.".yellow : "."))
         if result.deletedCount > 0 {
-            print("ℹ️ Note: Any provisioning profiles that were tied to these pruned certificates have been invalidated by Apple.".dim)
+            Log("ℹ️ Note: Any provisioning profiles that were tied to these pruned certificates have been invalidated by Apple.".dim)
         }
     }
 }

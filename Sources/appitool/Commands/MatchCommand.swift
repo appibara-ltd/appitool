@@ -1,6 +1,5 @@
 import ArgumentParser
 import Foundation
-import MatchTarget
 import Rainbow
 
 /// A command that synchronizes or nukes code signing certificates and provisioning profiles
@@ -115,7 +114,7 @@ struct MatchCommand: AsyncParsableCommand {
             case "developer_id", "developerid", "developer-id":
                 resolvedType = .developerId
             default:
-                print("Error: ".red.bold + "Unsupported match type '\(rawTypeStr)'. Valid types: appstore, development, adhoc, enterprise, developer_id, all.")
+                Log("Error: ".red.bold + "Unsupported match type '\(rawTypeStr)'. Valid types: appstore, development, adhoc, enterprise, developer_id, all.")
                 throw ExitCode.failure
             }
         } else {
@@ -124,13 +123,13 @@ struct MatchCommand: AsyncParsableCommand {
 
         // 3. Resolve Platform
         guard let resolvedPlatform = MatchPlatform(rawValue: platform.lowercased()) else {
-            print("Error: ".red.bold + "Unsupported platform '\(platform)'. Valid platforms: \(MatchPlatform.allCases.map(\.rawValue).joined(separator: ", ")).")
+            Log("Error: ".red.bold + "Unsupported platform '\(platform)'. Valid platforms: \(MatchPlatform.allCases.map(\.rawValue).joined(separator: ", ")).")
             throw ExitCode.failure
         }
 
         // 4. Resolve Git URL
         guard let resolvedGitUrl = gitUrl ?? env["MATCH_GIT_URL"], !resolvedGitUrl.isEmpty else {
-            print("Error: ".red.bold + "Missing Git repository URL. Provide -g, --git-url or configure MATCH_GIT_URL in .env.")
+            Log("Error: ".red.bold + "Missing Git repository URL. Provide -g, --git-url or configure MATCH_GIT_URL in .env.")
             throw ExitCode.failure
         }
 
@@ -142,16 +141,38 @@ struct MatchCommand: AsyncParsableCommand {
 
         // 7. Resolve Password
         guard let resolvedPassword = password ?? env["MATCH_PASSWORD"], !resolvedPassword.isEmpty else {
-            print("Error: ".red.bold + "Missing encryption password. Provide -p, --password or configure MATCH_PASSWORD in .env.")
+            Log("Error: ".red.bold + "Missing encryption password. Provide -p, --password or configure MATCH_PASSWORD in .env.")
             throw ExitCode.failure
         }
 
         // 8. Resolve App Identifiers
-        let resolvedIdentifiers: [String]
+        var resolvedIdentifiers: [String]
         if let explicit = appIdentifiers, !explicit.isEmpty {
             resolvedIdentifiers = explicit.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
         } else {
             resolvedIdentifiers = []
+        }
+
+        if resolvedIdentifiers.isEmpty && XCodeTasks.hasIosProject() {
+            if let iosResult = try? await XCodeTasks.getIosIdentifiers() {
+                var seen = Set<String>()
+                var discovered: [String] = []
+                for target in iosResult.targets {
+                    if !target.bundleId.isEmpty && !seen.contains(target.bundleId) {
+                        seen.insert(target.bundleId)
+                        discovered.append(target.bundleId)
+                    }
+                }
+                if discovered.isEmpty, let mainBundleId = iosResult.bundleId, !mainBundleId.isEmpty {
+                    discovered.append(mainBundleId)
+                }
+                if !discovered.isEmpty {
+                    resolvedIdentifiers = discovered
+                    if !silent {
+                        Log("ℹ Discovered project bundle identifiers: \(resolvedIdentifiers.joined(separator: ", "))".dim)
+                    }
+                }
+            }
         }
 
         // 9. Resolve Readonly
@@ -198,24 +219,24 @@ struct MatchCommand: AsyncParsableCommand {
         do {
             let result = try await runner.run(config)
             if resolvedAction == .sync && !silent {
-                print("✨ Match completed successfully.".green.bold)
+                Log("✨ Match completed successfully.".green.bold)
                 if !result.installedCertificates.isEmpty {
-                    print("\nInstalled Certificates:".bold)
+                    Log("\nInstalled Certificates:".bold)
                     for cert in result.installedCertificates {
-                        print("  • \(cert.name) (\(cert.id))".dim)
+                        Log("  • \(cert.name) (\(cert.id))".dim)
                     }
                 }
                 if !result.installedProfiles.isEmpty {
-                    print("\nInstalled Provisioning Profiles:".bold)
+                    Log("\nInstalled Provisioning Profiles:".bold)
                     for (bundleId, profile) in result.installedProfiles {
-                        print("  • \(bundleId): \(profile.name) [\(profile.uuid)]".dim)
+                        Log("  • \(bundleId): \(profile.name) [\(profile.uuid)]".dim)
                     }
                 }
             } else if resolvedAction == .prune && !silent {
-                print("✨ Match prune completed successfully.".green.bold)
+                Log("✨ Match prune completed successfully.".green.bold)
             }
         } catch {
-            print("Error: ".red.bold + "\(error.localizedDescription)")
+            Log("Error: ".red.bold + "\(error.localizedDescription)")
             throw ExitCode.failure
         }
     }

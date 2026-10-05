@@ -72,34 +72,8 @@ package struct FirebaseService: Sendable {
         try self.init(authMiddleware: authMiddleware, transport: transport)
     }
 
-    /// Initializes `FirebaseService` using a static OAuth 2.0 Bearer access token (e.g. from `FIREBASE_TOKEN`).
-    package init(
-        token: String,
-        transport: any ClientTransport = Self.sharedTransport
-    ) throws {
-        struct StaticBearerAuthMiddleware: ClientMiddleware, Sendable {
-            let token: String
-            func intercept(
-                _ request: HTTPRequest,
-                body: HTTPBody?,
-                baseURL: URL,
-                operationID: String,
-                next: @concurrent @Sendable (HTTPRequest, HTTPBody?, URL) async throws -> (HTTPResponse, HTTPBody?)
-            ) async throws -> (HTTPResponse, HTTPBody?) {
-                var req = request
-                req.headerFields[.authorization] = "Bearer \(token)"
-                return try await next(req, body, baseURL)
-            }
-        }
-
-        try self.init(authMiddleware: StaticBearerAuthMiddleware(token: token), transport: transport)
-    }
-
-    /// Instantiates `FirebaseService` using explicitly provided credentials (`token` or `googleKey`).
-    package static func makeService(token: String? = nil, googleKey: String? = nil) throws -> FirebaseService? {
-        if let token, !token.isEmpty {
-            return try FirebaseService(token: token)
-        }
+    /// Instantiates `FirebaseService` using an explicitly provided Google Cloud Service Account key (`googleKey`).
+    package static func makeService(googleKey: String? = nil) throws -> FirebaseService? {
         if let googleKey, !googleKey.isEmpty {
             return try FirebaseService(key: googleKey)
         }

@@ -30,7 +30,25 @@ struct FlowContext: Sendable {
     var workspacePath: String?
     var xcodeProjectPath: String?
     var scheme: String?
+    var configuration: String?
     var targetName: String?
+
+    // Match / Code Signing Configuration
+    var matchGitUrl: String?
+    var matchGitBranch: String?
+    var matchGitToken: String?
+    var matchPassword: String?
+    var matchKeychainName: String?
+    var matchKeychainPassword: String?
+    var matchReadonly: Bool = true
+    var teamId: String?
+    var appleKeyId: String?
+    var appleIssuerId: String?
+    var appleKey: String?
+
+    // Match / Code Signing Artifacts
+    var installedCertificates: [String] = []
+    var installedProfiles: [String: MatchTask.ProfileInfo] = [:]
 
     // Pre-build state
     var version: String?
@@ -62,7 +80,19 @@ struct FlowContext: Sendable {
         workspacePath: String? = nil,
         xcodeProjectPath: String? = nil,
         scheme: String? = nil,
+        configuration: String? = nil,
         targetName: String? = nil,
+        matchGitUrl: String? = nil,
+        matchGitBranch: String? = nil,
+        matchGitToken: String? = nil,
+        matchPassword: String? = nil,
+        matchKeychainName: String? = nil,
+        matchKeychainPassword: String? = nil,
+        matchReadonly: Bool = true,
+        teamId: String? = nil,
+        appleKeyId: String? = nil,
+        appleIssuerId: String? = nil,
+        appleKey: String? = nil,
         slackUrl: String? = nil,
         kokonoUrl: String? = nil,
         kokonoPublicKey: String? = nil,
@@ -77,7 +107,19 @@ struct FlowContext: Sendable {
         self.workspacePath = workspacePath
         self.xcodeProjectPath = xcodeProjectPath
         self.scheme = scheme
+        self.configuration = configuration
         self.targetName = targetName
+        self.matchGitUrl = matchGitUrl
+        self.matchGitBranch = matchGitBranch
+        self.matchGitToken = matchGitToken
+        self.matchPassword = matchPassword
+        self.matchKeychainName = matchKeychainName
+        self.matchKeychainPassword = matchKeychainPassword
+        self.matchReadonly = matchReadonly
+        self.teamId = teamId
+        self.appleKeyId = appleKeyId
+        self.appleIssuerId = appleIssuerId
+        self.appleKey = appleKey
         self.slackUrl = slackUrl
         self.kokonoUrl = kokonoUrl
         self.kokonoPublicKey = kokonoPublicKey

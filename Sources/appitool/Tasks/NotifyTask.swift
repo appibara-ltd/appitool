@@ -120,9 +120,9 @@ struct NotifyTask: Task {
                     metadata: metadata,
                     slackUrl: slackUrl
                 ))
-                print("   ✓ ".green.bold + "Slack notification sent successfully.".dim)
+                Log("   ✓ ".green.bold + "Slack notification sent successfully.".dim)
             } catch {
-                print("   ⚠️  Failed to send Slack notification: \(error.localizedDescription)".yellow)
+                Log("   ⚠️  Failed to send Slack notification: \(error.localizedDescription)".yellow)
             }
         }
 
@@ -137,9 +137,9 @@ struct NotifyTask: Task {
                     kokonoUrl: kokonoUrl,
                     kokonoPublicKey: kokonoPublicKey
                 ))
-                print("   ✓ ".green.bold + "KokoNo notification sent successfully.".dim)
+                Log("   ✓ ".green.bold + "KokoNo notification sent successfully.".dim)
             } catch {
-                print("   ⚠️  Failed to send KokoNo notification: \(error.localizedDescription)".yellow)
+                Log("   ⚠️  Failed to send KokoNo notification: \(error.localizedDescription)".yellow)
             }
         }
     }

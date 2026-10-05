@@ -9,26 +9,26 @@ struct AndroidInternalPreset: FlowPreset {
     init() {}
 
     func setup(context: inout FlowContext) async throws {
-        print("   🔍 [\(name)] Validating Google Play API service account and project setup...".dim)
+        Log("   🔍 [\(name)] Validating Google Play API service account and project setup...".dim)
     }
 
     func prebuild(context: inout FlowContext) async throws {
-        print("   🔧 [\(name)] Resolving latest Google Play versionCode and bumping build...".dim)
+        Log("   🔧 [\(name)] Resolving latest Google Play versionCode and bumping build...".dim)
     }
 
     func build(context: inout FlowContext) async throws {
-        print("   🔨 [\(name)] Running Gradle bundleRelease to produce Android App Bundle (AAB)...".dim)
+        Log("   🔨 [\(name)] Running Gradle bundleRelease to produce Android App Bundle (AAB)...".dim)
     }
 
     func postbuild(context: inout FlowContext) async throws {
-        print("   📦 [\(name)] Verifying generated .aab bundle integrity...".dim)
+        Log("   📦 [\(name)] Verifying generated .aab bundle integrity...".dim)
     }
 
     func prerelease(context: inout FlowContext) async throws {
-        print("   📝 [\(name)] Preparing internal track release notes...".dim)
+        Log("   📝 [\(name)] Preparing internal track release notes...".dim)
     }
 
     func release(context: inout FlowContext) async throws {
-        print("   🚀 [\(name)] Publishing AAB to Google Play Internal track...".dim)
+        Log("   🚀 [\(name)] Publishing AAB to Google Play Internal track...".dim)
     }
 }

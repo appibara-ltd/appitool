@@ -31,17 +31,17 @@ struct AppleDeleteProfileCommand: AsyncParsableCommand {
         guard (trimmedName != nil && !trimmedName!.isEmpty) ||
               (trimmedUUID != nil && !trimmedUUID!.isEmpty) ||
               (trimmedId != nil && !trimmedId!.isEmpty) else {
-            print("Error: ".red.bold + "Missing target profile. Provide -n, --name, -u, --uuid, or -p, --portal-id.")
+            Log("Error: ".red.bold + "Missing target profile. Provide -n, --name, -u, --uuid, or -p, --portal-id.")
             return
         }
 
         guard let service = try appleCredentials.makeService() else {
-            print("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
+            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return
         }
 
         let targetDescription = trimmedName ?? trimmedUUID ?? trimmedId ?? "unknown"
-        print("🔍 Searching for provisioning profile '\(targetDescription)' on Apple Developer Portal...".dim)
+        Log("🔍 Searching for provisioning profile '\(targetDescription)' on Apple Developer Portal...".dim)
 
         do {
             let result = try await service.deleteProvisioningProfile(
@@ -52,12 +52,12 @@ struct AppleDeleteProfileCommand: AsyncParsableCommand {
 
             if result.deleted {
                 let displayName = result.matchedProfile?.attributes?.name ?? result.targetDescription
-                print("✓ Successfully deleted provisioning profile '\(displayName)'.".green.bold)
+                Log("✓ Successfully deleted provisioning profile '\(displayName)'.".green.bold)
             } else {
-                print("ℹ️ Provisioning profile '\(result.targetDescription)' does not exist on Apple Developer Portal (already absent).".yellow)
+                Log("ℹ️ Provisioning profile '\(result.targetDescription)' does not exist on Apple Developer Portal (already absent).".yellow)
             }
         } catch {
-            print("Error: ".red.bold + "Failed to delete provisioning profile: \(error.localizedDescription)")
+            Log("Error: ".red.bold + "Failed to delete provisioning profile: \(error.localizedDescription)")
         }
     }
 }

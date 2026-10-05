@@ -93,11 +93,11 @@ extension FlowPreset {
         let message = "Release completed successfully."
 
         guard !context.isDryRun else {
-            print("   ℹ Skipping notifications (dry-run mode).".yellow)
+            Log("   ℹ Skipping notifications (dry-run mode).".yellow)
             return
         }
 
-        print("   ℹ Dispatching release notifications...".dim)
+        Log("   ℹ Dispatching release notifications...".dim)
         await NotifyTask().notifyAllConfigured(
             status: .success,
             title: title,

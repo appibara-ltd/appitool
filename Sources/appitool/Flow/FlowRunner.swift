@@ -84,8 +84,8 @@ struct FlowRunner: Sendable {
         context.currentStage = stage
         let stageStart = Date()
 
-        print("\n\(stage.emoji) [\(stage.rawValue.uppercased())] ".cyan.bold + stage.displayName.bold)
-        print("   " + "─".repeated(50).dim)
+        Log("\n\(stage.emoji) [\(stage.rawValue.uppercased())] ".cyan.bold + stage.displayName.bold)
+        Log("   " + "─".repeated(50).dim)
 
         if let handler {
             try await handler.execute(context: &context)
@@ -93,17 +93,17 @@ struct FlowRunner: Sendable {
 
         let duration = Date().timeIntervalSince(stageStart)
         context.stageDurations[stage] = duration
-        print("   ✓ ".green.bold + "\(stage.displayName) completed in \(String(format: "%.2fs", duration))".dim)
+        Log("   ✓ ".green.bold + "\(stage.displayName) completed in \(String(format: "%.2fs", duration))".dim)
     }
 
     // MARK: - Global Error Handling
 
     private func handleFailure(error: Error, context: FlowContext) async {
         let failingStage = context.currentStage ?? .setup
-        print("\n" + "=".repeated(60).red.bold)
-        print("💥 FLOW EXECUTION FAILED AT STAGE: [\(failingStage.rawValue.uppercased())]".red.bold)
-        print("   Reason: \(error.localizedDescription)".red)
-        print("=".repeated(60).red.bold)
+        Log("\n" + "=".repeated(60).red.bold)
+        Log("💥 FLOW EXECUTION FAILED AT STAGE: [\(failingStage.rawValue.uppercased())]".red.bold)
+        Log("   Reason: \(error.localizedDescription)".red)
+        Log("=".repeated(60).red.bold)
 
         // Dispatch failure notifications to connected webhook services (Slack, KokoNo)
         await notifyFailureWebhooks(error: error, stage: failingStage, context: context)
@@ -126,11 +126,11 @@ struct FlowRunner: Sendable {
         let message = error.localizedDescription
 
         guard !context.isDryRun else {
-            print("   ℹ Skipping failure notifications (dry-run mode).".yellow)
-            print("     Title:   \(title)".dim)
-            print("     Message: \(message)".dim)
+            Log("   ℹ Skipping failure notifications (dry-run mode).".yellow)
+            Log("     Title:   \(title)".dim)
+            Log("     Message: \(message)".dim)
             for (key, value) in metadata.sorted(by: { $0.key < $1.key }) {
-                print("     • \(key): \(value)".dim)
+                Log("     • \(key): \(value)".dim)
             }
             return
         }
@@ -149,32 +149,32 @@ struct FlowRunner: Sendable {
     // MARK: - Presentation Helpers
 
     private func printHeader(context: FlowContext) {
-        print("\n" + "🌊 Starting AppiFlow: \(context.platform.rawValue.uppercased()) (\(context.distribution.rawValue))".cyan.bold)
+        Log("\n" + "🌊 Starting AppiFlow: \(context.platform.rawValue.uppercased()) (\(context.distribution.rawValue))".cyan.bold)
         if let preset = context.preset {
-            print("   Preset: \(preset.name)".magenta.bold + " - \(preset.description)".dim)
+            Log("   Preset: \(preset.name)".magenta.bold + " - \(preset.description)".dim)
         }
-        print("   Working Directory: \(context.projectDirectory.path)".dim)
+        Log("   Working Directory: \(context.projectDirectory.path)".dim)
         if context.isDryRun {
-            print("   Mode: DRY RUN (No mutations will be performed)".yellow.bold)
+            Log("   Mode: DRY RUN (No mutations will be performed)".yellow.bold)
         }
     }
 
     private func printSuccessSummary(context: FlowContext) {
         let totalDuration = Date().timeIntervalSince(context.startTime)
-        print("\n" + "=".repeated(60).green.bold)
-        print("🎉 FLOW COMPLETED SUCCESSFULLY".green.bold)
-        print("   Platform:     \(context.platform.rawValue.uppercased())")
-        print("   Distribution: \(context.distribution.rawValue)")
-        print("   Total Time:   \(String(format: "%.2fs", totalDuration))")
-        print("─".repeated(60).dim)
-        print("   Stage Durations:")
+        Log("\n" + "=".repeated(60).green.bold)
+        Log("🎉 FLOW COMPLETED SUCCESSFULLY".green.bold)
+        Log("   Platform:     \(context.platform.rawValue.uppercased())")
+        Log("   Distribution: \(context.distribution.rawValue)")
+        Log("   Total Time:   \(String(format: "%.2fs", totalDuration))")
+        Log("─".repeated(60).dim)
+        Log("   Stage Durations:")
         for stage in FlowStage.allCases {
             let duration = context.stageDurations[stage] ?? 0.0
             let name = stage.rawValue.padding(toLength: 12, withPad: " ", startingAt: 0)
             let formattedDuration = String(format: "%5.2fs", duration)
-            print("   • \(stage.emoji) \(name): \(formattedDuration)".dim)
+            Log("   • \(stage.emoji) \(name): \(formattedDuration)".dim)
         }
-        print("=".repeated(60).green.bold + "\n")
+        Log("=".repeated(60).green.bold + "\n")
     }
 }
 

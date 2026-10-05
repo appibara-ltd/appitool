@@ -20,7 +20,6 @@ let package = Package(
     ],
     products: [
         .executable(name: "appitool", targets: ["appitool"]),
-        .library(name: "MatchTarget", targets: ["MatchTarget"]),
         .library(name: "AppleServices", targets: ["AppleServices"]),
         .library(name: "GoogleServices", targets: ["GoogleServices"]),
     ],
@@ -177,26 +176,11 @@ let package = Package(
             ],
             swiftSettings: defaultSwiftSettings
         ),
-        .target(
-            name: "MatchTarget",
-            dependencies: [
-                "AppleServices",
-                "AppStoreConnectAPI",
-                .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
-                .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
-                .product(name: "Crypto", package: "swift-crypto"),
-                .product(name: "CryptoExtras", package: "swift-crypto"),
-                .product(name: "Rainbow", package: "Rainbow"),
-            ],
-            swiftSettings: defaultSwiftSettings
-        ),
-
         .executableTarget(
             name: "appitool",
             dependencies: [
                 "AppleServices",
                 "GoogleServices",
-                "MatchTarget",
                 "AppStoreConnectAPI",
                 "GooglePlayStoreAPI",
                 "GooglePlayReportingAPI",
@@ -230,7 +214,6 @@ let package = Package(
                 "appitool",
                 "AppleServices",
                 "GoogleServices",
-                "MatchTarget",
             ],
 //            swiftSettings: defaultSwiftSettings
         ),

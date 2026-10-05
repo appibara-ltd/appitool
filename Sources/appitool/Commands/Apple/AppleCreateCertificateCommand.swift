@@ -35,18 +35,18 @@ struct AppleCreateCertificateCommand: AsyncParsableCommand {
         _ = try? EnvLoader.loadEnv()
 
         guard let service = try appleCredentials.makeService() else {
-            print("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
+            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return
         }
 
         guard let (_, typeLabel) = try? AppleTypeMapper.parseCertificateType(type) else {
-            print("Error: ".red.bold + "Unsupported certificate type '\(type)'.")
-            print("💡 Supported types: development, distribution, developer-id, ios-development, ios-distribution, mac-development, mac-distribution, mac-installer".yellow)
+            Log("Error: ".red.bold + "Unsupported certificate type '\(type)'.")
+            Log("💡 Supported types: development, distribution, developer-id, ios-development, ios-distribution, mac-development, mac-distribution, mac-installer".yellow)
             return
         }
 
-        print("🔐 Generating RSA 2048-bit private key and CSR...".dim)
-        print("🚀 Submitting CSR to Apple Developer Portal for \(typeLabel) certificate...".dim)
+        Log("🔐 Generating RSA 2048-bit private key and CSR...".dim)
+        Log("🚀 Submitting CSR to Apple Developer Portal for \(typeLabel) certificate...".dim)
 
         let result: CreateCertificateResult
         do {
@@ -59,7 +59,7 @@ struct AppleCreateCertificateCommand: AsyncParsableCommand {
                 saveToKeychain: saveToKeychain
             )
         } catch {
-            print("Error: ".red.bold + "Failed to create certificate: \(error.localizedDescription)")
+            Log("Error: ".red.bold + "Failed to create certificate: \(error.localizedDescription)")
             return
         }
 
@@ -67,31 +67,31 @@ struct AppleCreateCertificateCommand: AsyncParsableCommand {
         let serialNumber = result.certificate.attributes?.serialNumber ?? "-"
         let expirationDate = result.certificate.attributes?.expirationDate?.description ?? "-"
 
-        print("\n✓ Certificate created successfully!".green.bold)
-        print("  • Type: ".cyan + "\(result.typeLabel)".bold)
-        print("  • Name: ".cyan + "\(result.commonName)")
-        print("  • Portal ID: ".cyan + "\(portalId)")
-        print("  • Serial: ".cyan + "\(serialNumber)")
-        print("  • Expires: ".cyan + "\(expirationDate)")
-        print("\n📁 Saved resources:".bold)
+        Log("\n✓ Certificate created successfully!".green.bold)
+        Log("  • Type: ".cyan + "\(result.typeLabel)".bold)
+        Log("  • Name: ".cyan + "\(result.commonName)")
+        Log("  • Portal ID: ".cyan + "\(portalId)")
+        Log("  • Serial: ".cyan + "\(serialNumber)")
+        Log("  • Expires: ".cyan + "\(expirationDate)")
+        Log("\n📁 Saved resources:".bold)
         if FileManager.default.fileExists(atPath: result.cerFile.path) {
-            print("  • Certificate: ".cyan + "\(result.cerFile.path)")
+            Log("  • Certificate: ".cyan + "\(result.cerFile.path)")
         }
         if FileManager.default.fileExists(atPath: result.keyFile.path) {
-            print("  • Private Key: ".cyan + "\(result.keyFile.path)")
+            Log("  • Private Key: ".cyan + "\(result.keyFile.path)")
         }
         if let p12Dest = result.p12File, FileManager.default.fileExists(atPath: p12Dest.path) {
             let passSuffix = " (password: \(result.p12Password))".dim
-            print("  • PKCS#12: ".cyan + "\(p12Dest.path)" + passSuffix)
+            Log("  • PKCS#12: ".cyan + "\(p12Dest.path)" + passSuffix)
         }
         if result.keychainImported {
             let kcName = result.keychainName ?? "appitool"
-            print("  • Keychain: ".cyan + "\(kcName).keychain-db (verified)".green.bold)
+            Log("  • Keychain: ".cyan + "\(kcName).keychain-db (verified)".green.bold)
         }
 
         if !result.keychainImported {
-            print("\n⚠️  Keep the private key safe! It cannot be re-downloaded from Apple.".yellow.bold)
+            Log("\n⚠️  Keep the private key safe! It cannot be re-downloaded from Apple.".yellow.bold)
         }
-        print("")
+        Log("")
     }
 }

@@ -18,11 +18,11 @@ public final class MatchRunner: Sendable {
             let modeStr = (config.action == .nuke)
                 ? "Nuke".red.bold
                 : (config.readonly ? "Read-Only (Sync)".yellow : "Read-Write".green)
-            print("🔐 [Match] Initializing \(config.type.rawValue)...".cyan.bold)
-            print("   Git Repo:  ".dim + "\(config.gitUrl)".bold)
-            print("   Branch:    ".dim + "\(config.gitBranch)")
-            print("   Platform:  ".dim + "\(config.platform.rawValue)")
-            print("   Mode:      ".dim + modeStr)
+            Log("🔐 [Match] Initializing \(config.type.rawValue)...".cyan.bold)
+            Log("   Git Repo:  ".dim + "\(config.gitUrl)".bold)
+            Log("   Branch:    ".dim + "\(config.gitBranch)")
+            Log("   Platform:  ".dim + "\(config.platform.rawValue)")
+            Log("   Mode:      ".dim + modeStr)
         }
 
         let storage = GitStorage(
@@ -39,13 +39,13 @@ public final class MatchRunner: Sendable {
 
         // 1. Clone Git repository
         if !config.silent {
-            print("📥 [Match] Cloning certificates repository...".dim)
+            Log("📥 [Match] Cloning certificates repository...".dim)
         }
         try await storage.download()
 
         // 2. Decrypt repository files
         if !config.silent {
-            print("🔓 [Match] Decrypting repository assets...".dim)
+            Log("🔓 [Match] Decrypting repository assets...".dim)
         }
         let encryption = MatchEncryption()
         try encryption.decryptDirectory(storage.workingDirectory, password: config.password)
@@ -56,13 +56,13 @@ public final class MatchRunner: Sendable {
                 throw MatchError.portalAuthenticationRequired("App Store Connect API credentials are required for nuke operation.")
             }
             if !config.silent {
-                print("💥 [Match] Nuking certificates and provisioning profiles for \(config.type.rawValue)...".red.bold)
+                Log("💥 [Match] Nuking certificates and provisioning profiles for \(config.type.rawValue)...".red.bold)
             }
             let appStoreService = try AppStoreService(keyId: keyId, issuerId: issuerId, key: key)
             let (revokedCerts, deletedProfiles) = try await appStoreService.nuke(type: config.type.rawValue, platform: config.platform.rawValue)
             if !config.silent {
-                print("   Revoked \(revokedCerts.count) certificates on Apple Developer Portal".dim)
-                print("   Deleted \(deletedProfiles.count) profiles on Apple Developer Portal".dim)
+                Log("   Revoked \(revokedCerts.count) certificates on Apple Developer Portal".dim)
+                Log("   Deleted \(deletedProfiles.count) profiles on Apple Developer Portal".dim)
             }
 
             // Remove files from Git repo
@@ -94,7 +94,7 @@ public final class MatchRunner: Sendable {
             }
 
             if !config.silent {
-                print("💥 [Match] Successfully nuked \(config.type.rawValue) certificates and profiles!".red.bold)
+                Log("💥 [Match] Successfully nuked \(config.type.rawValue) certificates and profiles!".red.bold)
             }
             return MatchResult()
         }
@@ -108,7 +108,7 @@ public final class MatchRunner: Sendable {
             let typesToPrune: [MatchProfileType] = config.allTypes ? MatchProfileType.allCases : [config.type]
             let scopeDesc = config.allTypes ? "all types" : config.type.rawValue
             if !config.silent {
-                print("🧹 [Match] Pruning invalid certificates and provisioning profiles for \(scopeDesc)...".cyan.bold)
+                Log("🧹 [Match] Pruning invalid certificates and provisioning profiles for \(scopeDesc)...".cyan.bold)
             }
 
             let appStoreService = try AppStoreService(keyId: keyId, issuerId: issuerId, key: key)
@@ -146,7 +146,7 @@ public final class MatchRunner: Sendable {
                             filesToDelete.append(p12Path)
                         }
                         if !config.silent {
-                            print("   Pruned certificate \(id) (.cer / .p12)".yellow)
+                            Log("   Pruned certificate \(id) (.cer / .p12)".yellow)
                         }
                     }
                 }
@@ -174,7 +174,7 @@ public final class MatchRunner: Sendable {
                             let profileName = installer.profileName(atPath: filePath)
                             let reason = isRevokedOnPortal ? "revoked on portal" : "expired"
                             if !config.silent {
-                                print("   Pruned profile '\(profileName)' (\(reason))".yellow)
+                                Log("   Pruned profile '\(profileName)' (\(reason))".yellow)
                             }
                             try? fm.removeItem(atPath: filePath)
                             filesToDelete.append(filePath)
@@ -185,7 +185,7 @@ public final class MatchRunner: Sendable {
 
             if filesToDelete.isEmpty {
                 if !config.silent {
-                    print("✓ [Match] No invalid certificates or profiles found. Git repository is already clean!".green.bold)
+                    Log("✓ [Match] No invalid certificates or profiles found. Git repository is already clean!".green.bold)
                 }
                 return MatchResult()
             }
@@ -198,7 +198,7 @@ public final class MatchRunner: Sendable {
             )
 
             if !config.silent {
-                print("🧹 [Match] Successfully pruned \(filesToDelete.count) invalid file(s) from Git storage!".green.bold)
+                Log("🧹 [Match] Successfully pruned \(filesToDelete.count) invalid file(s) from Git storage!".green.bold)
             }
             return MatchResult()
         }
@@ -248,7 +248,7 @@ public final class MatchRunner: Sendable {
                 throw MatchError.portalAuthenticationRequired("App Store Connect API credentials are required to create a new certificate.")
             }
             if !config.silent {
-                print("✨ [Match] Generating new \(config.type.rawValue) certificate on Apple Developer Portal...".yellow)
+                Log("✨ [Match] Generating new \(config.type.rawValue) certificate on Apple Developer Portal...".yellow)
             }
             let certData: SigningCertificateData
             do {
@@ -272,7 +272,7 @@ public final class MatchRunner: Sendable {
             filesToCommit.append(newCerPath)
             filesToCommit.append(newP12Path)
             if !config.silent {
-                print("✓ [Match] Created Certificate: ".green.bold + "\(certData.id)")
+                Log("✓ [Match] Created Certificate: ".green.bold + "\(certData.id)")
             }
         }
 
@@ -288,7 +288,7 @@ public final class MatchRunner: Sendable {
         }
 
         if !config.silent {
-            print("🔑 [Match] Installing certificate into Keychain...".dim)
+            Log("🔑 [Match] Installing certificate into Keychain...".dim)
         }
         let imported: ImportedCertificateInfo
         do {
@@ -309,7 +309,7 @@ public final class MatchRunner: Sendable {
             p12Path: selectedP12Path
         )
         if !config.silent {
-            print("✓ [Match] Installed Certificate: ".green.bold + "\(certInfo.name)".bold + " [Cert: \(selectedCertId)]".dim)
+            Log("✓ [Match] Installed Certificate: ".green.bold + "\(certInfo.name)".bold + " [Cert: \(selectedCertId)]".dim)
         }
 
         // Discover and install provisioning profiles
@@ -363,7 +363,7 @@ public final class MatchRunner: Sendable {
                 }
 
                 if isRevokedOnPortal && !config.silent {
-                    print("⚠️ [Match] Profile '\(profileName)' is revoked or invalid on Apple Developer Portal.".yellow)
+                    Log("⚠️ [Match] Profile '\(profileName)' is revoked or invalid on Apple Developer Portal.".yellow)
                 }
 
                 if (!hasCert || isRevokedOnPortal) && config.readonly {
@@ -382,7 +382,7 @@ public final class MatchRunner: Sendable {
                 }
 
                 if hasCert && !isRevokedOnPortal && !config.silent {
-                    print("🔍 [Match] Verified profile '\(profileName)' matches certificate (\(selectedCertId))".dim)
+                    Log("🔍 [Match] Verified profile '\(profileName)' matches certificate (\(selectedCertId))".dim)
                 }
 
                 needsCreation = (config.force || isExpired || !hasCert || isRevokedOnPortal) && !config.readonly
@@ -395,7 +395,7 @@ public final class MatchRunner: Sendable {
                     throw MatchError.portalAuthenticationRequired("App Store Connect API credentials are required to create provisioning profiles.")
                 }
                 if !config.silent {
-                    print("✨ [Match] Generating new profile for \(bundleId) on Apple Developer Portal...".yellow)
+                    Log("✨ [Match] Generating new profile for \(bundleId) on Apple Developer Portal...".yellow)
                 }
                 let result: CreateProfileResult
                 do {
@@ -430,7 +430,7 @@ public final class MatchRunner: Sendable {
             installedProfiles[bundleId] = profileInfo
 
             if !config.silent {
-                print("✓ [Match] Installed Profile: ".green.bold + "\(profileInfo.name)".bold + " (\(bundleId))".dim)
+                Log("✓ [Match] Installed Profile: ".green.bold + "\(profileInfo.name)".bold + " (\(bundleId))".dim)
             }
 
             let normalizedType = config.type.rawValue
@@ -448,15 +448,15 @@ public final class MatchRunner: Sendable {
         if hasChanges {
             if !config.silent {
                 if !filesToDelete.isEmpty {
-                    print("🧹 [Match] Cleaning up \(filesToDelete.count) invalid file(s)...".yellow)
+                    Log("🧹 [Match] Cleaning up \(filesToDelete.count) invalid file(s)...".yellow)
                 }
                 if !filesToCommit.isEmpty {
-                    print("🔒 [Match] Encrypting updated assets...".dim)
+                    Log("🔒 [Match] Encrypting updated assets...".dim)
                 }
             }
             try encryption.encryptDirectory(storage.workingDirectory, password: config.password)
             if !config.silent {
-                print("📤 [Match] Pushing updated certificates and profiles to Git remote...".dim)
+                Log("📤 [Match] Pushing updated certificates and profiles to Git remote...".dim)
             }
             try await storage.saveChanges(
                 filesToCommit: filesToCommit,
@@ -466,7 +466,7 @@ public final class MatchRunner: Sendable {
         }
 
         if !config.silent {
-            print("🎉 [Match] Successfully synchronized all certificates and profiles!".green.bold)
+            Log("🎉 [Match] Successfully synchronized all certificates and profiles!".green.bold)
         }
 
         return MatchResult(
@@ -600,7 +600,7 @@ public final class MatchRunner: Sendable {
                 let profileName = installer.profileName(atPath: filePath)
                 if !silent {
                     let reason = isRevokedOnPortal ? "revoked on portal" : (isExpired ? "expired" : "certificate mismatch")
-                    print("🧹 [Match] Pruning invalid profile '\(profileName)' (\(reason))...".yellow)
+                    Log("🧹 [Match] Pruning invalid profile '\(profileName)' (\(reason))...".yellow)
                 }
                 try? fm.removeItem(atPath: filePath)
                 filesToDelete.append(filePath)

@@ -28,11 +28,11 @@ struct AppleListDevicesCommand: AsyncParsableCommand {
         _ = try? EnvLoader.loadEnv()
 
         guard let service = try appleCredentials.makeService() else {
-            print("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
+            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return
         }
 
-        print("🔍 Fetching devices from Apple Developer Portal...".dim)
+        Log("🔍 Fetching devices from Apple Developer Portal...".dim)
         let devices = try await service.fetchDevices(
             matchingName: name,
             platform: platform,
@@ -42,14 +42,14 @@ struct AppleListDevicesCommand: AsyncParsableCommand {
 
         if devices.isEmpty {
             if let filter = platform ?? name ?? status {
-                print("No devices matching filter '\(filter)' found on Apple Developer Portal.".yellow)
+                Log("No devices matching filter '\(filter)' found on Apple Developer Portal.".yellow)
             } else {
-                print("No devices found on Apple Developer Portal.".yellow)
+                Log("No devices found on Apple Developer Portal.".yellow)
             }
             return
         }
 
-        print("\nFound \(devices.count) device(s):".bold)
+        Log("\nFound \(devices.count) device(s):".bold)
         for device in devices {
             let nameStr = device.attributes?.name ?? "unnamed"
             let platformStr = device.attributes?.platform?.rawValue ?? "UNKNOWN"
@@ -66,8 +66,8 @@ struct AppleListDevicesCommand: AsyncParsableCommand {
                 statusStr = "UNKNOWN".yellow
             }
 
-            print("  • ".cyan + "\(nameStr)".bold + " [ID: \(device.id), Platform: \(platformStr), Class: \(classStr), Status: \(statusStr), Model: \(modelStr), UDID: \(udidStr)]".dim)
+            Log("  • ".cyan + "\(nameStr)".bold + " [ID: \(device.id), Platform: \(platformStr), Class: \(classStr), Status: \(statusStr), Model: \(modelStr), UDID: \(udidStr)]".dim)
         }
-        print("")
+        Log("")
     }
 }

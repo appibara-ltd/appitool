@@ -9,7 +9,9 @@ struct IOSAdHocPreset: FlowPreset {
     init() {}
 
     func setup(context: inout FlowContext) async throws {
-        print("   🔍 [\(name)] Validating iOS environment, signing identities, and Match Ad-Hoc profiles...".dim)
+        Log(
+            "   🔍 [\(name)] Validating iOS environment, signing identities, and Match Ad-Hoc profiles..."
+                .dim)
 
         if context.workspacePath == nil && context.xcodeProjectPath == nil {
             let detected = XcodeBuildTask.autoDetect(in: context.projectDirectory)
@@ -22,36 +24,184 @@ struct IOSAdHocPreset: FlowPreset {
             project: context.xcodeProjectPath,
             in: context.projectDirectory
         )
-        print("   🔍 [\(name)] Inspected project targets: \(info.targets)".dim)
+        Log(
+            "   🔍 [\(name)] Inspected project targets: \(info.targets.joined(separator: ", "))".dim)
+
         let result = try await XCodeTasks.getIosIdentifiers(
-            workspaceRoot: URL(fileURLWithPath: "."),
-            // scheme: "base",
-            configuration: "Release"
+            workspaceRoot: context.projectDirectory,
+            scheme: context.scheme,
+            configuration: context.configuration
         )
-        print("Main App Target: \(result.mainAppTargetName ?? "")")
-        print("Main Bundle ID: \(result.bundleId ?? "")")
-        for target in result.targets {
-            print("\(target.name): \(target.bundleId) (\(target.configurationSource?.rawValue ?? ""))")
+
+        if context.scheme == nil {
+            context.scheme = result.scheme
         }
+        if context.configuration == nil {
+            context.configuration = result.configuration
+        }
+        if context.targetName == nil {
+            context.targetName = result.mainAppTargetName
+        }
+        if context.bundleId == nil {
+            context.bundleId = result.bundleId
+        }
+
+        // Collect all target bundle identifiers to sync profiles for
+        var appIdentifiers: [String] = []
+        if let explicit = context.bundleId, !explicit.isEmpty {
+            appIdentifiers.append(explicit)
+        }
+        for target in result.targets {
+            if !target.bundleId.isEmpty && !appIdentifiers.contains(target.bundleId) {
+                appIdentifiers.append(target.bundleId)
+            }
+        }
+        if appIdentifiers.isEmpty, let mainBundleId = result.bundleId, !mainBundleId.isEmpty {
+            appIdentifiers.append(mainBundleId)
+        }
+
+        // Validate Match configuration
+        guard let gitUrl = context.matchGitUrl, !gitUrl.isEmpty else {
+            throw NSError(
+                domain: "IOSAdHocPreset",
+                code: 1,
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Missing Match Git repository URL. Configure MATCH_GIT_URL in .env or pass --match-git-url."
+                ]
+            )
+        }
+
+        guard let password = context.matchPassword, !password.isEmpty else {
+            throw NSError(
+                domain: "IOSAdHocPreset",
+                code: 2,
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Missing Match encryption password. Configure MATCH_PASSWORD in .env or pass --match-password."
+                ]
+            )
+        }
+
+        Log("   🔐 [\(name)] Running Match Ad-Hoc synchronization...".dim)
+        Log.depth += 3
+        let task = MatchTask()
+        let output = try await task.run(
+            MatchTask.Input(
+                gitUrl: gitUrl,
+                gitBranch: context.matchGitBranch ?? "master",
+                gitToken: context.matchGitToken,
+                type: .adhoc,
+                platform: .ios,
+                appIdentifiers: appIdentifiers,
+                password: password,
+                action: .sync,
+                readonly: context.isDryRun || context.matchReadonly,
+                teamId: context.teamId,
+                apiKeyId: context.appleKeyId,
+                apiIssuerId: context.appleIssuerId,
+                apiKey: context.appleKey,
+                keychainName: context.matchKeychainName,
+                keychainPassword: context.matchKeychainPassword
+            ))
+        Log.depth -= 3
+
+        // Log installed certificates and provisioning profiles
+        Log("   ✨ [\(name)] Match Ad-Hoc completed successfully.".green.bold)
+        if !output.installedCertificates.isEmpty {
+            Log("   📜 Installed Certificates (\(output.installedCertificates.count)):".bold)
+            for cert in output.installedCertificates {
+                Log("      • \(cert)".dim)
+            }
+        } else {
+            Log("   📜 Installed Certificates: None".dim)
+        }
+
+        if !output.installedProfiles.isEmpty {
+            Log("   📄 Installed Provisioning Profiles (\(output.installedProfiles.count)):".bold)
+            for (bundleId, profile) in output.installedProfiles.sorted(by: { $0.key < $1.key }) {
+                Log("      • [\(bundleId)] \(profile.name) (UUID: \(profile.uuid))".dim)
+                Log("        Path: \(profile.path)".dim)
+            }
+        } else {
+            Log("   📄 Installed Provisioning Profiles: None".dim)
+        }
+
+        context.installedCertificates = output.installedCertificates
+        context.installedProfiles = output.installedProfiles
     }
 
     func prebuild(context: inout FlowContext) async throws {
-        print("   🔧 [\(name)] Preparing build numbers and release changelog...".dim)
+        Log("   🔧 [\(name)] Preparing project for manual code signing...".dim)
+
+        guard !context.installedProfiles.isEmpty else {
+            Log("   ⚠️  [\(name)] No provisioning profiles installed in context to configure manual signing.".yellow)
+            return
+        }
+
+        let configuration = context.configuration ?? "Release"
+        let scheme = context.scheme
+
+        let identity: String = {
+            if let cert = context.installedCertificates.first {
+                if cert.contains("iPhone Distribution") {
+                    return "iPhone Distribution"
+                } else if cert.contains("Apple Distribution") {
+                    return "Apple Distribution"
+                } else {
+                    return cert
+                }
+            }
+            return "Apple Distribution"
+        }()
+
+        if context.teamId == nil, let cert = context.installedCertificates.first {
+            let pattern = #"\(([A-Z0-9]{10})\)"#
+            if let regex = try? NSRegularExpression(pattern: pattern),
+               let match = regex.firstMatch(in: cert, range: NSRange(cert.startIndex..., in: cert)),
+               let range = Range(match.range(at: 1), in: cert) {
+                context.teamId = String(cert[range])
+            }
+        }
+
+        let input = XCodeTasks.ManualSigningInput(
+            projectPath: context.xcodeProjectPath,
+            workspacePath: context.workspacePath,
+            scheme: scheme,
+            configuration: configuration,
+            teamId: context.teamId,
+            identity: identity,
+            profilesByBundleId: context.installedProfiles,
+            isDryRun: context.isDryRun
+        )
+
+        let results = try XCodeTasks.configureManualSigning(input, in: context.projectDirectory)
+
+        if results.isEmpty {
+            Log("   ⚠️  [\(name)] No signable targets found or updated for configuration '\(configuration)'.".yellow)
+        } else {
+            Log("   ✍️  [\(name)] Configured manual signing for \(results.count) target(s) [Configuration: \(configuration)]:".green.bold)
+            for r in results {
+                Log("      • Target: \(r.targetName.bold) (\(r.bundleId))")
+                Log("        Profile: \(r.profileName) [UUID: \(r.profileUUID)]".dim)
+                Log("        Identity: \(r.identity), Team: \(r.teamId ?? "None")".dim)
+            }
+        }
     }
 
     func build(context: inout FlowContext) async throws {
-        print("   🔨 [\(name)] Compiling iOS application with Ad-Hoc export configuration...".dim)
+        Log("   🔨 [\(name)] Compiling iOS application with Ad-Hoc export configuration...".dim)
     }
 
     func postbuild(context: inout FlowContext) async throws {
-        print("   📦 [\(name)] Verifying generated .ipa package and signature...".dim)
+        Log("   📦 [\(name)] Verifying generated .ipa package and signature...".dim)
     }
 
     func prerelease(context: inout FlowContext) async throws {
-        print("   📝 [\(name)] Preparing release packaging and tester release notes...".dim)
+        Log("   📝 [\(name)] Preparing release packaging and tester release notes...".dim)
     }
 
     func release(context: inout FlowContext) async throws {
-        print("   🚀 [\(name)] Distributing Ad-Hoc build to testers...".dim)
+        Log("   🚀 [\(name)] Distributing Ad-Hoc build to testers...".dim)
     }
 }

@@ -22,51 +22,51 @@ struct AppleListCapabilitiesCommand: AsyncParsableCommand {
         // If bundle ID is specified, query Apple Developer Portal for enabled capabilities
         if let targetBundleId = bundleId?.trimmingCharacters(in: .whitespacesAndNewlines), !targetBundleId.isEmpty {
             guard let service = try appleCredentials.makeService() else {
-                print("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
+                Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
                 return
             }
 
-            print("🔍 Fetching App Identifier '\(targetBundleId)' from Apple Developer Portal...".dim)
+            Log("🔍 Fetching App Identifier '\(targetBundleId)' from Apple Developer Portal...".dim)
             let result: (bundleId: Components.Schemas.BundleId, capabilities: [Components.Schemas.BundleIdCapability])
             do {
                 result = try await service.fetchCapabilitiesForIdentifier(identifier: targetBundleId)
             } catch {
-                print("ℹ️ App Identifier '\(targetBundleId)' was not found on Apple Developer Portal.".yellow)
+                Log("ℹ️ App Identifier '\(targetBundleId)' was not found on Apple Developer Portal.".yellow)
                 return
             }
 
             if result.capabilities.isEmpty {
-                print("\nℹ️ No custom capabilities are currently enabled for '\(targetBundleId)'.".yellow)
+                Log("\nℹ️ No custom capabilities are currently enabled for '\(targetBundleId)'.".yellow)
                 return
             }
 
-            print("\nEnabled capabilities for '\(targetBundleId)':".bold)
+            Log("\nEnabled capabilities for '\(targetBundleId)':".bold)
             for cap in result.capabilities {
                 let typeStr = cap.attributes?.capabilityType?.rawValue ?? "UNKNOWN"
                 let cliKey = typeStr.lowercased().replacingOccurrences(of: "_", with: "-")
-                print("  • ".green + "\(cliKey)".bold + " [API: \(typeStr), ID: \(cap.id)]".dim)
+                Log("  • ".green + "\(cliKey)".bold + " [API: \(typeStr), ID: \(cap.id)]".dim)
             }
-            print("")
+            Log("")
             return
         }
 
         // Otherwise, list all supported capabilities that can be passed to create-identifier
-        print("\nSupported capabilities for " + "apple create-identifier --capabilities <list>".cyan.bold + ":\n")
+        Log("\nSupported capabilities for " + "apple create-identifier --capabilities <list>".cyan.bold + ":\n")
 
         var currentCategory = ""
         for item in AppleTypeMapper.supportedCapabilities {
             if item.category != currentCategory {
                 currentCategory = item.category
-                print("[\(currentCategory)]".bold)
+                Log("[\(currentCategory)]".bold)
             }
-            print("  • ".cyan + "\(item.key)".bold + " [\(item.enumName)]".dim)
-            print("    \(item.description)".dim)
+            Log("  • ".cyan + "\(item.key)".bold + " [\(item.enumName)]".dim)
+            Log("    \(item.description)".dim)
         }
 
-        print("\n💡 Usage example:")
-        print("  appitool apple create-identifier -b \"com.example.app\" -c \"push-notifications,sign-in-with-apple\"".green)
-        print("\n💡 To view enabled capabilities on an existing App Identifier:")
-        print("  appitool apple list-capabilities -b \"com.example.app\"".yellow)
-        print("")
+        Log("\n💡 Usage example:")
+        Log("  appitool apple create-identifier -b \"com.example.app\" -c \"push-notifications,sign-in-with-apple\"".green)
+        Log("\n💡 To view enabled capabilities on an existing App Identifier:")
+        Log("  appitool apple list-capabilities -b \"com.example.app\"".yellow)
+        Log("")
     }
 }

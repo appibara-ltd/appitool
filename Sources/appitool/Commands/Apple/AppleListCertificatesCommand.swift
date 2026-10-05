@@ -23,25 +23,25 @@ struct AppleListCertificatesCommand: AsyncParsableCommand {
         _ = try? EnvLoader.loadEnv()
 
         guard let service = try appleCredentials.makeService() else {
-            print("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
+            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return
         }
 
         let certTypes = type.flatMap { AppleTypeMapper.parseCertificateQueryFilter($0) }
 
-        print("🔍 Fetching certificates from Apple Developer Portal...".dim)
+        Log("🔍 Fetching certificates from Apple Developer Portal...".dim)
         let certs = try await service.fetchCertificates(types: certTypes, limit: limit)
 
         if certs.isEmpty {
             if let filter = type {
-                print("No certificates matching '\(filter)' found on Apple Developer Portal.".yellow)
+                Log("No certificates matching '\(filter)' found on Apple Developer Portal.".yellow)
             } else {
-                print("No certificates found on Apple Developer Portal.".yellow)
+                Log("No certificates found on Apple Developer Portal.".yellow)
             }
             return
         }
 
-        print("\nFound \(certs.count) certificate(s):".bold)
+        Log("\nFound \(certs.count) certificate(s):".bold)
         let now = Date()
         for cert in certs {
             let nameStr = cert.attributes?.name ?? "unnamed"
@@ -62,8 +62,8 @@ struct AppleListCertificatesCommand: AsyncParsableCommand {
             }
             let statusStr = isExpired ? "EXPIRED".red.bold : "ACTIVE".green
 
-            print("  • ".cyan + "\(nameStr)".bold + " [Portal ID: \(cert.id), Type: \(typeStr), Status: \(statusStr), Serial: \(serialStr), Expires: \(expirationStr)]".dim)
+            Log("  • ".cyan + "\(nameStr)".bold + " [Portal ID: \(cert.id), Type: \(typeStr), Status: \(statusStr), Serial: \(serialStr), Expires: \(expirationStr)]".dim)
         }
-        print("")
+        Log("")
     }
 }

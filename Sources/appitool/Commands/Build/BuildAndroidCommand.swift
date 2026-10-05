@@ -136,9 +136,9 @@ struct BuildAndroidCommand: AsyncParsableCommand {
 
         // 6. Execute GradleTask
         let task = GradleTask()
-        print("\n" + "🏗️  Starting Android build for ".bold + "\(mainTarget)".cyan.bold + " (\(distribution.rawValue.capitalized))...".dim)
+        Log("\n" + "🏗️  Starting Android build for ".bold + "\(mainTarget)".cyan.bold + " (\(distribution.rawValue.capitalized))...".dim)
         if let pkg = resolvedPackageName {
-            print("   Package:     ".dim + "\(pkg)".yellow)
+            Log("   Package:     ".dim + "\(pkg)".yellow)
         }
 
         var gradleEnvironment = env
@@ -161,15 +161,15 @@ struct BuildAndroidCommand: AsyncParsableCommand {
                 environment: gradleEnvironment
             ))
 
-            print("\n" + "🎉 Android Build Completed Successfully!".green.bold)
+            Log("\n" + "🎉 Android Build Completed Successfully!".green.bold)
             if let aab = output.aabPath {
-                print("   Bundle (AAB): ".dim + "\(aab)".green.bold)
+                Log("   Bundle (AAB): ".dim + "\(aab)".green.bold)
             }
             if let apk = output.apkPath {
-                print("   Package (APK): ".dim + "\(apk)".green.bold)
+                Log("   Package (APK): ".dim + "\(apk)".green.bold)
             }
         } catch {
-            print("\n" + "❌ Build Failed: ".red.bold + "\(error.localizedDescription)")
+            Log("\n" + "❌ Build Failed: ".red.bold + "\(error.localizedDescription)")
             throw ExitCode.failure
         }
     }

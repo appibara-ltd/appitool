@@ -59,15 +59,9 @@ struct FirebaseCredentialsOptions: ParsableArguments, Sendable {
     @Option(name: .long, help: "Firebase App ID (defaults to FIREBASE_IOS_APP_ID or FIREBASE_ANDROID_APP_ID in .env).")
     var firebaseAppId: String?
 
-    @Option(name: .long, help: "Firebase CI token (defaults to FIREBASE_TOKEN in .env).")
-    var firebaseToken: String?
-
     /// Resolves credentials from CLI options or environment and creates a `FirebaseService`.
     func makeService(googleKey: String? = nil) throws -> FirebaseService? {
         let env = ProcessInfo.processInfo.environment
-        if let token = firebaseToken ?? env["FIREBASE_TOKEN"], !token.isEmpty {
-            return try FirebaseService(token: token)
-        }
         let resolvedGoogleKey = googleKey ?? env["GOOGLE_KEY"]
         if let resolvedGoogleKey, !resolvedGoogleKey.isEmpty {
             return try FirebaseService(key: resolvedGoogleKey)
@@ -102,6 +96,65 @@ struct NotificationOptions: ParsableArguments, Sendable {
             resolvedSlack?.isEmpty == false ? resolvedSlack : nil,
             resolvedKokono?.isEmpty == false ? resolvedKokono : nil,
             resolvedKey?.isEmpty == false ? resolvedKey : nil
+        )
+    }
+}
+
+/// Reusable CLI options and environment resolution for Fastlane Match.
+struct MatchOptions: ParsableArguments, Sendable {
+    @Option(name: [.long, .customLong("match-git-url")], help: "Git repository URL for certificates storage (defaults to MATCH_GIT_URL in .env).")
+    var gitUrl: String?
+
+    @Option(name: [.long, .customLong("match-git-branch")], help: "Git branch name (defaults to MATCH_GIT_BRANCH in .env or 'master').")
+    var gitBranch: String?
+
+    @Option(name: [.long, .customLong("match-git-token")], help: "Git authentication token (defaults to MATCH_GIT_TOKEN or GITHUB_TOKEN in .env).")
+    var gitToken: String?
+
+    @Option(name: [.long, .customLong("match-password")], help: "Passphrase for AES encryption/decryption (defaults to MATCH_PASSWORD in .env).")
+    var password: String?
+
+    @Option(name: [.long], help: "Custom keychain name or path (defaults to MATCH_KEYCHAIN_NAME in .env).")
+    var keychainName: String?
+
+    @Option(name: [.long], help: "Password for unlocking custom keychain (defaults to MATCH_KEYCHAIN_PASSWORD in .env).")
+    var keychainPassword: String?
+
+    @Option(name: [.long], help: "Apple Developer Portal Team ID (defaults to APPLE_TEAM_ID in .env).")
+    var teamId: String?
+
+    @Flag(name: [.long], help: "Only fetch existing certificates and profiles without creating new ones.")
+    var readonly: Bool = false
+
+    /// Resolves Match options by checking CLI flags first, falling back to environment variables.
+    func resolve() -> (
+        gitUrl: String?,
+        gitBranch: String,
+        gitToken: String?,
+        password: String?,
+        keychainName: String?,
+        keychainPassword: String?,
+        teamId: String?,
+        readonly: Bool
+    ) {
+        let env = ProcessInfo.processInfo.environment
+        let resolvedGitUrl = gitUrl ?? env["MATCH_GIT_URL"]
+        let resolvedGitBranch = gitBranch ?? env["MATCH_GIT_BRANCH"] ?? "master"
+        let resolvedGitToken = gitToken ?? env["MATCH_GIT_TOKEN"] ?? env["GITHUB_TOKEN"]
+        let resolvedPassword = password ?? env["MATCH_PASSWORD"]
+        let resolvedKeychainName = keychainName ?? env["MATCH_KEYCHAIN_NAME"]
+        let resolvedKeychainPassword = keychainPassword ?? env["MATCH_KEYCHAIN_PASSWORD"]
+        let resolvedTeamId = teamId ?? env["APPLE_TEAM_ID"]
+        let isReadonly = readonly || (env["MATCH_READONLY"] != "false")
+        return (
+            gitUrl: resolvedGitUrl?.isEmpty == false ? resolvedGitUrl : nil,
+            gitBranch: resolvedGitBranch,
+            gitToken: resolvedGitToken?.isEmpty == false ? resolvedGitToken : nil,
+            password: resolvedPassword?.isEmpty == false ? resolvedPassword : nil,
+            keychainName: resolvedKeychainName?.isEmpty == false ? resolvedKeychainName : nil,
+            keychainPassword: resolvedKeychainPassword?.isEmpty == false ? resolvedKeychainPassword : nil,
+            teamId: resolvedTeamId?.isEmpty == false ? resolvedTeamId : nil,
+            readonly: isReadonly
         )
     }
 }

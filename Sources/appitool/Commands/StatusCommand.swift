@@ -9,8 +9,8 @@ struct StatusCommand: AsyncParsableCommand {
     )
 
     func run() async throws {
-        print("Tool: ".cyan.bold + "appitool".bold)
-        print("Purpose: ".cyan.bold + "A unified CLI utility for Apple App Store Connect and Google Play operations.")
-        print("Version: ".cyan.bold + appitool.configuration.version.green)
+        Log("Tool: ".cyan.bold + "appitool".bold)
+        Log("Purpose: ".cyan.bold + "A unified CLI utility for Apple App Store Connect and Google Play operations.")
+        Log("Version: ".cyan.bold + appitool.configuration.version.green)
     }
 }

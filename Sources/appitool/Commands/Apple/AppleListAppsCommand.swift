@@ -25,23 +25,23 @@ struct AppleListAppsCommand: AsyncParsableCommand {
         _ = try? EnvLoader.loadEnv()
 
         guard let service = try appleCredentials.makeService() else {
-            print("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
+            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return
         }
 
-        print("🔍 Fetching apps from App Store Connect...".dim)
+        Log("🔍 Fetching apps from App Store Connect...".dim)
         let apps = try await service.fetchApps(limit: limit, bundleId: bundleId, name: name)
 
         if apps.isEmpty {
             if let filter = bundleId ?? name {
-                print("No applications matching '\(filter)' found in App Store Connect.".yellow)
+                Log("No applications matching '\(filter)' found in App Store Connect.".yellow)
             } else {
-                print("No applications found in App Store Connect.".yellow)
+                Log("No applications found in App Store Connect.".yellow)
             }
             return
         }
 
-        print("\nFound \(apps.count) application(s):".bold)
+        Log("\nFound \(apps.count) application(s):".bold)
         for app in apps {
             let nameStr = app.attributes?.name ?? "unnamed"
             let bundleIdStr = app.attributes?.bundleId ?? "no bundle ID"
@@ -49,8 +49,8 @@ struct AppleListAppsCommand: AsyncParsableCommand {
             let skuStr = app.attributes?.sku ?? "-"
             let localeStr = app.attributes?.primaryLocale ?? "-"
 
-            print("  • ".cyan + "\(nameStr)".bold + " (\(bundleIdStr))".green + " [App ID: \(appId), SKU: \(skuStr), Primary Locale: \(localeStr)]".dim)
+            Log("  • ".cyan + "\(nameStr)".bold + " (\(bundleIdStr))".green + " [App ID: \(appId), SKU: \(skuStr), Primary Locale: \(localeStr)]".dim)
         }
-        print("")
+        Log("")
     }
 }

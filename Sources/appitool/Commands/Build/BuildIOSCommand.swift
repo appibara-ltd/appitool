@@ -66,7 +66,7 @@ struct BuildIOSCommand: AsyncParsableCommand {
         let resolvedProject = project ?? env["XCODE_PROJECT"] ?? detected.project
 
         guard skipBuildArchive || resolvedWorkspace != nil || resolvedProject != nil else {
-            print("Error: ".red.bold + "Could not find .xcworkspace or .xcodeproj in current directory or ios/ subdirectory. Specify -w, --workspace or -p, --project.")
+            Log("Error: ".red.bold + "Could not find .xcworkspace or .xcodeproj in current directory or ios/ subdirectory. Specify -w, --workspace or -p, --project.")
             throw ExitCode.failure
         }
 
@@ -80,13 +80,13 @@ struct BuildIOSCommand: AsyncParsableCommand {
                     project: resolvedProject
                 )
             } catch {
-                print("Error: ".red.bold + "\(error.localizedDescription)")
+                Log("Error: ".red.bold + "\(error.localizedDescription)")
                 throw ExitCode.failure
             }
         } else if let explicitScheme = scheme ?? env["XCODE_SCHEME"] {
             resolvedScheme = explicitScheme
         } else {
-            print("Error: ".red.bold + "No scheme specified. Provide -s, --scheme or set XCODE_SCHEME in .env.")
+            Log("Error: ".red.bold + "No scheme specified. Provide -s, --scheme or set XCODE_SCHEME in .env.")
             throw ExitCode.failure
         }
 
@@ -161,18 +161,18 @@ struct BuildIOSCommand: AsyncParsableCommand {
             }
         }
 
-        print("\n" + "─── Starting iOS Build (\(distribution.rawValue.capitalized)) ───".cyan.bold)
+        Log("\n" + "─── Starting iOS Build (\(distribution.rawValue.capitalized)) ───".cyan.bold)
         if let ws = resolvedWorkspace {
-            print("   Workspace:   ".dim + "\(ws)".bold)
+            Log("   Workspace:   ".dim + "\(ws)".bold)
         } else if let proj = resolvedProject {
-            print("   Project:     ".dim + "\(proj)".bold)
+            Log("   Project:     ".dim + "\(proj)".bold)
         }
-        print("   Target:      ".dim + "\(mainTarget)".bold)
-        print("   Scheme:      ".dim + "\(resolvedScheme)".bold)
-        print("   Config:      ".dim + "\(resolvedConfiguration)".bold)
-        print("   Output:      ".dim + "\(resolvedOutputDir)".bold)
-        print("   Artifact:    ".dim + "\(resolvedOutputName)".bold)
-        print("   DerivedData: ".dim + "\(resolvedDerivedData)".dim)
+        Log("   Target:      ".dim + "\(mainTarget)".bold)
+        Log("   Scheme:      ".dim + "\(resolvedScheme)".bold)
+        Log("   Config:      ".dim + "\(resolvedConfiguration)".bold)
+        Log("   Output:      ".dim + "\(resolvedOutputDir)".bold)
+        Log("   Artifact:    ".dim + "\(resolvedOutputName)".bold)
+        Log("   DerivedData: ".dim + "\(resolvedDerivedData)".dim)
 
         // 7. Execute XcodeBuildTask
         let task = XcodeBuildTask()
@@ -200,18 +200,18 @@ struct BuildIOSCommand: AsyncParsableCommand {
                 exportXcargs: exportXcargs
             ))
 
-            print("\n" + "🎉 iOS Build Completed Successfully!".green.bold)
+            Log("\n" + "🎉 iOS Build Completed Successfully!".green.bold)
             if let archive = output.archivePath {
-                print("   Archive: ".dim + "\(archive)".green)
+                Log("   Archive: ".dim + "\(archive)".green)
             }
             if let ipa = output.ipaPath {
-                print("   IPA:     ".dim + "\(ipa)".green.bold)
+                Log("   IPA:     ".dim + "\(ipa)".green.bold)
             }
             if let dsym = output.dsymPath {
-                print("   dSYM:    ".dim + "\(dsym)".dim)
+                Log("   dSYM:    ".dim + "\(dsym)".dim)
             }
         } catch {
-            print("\n" + "❌ Build Failed: ".red.bold + "\(error.localizedDescription)")
+            Log("\n" + "❌ Build Failed: ".red.bold + "\(error.localizedDescription)")
             throw ExitCode.failure
         }
     }

@@ -33,12 +33,12 @@ struct AppleCreateIdentifierCommand: AsyncParsableCommand {
 
         let rawTarget = bundleId ?? appIdentifier
         guard let targetIdentifier = rawTarget?.trimmingCharacters(in: .whitespacesAndNewlines), !targetIdentifier.isEmpty else {
-            print("Error: ".red.bold + "Missing bundle identifier. Provide -b, --bundle-id <bundle-id>.")
+            Log("Error: ".red.bold + "Missing bundle identifier. Provide -b, --bundle-id <bundle-id>.")
             return
         }
 
         guard let service = try appleCredentials.makeService() else {
-            print("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
+            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return
         }
 
@@ -47,7 +47,7 @@ struct AppleCreateIdentifierCommand: AsyncParsableCommand {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty } ?? []
 
-        print("🚀 Registering App Identifier '\(targetIdentifier)' on Apple Developer Portal...".dim)
+        Log("🚀 Registering App Identifier '\(targetIdentifier)' on Apple Developer Portal...".dim)
 
         let result: RegisterBundleIdResult
         do {
@@ -58,7 +58,7 @@ struct AppleCreateIdentifierCommand: AsyncParsableCommand {
                 capabilities: capList
             )
         } catch {
-            print("Error: ".red.bold + "Failed to create App Identifier: \(error.localizedDescription)")
+            Log("Error: ".red.bold + "Failed to create App Identifier: \(error.localizedDescription)")
             return
         }
 
@@ -67,23 +67,23 @@ struct AppleCreateIdentifierCommand: AsyncParsableCommand {
         let platformStr = result.bundleId.attributes?.platform?.rawValue ?? platform.uppercased()
         let seedId = result.bundleId.attributes?.seedId ?? "-"
 
-        print("\n✓ App Identifier registered successfully!".green.bold)
-        print("  • Identifier: ".cyan + "\(targetIdentifier)".bold)
-        print("  • Name: ".cyan + "\(createdName)")
-        print("  • Portal ID: ".cyan + "\(portalId)")
-        print("  • Platform: ".cyan + "\(platformStr)")
-        print("  • Prefix/Seed ID: ".cyan + "\(seedId)")
+        Log("\n✓ App Identifier registered successfully!".green.bold)
+        Log("  • Identifier: ".cyan + "\(targetIdentifier)".bold)
+        Log("  • Name: ".cyan + "\(createdName)")
+        Log("  • Portal ID: ".cyan + "\(portalId)")
+        Log("  • Platform: ".cyan + "\(platformStr)")
+        Log("  • Prefix/Seed ID: ".cyan + "\(seedId)")
 
         if !capList.isEmpty {
-            print("\n⚙️  Configuring capabilities...".dim)
+            Log("\n⚙️  Configuring capabilities...".dim)
             for cap in result.enabledCapabilities {
-                print("  ✓ Enabled: ".green + "\(cap.rawValue)".bold)
+                Log("  ✓ Enabled: ".green + "\(cap.rawValue)".bold)
             }
             for fail in result.failedCapabilities {
-                print("  ❌ Failed to enable '\(fail.capability.rawValue)': \(fail.error)".red)
+                Log("  ❌ Failed to enable '\(fail.capability.rawValue)': \(fail.error)".red)
             }
-            print("\n✓ Capabilities configured: \(result.enabledCapabilities.count)/\(capList.count) enabled.".green.bold)
+            Log("\n✓ Capabilities configured: \(result.enabledCapabilities.count)/\(capList.count) enabled.".green.bold)
         }
-        print("")
+        Log("")
     }
 }

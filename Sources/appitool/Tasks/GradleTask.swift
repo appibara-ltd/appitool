@@ -226,11 +226,11 @@ public struct GradleTask: Task {
 
         if !input.silent {
             let displayTasks = tasksToRun.joined(separator: ", ")
-            print("🚀 Executing Gradle build: ".cyan.bold + "\(displayTasks)".bold)
-            print("   Working Dir: ".dim + "\(workingDirectory)".dim)
+            Log("🚀 Executing Gradle build: ".cyan.bold + "\(displayTasks)".bold)
+            Log("   Working Dir: ".dim + "\(workingDirectory)".dim)
             if let signing = input.signing {
-                print("   Keystore:    ".dim + "\(signing.storeFile)".yellow)
-                print("   Key Alias:   ".dim + "\(signing.keyAlias)".yellow)
+                Log("   Keystore:    ".dim + "\(signing.storeFile)".yellow)
+                Log("   Key Alias:   ".dim + "\(signing.keyAlias)".yellow)
             }
         }
 

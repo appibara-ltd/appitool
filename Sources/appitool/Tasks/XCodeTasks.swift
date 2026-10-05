@@ -30,6 +30,14 @@ public enum XCodeTasks {
         return (workspace: nil, project: nil)
     }
 
+    /// Checks if an iOS project (workspace or xcodeproj) exists in the specified directory or its ios/ subdirectory.
+    public static func hasIosProject(
+        in directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) -> Bool {
+        let detected = autoDetect(in: directory)
+        return detected.workspace != nil || detected.project != nil
+    }
+
     // MARK: - Project Inspection
 
     public struct ProjectInfo: Sendable {
@@ -63,7 +71,9 @@ public enum XCodeTasks {
             throw NSError(
                 domain: "XCodeTasks",
                 code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Either workspace or project path must be specified."]
+                userInfo: [
+                    NSLocalizedDescriptionKey: "Either workspace or project path must be specified."
+                ]
             )
         }
 
@@ -84,7 +94,9 @@ public enum XCodeTasks {
 
     private static func inspectSingleProject(at projectUrl: URL) throws -> ProjectInfo {
         let xcodeProj = try XcodeProj(path: Path(projectUrl.path))
-        let projectName = xcodeProj.pbxproj.projects.first?.name ?? projectUrl.deletingPathExtension().lastPathComponent
+        let projectName =
+            xcodeProj.pbxproj.projects.first?.name
+            ?? projectUrl.deletingPathExtension().lastPathComponent
 
         var targetNames: [String] = []
         if let projTargets = xcodeProj.pbxproj.projects.first?.targets {
@@ -110,7 +122,9 @@ public enum XCodeTasks {
         )
     }
 
-    private static func inspectWorkspace(at workspaceUrl: URL, in directory: URL) throws -> ProjectInfo {
+    private static func inspectWorkspace(at workspaceUrl: URL, in directory: URL) throws
+        -> ProjectInfo
+    {
         let workspaceName = workspaceUrl.deletingPathExtension().lastPathComponent
         let fm = FileManager.default
         var allSchemes: [String] = []
@@ -134,12 +148,15 @@ public enum XCodeTasks {
         if let content = try? String(contentsOf: contentsDataUrl, encoding: .utf8) {
             let pattern = #"location\s*=\s*"[^"]*?:?([^"]+\.xcodeproj)""#
             if let regex = try? NSRegularExpression(pattern: pattern) {
-                let matches = regex.matches(in: content, range: NSRange(content.startIndex..., in: content))
+                let matches = regex.matches(
+                    in: content, range: NSRange(content.startIndex..., in: content))
                 for match in matches where match.numberOfRanges > 1 {
                     if let range = Range(match.range(at: 1), in: content) {
                         let relPath = String(content[range])
                         let projUrl = parentDir.appendingPathComponent(relPath)
-                        if fm.fileExists(atPath: projUrl.path) && !candidateProjects.contains(projUrl) {
+                        if fm.fileExists(atPath: projUrl.path)
+                            && !candidateProjects.contains(projUrl)
+                        {
                             candidateProjects.append(projUrl)
                         }
                     }
@@ -149,7 +166,8 @@ public enum XCodeTasks {
 
         // C. Sibling projects in workspace folder (filtering Pods)
         if let siblings = try? fm.contentsOfDirectory(atPath: parentDir.path) {
-            for sibling in siblings where sibling.hasSuffix(".xcodeproj") && !sibling.lowercased().contains("pods") {
+            for sibling in siblings
+            where sibling.hasSuffix(".xcodeproj") && !sibling.lowercased().contains("pods") {
                 let siblingUrl = parentDir.appendingPathComponent(sibling)
                 if !candidateProjects.contains(siblingUrl) {
                     candidateProjects.append(siblingUrl)
@@ -181,7 +199,8 @@ public enum XCodeTasks {
         let sharedDir = root.appendingPathComponent("xcshareddata/xcschemes")
         if let files = try? fm.contentsOfDirectory(atPath: sharedDir.path) {
             for f in files where f.hasSuffix(".xcscheme") {
-                schemeNames.append(URL(fileURLWithPath: f).deletingPathExtension().lastPathComponent)
+                schemeNames.append(
+                    URL(fileURLWithPath: f).deletingPathExtension().lastPathComponent)
             }
         }
 
@@ -191,7 +210,8 @@ public enum XCodeTasks {
                 let userSchemes = userDir.appendingPathComponent("\(u)/xcschemes")
                 if let files = try? fm.contentsOfDirectory(atPath: userSchemes.path) {
                     for f in files where f.hasSuffix(".xcscheme") {
-                        schemeNames.append(URL(fileURLWithPath: f).deletingPathExtension().lastPathComponent)
+                        schemeNames.append(
+                            URL(fileURLWithPath: f).deletingPathExtension().lastPathComponent)
                     }
                 }
             }
@@ -258,21 +278,28 @@ public enum XCodeTasks {
             if let proj = detected.project {
                 effectiveProjectPath = proj
             } else if let ws = detected.workspace {
-                let companion = URL(fileURLWithPath: ws).deletingPathExtension().appendingPathExtension("xcodeproj").path
+                let companion = URL(fileURLWithPath: ws).deletingPathExtension()
+                    .appendingPathExtension("xcodeproj").path
                 if FileManager.default.fileExists(atPath: companion) {
                     effectiveProjectPath = companion
                 } else {
                     throw NSError(
                         domain: "XCodeTasks",
                         code: 6,
-                        userInfo: [NSLocalizedDescriptionKey: "Could not find companion .xcodeproj for workspace '\(ws)'."]
+                        userInfo: [
+                            NSLocalizedDescriptionKey:
+                                "Could not find companion .xcodeproj for workspace '\(ws)'."
+                        ]
                     )
                 }
             } else {
                 throw NSError(
                     domain: "XCodeTasks",
                     code: 7,
-                    userInfo: [NSLocalizedDescriptionKey: "No Xcode project found in current directory or ios/ subdirectory."]
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "No Xcode project found in current directory or ios/ subdirectory."
+                    ]
                 )
             }
         }
@@ -335,7 +362,7 @@ public enum XCodeTasks {
             }
         }
 
-        try xcodeProj.write(path: projectPath)
+        try xcodeProj.writePBXProj(path: projectPath, override: true, outputSettings: PBXOutputSettings())
         return modifiedTargets
     }
 
@@ -369,19 +396,250 @@ public enum XCodeTasks {
         )
     }
 
+    // MARK: - Manual Code Signing Configuration
+
+    public struct ManualSigningInput: Sendable {
+        public let projectPath: String?
+        public let workspacePath: String?
+        public let scheme: String?
+        public let configuration: String
+        public let teamId: String?
+        public let identity: String?
+        public let profilesByBundleId: [String: MatchTask.ProfileInfo]
+        public let isDryRun: Bool
+
+        public init(
+            projectPath: String? = nil,
+            workspacePath: String? = nil,
+            scheme: String? = nil,
+            configuration: String,
+            teamId: String? = nil,
+            identity: String? = nil,
+            profilesByBundleId: [String: MatchTask.ProfileInfo],
+            isDryRun: Bool = false
+        ) {
+            self.projectPath = projectPath
+            self.workspacePath = workspacePath
+            self.scheme = scheme
+            self.configuration = configuration
+            self.teamId = teamId
+            self.identity = identity
+            self.profilesByBundleId = profilesByBundleId
+            self.isDryRun = isDryRun
+        }
+    }
+
+    public struct TargetSigningResult: Sendable {
+        public let targetName: String
+        public let bundleId: String
+        public let profileName: String
+        public let profileUUID: String
+        public let configuration: String
+        public let identity: String
+        public let teamId: String?
+
+        public init(
+            targetName: String,
+            bundleId: String,
+            profileName: String,
+            profileUUID: String,
+            configuration: String,
+            identity: String,
+            teamId: String?
+        ) {
+            self.targetName = targetName
+            self.bundleId = bundleId
+            self.profileName = profileName
+            self.profileUUID = profileUUID
+            self.configuration = configuration
+            self.identity = identity
+            self.teamId = teamId
+        }
+    }
+
+    /// Updates code signing build settings in the project to manual signing with the specified provisioning profiles and certificate.
+    /// Only the target build settings for the specified configuration (e.g., Release) of the selected scheme are modified.
+    /// All distributable native targets (applications, app extensions, widget extensions, watch apps, etc.) are updated while
+    /// non-signable targets (tests, frameworks, static libraries, dependencies) are skipped.
+    @discardableResult
+    public static func configureManualSigning(
+        _ input: ManualSigningInput,
+        in directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) throws -> [TargetSigningResult] {
+        let effectiveProjectPath: String
+        if let proj = input.projectPath, !proj.isEmpty {
+            effectiveProjectPath = proj
+        } else {
+            let detected = autoDetect(in: directory)
+            if let proj = detected.project {
+                effectiveProjectPath = proj
+            } else if let ws = input.workspacePath ?? detected.workspace {
+                let companion = URL(fileURLWithPath: ws).deletingPathExtension().appendingPathExtension("xcodeproj").path
+                if FileManager.default.fileExists(atPath: companion) {
+                    effectiveProjectPath = companion
+                } else {
+                    throw NSError(
+                        domain: "XCodeTasks",
+                        code: 6,
+                        userInfo: [NSLocalizedDescriptionKey: "Could not find companion .xcodeproj for workspace '\(ws)'."]
+                    )
+                }
+            } else {
+                throw NSError(
+                    domain: "XCodeTasks",
+                    code: 7,
+                    userInfo: [NSLocalizedDescriptionKey: "No Xcode project found in current directory or ios/ subdirectory."]
+                )
+            }
+        }
+
+        let projectPath = Path(effectiveProjectPath)
+        let projectUrl = URL(fileURLWithPath: effectiveProjectPath)
+        let xcodeProj = try XcodeProj(path: projectPath)
+        let pbxproj = xcodeProj.pbxproj
+
+        guard let pbxProject = pbxproj.projects.first else {
+            throw NSError(
+                domain: "XCodeTasks",
+                code: 8,
+                userInfo: [NSLocalizedDescriptionKey: "No PBXProject found in \(effectiveProjectPath)."]
+            )
+        }
+
+        let signableTargets = pbxproj.nativeTargets.filter { isDistributableTarget($0) }
+        var results: [TargetSigningResult] = []
+
+        let effectiveIdentity = input.identity?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            ? input.identity!
+            : "Apple Distribution"
+
+        for target in signableTargets {
+            guard let configList = target.buildConfigurationList,
+                  let targetConfig = configList.buildConfigurations.first(where: { $0.name == input.configuration }) else {
+                continue
+            }
+
+            // Resolve target's bundle ID for this configuration
+            let rawBundleId = targetConfig.buildSettings["PRODUCT_BUNDLE_IDENTIFIER"] as? String
+            var resolvedBundleId: String? = isUnresolvedReference(rawBundleId) ? nil : rawBundleId
+
+            if resolvedBundleId == nil {
+                if let xcconfigResolved = resolveXcconfigBundleIdentifier(
+                    projectUrl: projectUrl,
+                    xcodeProj: xcodeProj,
+                    target: target,
+                    configurationName: input.configuration,
+                    rawBundleId: rawBundleId
+                ) {
+                    resolvedBundleId = xcconfigResolved
+                }
+            }
+
+            // Fallback: search rawBundleId or target's other configurations or target name
+            let candidateBundleId = resolvedBundleId ?? rawBundleId ?? ""
+
+            // Match provisioning profile
+            let matchedProfile: MatchTask.ProfileInfo? = {
+                if !candidateBundleId.isEmpty, let p = input.profilesByBundleId[candidateBundleId] {
+                    return p
+                }
+                if !candidateBundleId.isEmpty,
+                   let p = input.profilesByBundleId.first(where: { $0.key.caseInsensitiveCompare(candidateBundleId) == .orderedSame })?.value {
+                    return p
+                }
+                // If only 1 profile installed and this is single signable target or the application target
+                if input.profilesByBundleId.count == 1 && (signableTargets.count == 1 || isApplicationTarget(target)) {
+                    return input.profilesByBundleId.values.first
+                }
+                return nil
+            }()
+
+            guard let profile = matchedProfile else {
+                // Skip targets that have no matching profile
+                continue
+            }
+
+            // Determine team ID
+            let targetTeamId: String? = {
+                if let t = input.teamId, !t.isEmpty { return t }
+                if let t = targetConfig.buildSettings["DEVELOPMENT_TEAM"] as? String, !t.isEmpty, !isUnresolvedReference(t) {
+                    return t
+                }
+                if let attrs = pbxProject.attributes(for: target),
+                   let t = attrs["DevelopmentTeam"] as? String, !t.isEmpty {
+                    return t
+                }
+                return nil
+            }()
+
+            // Update buildSettings for this specific configuration
+            targetConfig.buildSettings["CODE_SIGN_STYLE"] = "Manual"
+            targetConfig.buildSettings["CODE_SIGN_IDENTITY"] = effectiveIdentity
+            if let teamId = targetTeamId {
+                targetConfig.buildSettings["DEVELOPMENT_TEAM"] = teamId
+            }
+            targetConfig.buildSettings["PROVISIONING_PROFILE_SPECIFIER"] = profile.name
+            targetConfig.buildSettings["PROVISIONING_PROFILE"] = profile.uuid
+
+            // Harmonize any sdk=iphoneos* specific overrides
+            if targetConfig.buildSettings["CODE_SIGN_IDENTITY[sdk=iphoneos*]"] != nil {
+                targetConfig.buildSettings["CODE_SIGN_IDENTITY[sdk=iphoneos*]"] = effectiveIdentity
+            }
+            if targetConfig.buildSettings["PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]"] != nil {
+                targetConfig.buildSettings["PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]"] = profile.name
+            }
+            if targetConfig.buildSettings["PROVISIONING_PROFILE[sdk=iphoneos*]"] != nil {
+                targetConfig.buildSettings["PROVISIONING_PROFILE[sdk=iphoneos*]"] = profile.uuid
+            }
+
+            // Update PBXProject targetAttributes for this target
+            var targetAttrs = pbxProject.attributes(for: target) ?? [:]
+            targetAttrs["ProvisioningStyle"] = "Manual"
+            if let teamId = targetTeamId {
+                targetAttrs["DevelopmentTeam"] = teamId
+            }
+            pbxProject.setTargetAttributes(targetAttrs, target: target)
+
+            results.append(
+                TargetSigningResult(
+                    targetName: target.name,
+                    bundleId: resolvedBundleId ?? profile.bundleId,
+                    profileName: profile.name,
+                    profileUUID: profile.uuid,
+                    configuration: input.configuration,
+                    identity: effectiveIdentity,
+                    teamId: targetTeamId
+                )
+            )
+        }
+
+        if !input.isDryRun && !results.isEmpty {
+            try xcodeProj.writePBXProj(path: projectPath, override: true, outputSettings: PBXOutputSettings())
+        }
+
+        return results
+    }
+
     // MARK: - iOS Bundle Identifiers Resolution
 
-    public enum ConfigurationSource: String, Sendable {
+    public enum ConfigurationSource: String, Sendable, Codable {
         case buildSettings = "build_settings"
         case xcodebuild = "xcodebuild"
         case xcconfig = "xcconfig"
     }
 
-    public struct ResolvedTargetInfo: Sendable {
+    public struct ResolvedTargetInfo: Sendable, Codable {
         public let name: String
         public let bundleId: String
         public let productType: String?
         public let configurationSource: ConfigurationSource?
+
+        enum CodingKeys: String, CodingKey {
+            case name
+            case bundleId = "bundle_id"
+            case productType
+            case configurationSource
+        }
 
         public init(
             name: String,
@@ -396,7 +654,7 @@ public enum XCodeTasks {
         }
     }
 
-    public struct IosIdentifiersResult: Sendable {
+    public struct IosIdentifiersResult: Sendable, Codable {
         public let workspaceName: String
         public let scheme: String
         public let configuration: String
@@ -405,6 +663,17 @@ public enum XCodeTasks {
         public let buildableNames: [String]
         public let targets: [ResolvedTargetInfo]
         public let iosRoot: URL
+
+        enum CodingKeys: String, CodingKey {
+            case workspaceName
+            case scheme
+            case configuration
+            case mainAppTargetName
+            case bundleId
+            case buildableNames
+            case targets
+            case iosRoot
+        }
 
         public init(
             workspaceName: String,
@@ -424,6 +693,18 @@ public enum XCodeTasks {
             self.buildableNames = buildableNames
             self.targets = targets
             self.iosRoot = iosRoot
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(workspaceName, forKey: .workspaceName)
+            try container.encode(scheme, forKey: .scheme)
+            try container.encode(configuration, forKey: .configuration)
+            try container.encodeIfPresent(mainAppTargetName, forKey: .mainAppTargetName)
+            try container.encodeIfPresent(bundleId, forKey: .bundleId)
+            try container.encode(buildableNames, forKey: .buildableNames)
+            try container.encode(targets, forKey: .targets)
+            try container.encode(iosRoot.path, forKey: .iosRoot)
         }
     }
 
@@ -471,7 +752,8 @@ public enum XCodeTasks {
     ) async throws -> IosIdentifiersResult {
         let fm = FileManager.default
         let wsRoot = options.workspaceRoot
-        let iosDir = fm.fileExists(atPath: wsRoot.appendingPathComponent("ios").path)
+        let iosDir =
+            fm.fileExists(atPath: wsRoot.appendingPathComponent("ios").path)
             ? wsRoot.appendingPathComponent("ios")
             : wsRoot
 
@@ -484,9 +766,15 @@ public enum XCodeTasks {
             } else if let proj = detected.project {
                 workspaceName = URL(fileURLWithPath: proj).deletingPathExtension().lastPathComponent
             } else if let items = try? fm.contentsOfDirectory(atPath: iosDir.path) {
-                if let ws = items.first(where: { $0.hasSuffix(".xcworkspace") && !$0.hasPrefix(".") && !$0.lowercased().hasPrefix("pods") }) {
+                if let ws = items.first(where: {
+                    $0.hasSuffix(".xcworkspace") && !$0.hasPrefix(".")
+                        && !$0.lowercased().hasPrefix("pods")
+                }) {
                     workspaceName = (ws as NSString).deletingPathExtension
-                } else if let proj = items.first(where: { $0.hasSuffix(".xcodeproj") && !$0.hasPrefix(".") && !$0.lowercased().hasPrefix("pods") }) {
+                } else if let proj = items.first(where: {
+                    $0.hasSuffix(".xcodeproj") && !$0.hasPrefix(".")
+                        && !$0.lowercased().hasPrefix("pods")
+                }) {
                     workspaceName = (proj as NSString).deletingPathExtension
                 }
             }
@@ -496,15 +784,22 @@ public enum XCodeTasks {
             throw NSError(
                 domain: "XCodeTasks",
                 code: 10,
-                userInfo: [NSLocalizedDescriptionKey: "Workspace/project name could not be found. Provide options.workspaceName or place project in ios/."]
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Workspace/project name could not be found. Provide options.workspaceName or place project in ios/."
+                ]
             )
         }
 
         // 2. Resolve iosRoot
         let iosRoot: URL
-        if fm.fileExists(atPath: wsRoot.appendingPathComponent("\(resolvedWorkspaceName).xcodeproj").path) {
+        if fm.fileExists(
+            atPath: wsRoot.appendingPathComponent("\(resolvedWorkspaceName).xcodeproj").path)
+        {
             iosRoot = wsRoot
-        } else if fm.fileExists(atPath: wsRoot.appendingPathComponent("ios/\(resolvedWorkspaceName).xcodeproj").path) {
+        } else if fm.fileExists(
+            atPath: wsRoot.appendingPathComponent("ios/\(resolvedWorkspaceName).xcodeproj").path)
+        {
             iosRoot = wsRoot.appendingPathComponent("ios")
         } else {
             iosRoot = iosDir
@@ -517,30 +812,45 @@ public enum XCodeTasks {
             throw NSError(
                 domain: "XCodeTasks",
                 code: 11,
-                userInfo: [NSLocalizedDescriptionKey: "Xcode project not found at path: \(projectUrl.path)"]
+                userInfo: [
+                    NSLocalizedDescriptionKey: "Xcode project not found at path: \(projectUrl.path)"
+                ]
             )
         }
 
         // 3. Resolve scheme
-        let availableSchemes = getAvailableSchemes(iosDir: iosRoot, workspaceName: resolvedWorkspaceName)
+        let availableSchemes = getAvailableSchemes(
+            iosDir: iosRoot, workspaceName: resolvedWorkspaceName)
         let resolvedScheme: String
-        if let explicitScheme = options.scheme?.trimmingCharacters(in: .whitespacesAndNewlines), !explicitScheme.isEmpty {
+        if let explicitScheme = options.scheme?.trimmingCharacters(in: .whitespacesAndNewlines),
+            !explicitScheme.isEmpty
+        {
             if !availableSchemes.contains(explicitScheme) {
-                let candidateScheme1 = projectUrl.appendingPathComponent("xcshareddata/xcschemes/\(explicitScheme).xcscheme")
-                let candidateScheme2 = workspaceUrl.appendingPathComponent("xcshareddata/xcschemes/\(explicitScheme).xcscheme")
-                if !fm.fileExists(atPath: candidateScheme1.path) && !fm.fileExists(atPath: candidateScheme2.path) {
-                    let availableList = availableSchemes.isEmpty ? "none" : availableSchemes.joined(separator: ", ")
+                let candidateScheme1 = projectUrl.appendingPathComponent(
+                    "xcshareddata/xcschemes/\(explicitScheme).xcscheme")
+                let candidateScheme2 = workspaceUrl.appendingPathComponent(
+                    "xcshareddata/xcschemes/\(explicitScheme).xcscheme")
+                if !fm.fileExists(atPath: candidateScheme1.path)
+                    && !fm.fileExists(atPath: candidateScheme2.path)
+                {
+                    let availableList =
+                        availableSchemes.isEmpty ? "none" : availableSchemes.joined(separator: ", ")
                     throw NSError(
                         domain: "XCodeTasks",
                         code: 12,
-                        userInfo: [NSLocalizedDescriptionKey: "Specified Xcode scheme not found: '\(explicitScheme)'. Available schemes: \(availableList)"]
+                        userInfo: [
+                            NSLocalizedDescriptionKey:
+                                "Specified Xcode scheme not found: '\(explicitScheme)'. Available schemes: \(availableList)"
+                        ]
                     )
                 }
             }
             resolvedScheme = explicitScheme
         } else if availableSchemes.contains(resolvedWorkspaceName) {
             resolvedScheme = resolvedWorkspaceName
-        } else if let firstNonPods = availableSchemes.first(where: { !$0.lowercased().hasPrefix("pods") }) {
+        } else if let firstNonPods = availableSchemes.first(where: {
+            !$0.lowercased().hasPrefix("pods")
+        }) {
             resolvedScheme = firstNonPods
         } else if let first = availableSchemes.first {
             resolvedScheme = first
@@ -565,13 +875,18 @@ public enum XCodeTasks {
             projectUrl: projectUrl
         )
 
-        let allDistributableTargets = xcodeProj.pbxproj.nativeTargets.filter { isDistributableTarget($0) }
+        let allDistributableTargets = xcodeProj.pbxproj.nativeTargets.filter {
+            isDistributableTarget($0)
+        }
         let buildableTargets = allDistributableTargets.filter { buildableNames.contains($0.name) }
-        let targets = buildableTargets.isEmpty
+        let targets =
+            buildableTargets.isEmpty
             ? allDistributableTargets
-            : expandBuildableTargets(buildableTargets: buildableTargets, allTargets: allDistributableTargets)
+            : expandBuildableTargets(
+                buildableTargets: buildableTargets, allTargets: allDistributableTargets)
 
-        let resolvedConfiguration = options.configuration
+        let resolvedConfiguration =
+            options.configuration
             ?? extractedArchiveConfig
             ?? targets.first?.buildConfigurationList?.defaultConfigurationName
             ?? "Release"
@@ -608,12 +923,16 @@ public enum XCodeTasks {
         var resolvedTargets: [ResolvedTargetInfo] = []
 
         for target in targets {
-            let rawBundleId = rawBundleIdentifier(for: target, configurationName: resolvedConfiguration)
+            let rawBundleId = rawBundleIdentifier(
+                for: target, configurationName: resolvedConfiguration)
             var finalBundleId: String? = isUnresolvedReference(rawBundleId) ? nil : rawBundleId
             var source: ConfigurationSource? = finalBundleId != nil ? .buildSettings : nil
 
             // Strategy 2: xcodebuild -showBuildSettings
-            if finalBundleId == nil, let xcb = xcodebuildSettings?[target.name]?["PRODUCT_BUNDLE_IDENTIFIER"], !xcb.isEmpty {
+            if finalBundleId == nil,
+                let xcb = xcodebuildSettings?[target.name]?["PRODUCT_BUNDLE_IDENTIFIER"],
+                !xcb.isEmpty
+            {
                 finalBundleId = xcb
                 source = .xcodebuild
             }
@@ -636,7 +955,10 @@ public enum XCodeTasks {
                 throw NSError(
                     domain: "XCodeTasks",
                     code: 13,
-                    userInfo: [NSLocalizedDescriptionKey: "Could not resolve PRODUCT_BUNDLE_IDENTIFIER for target '\(target.name)' (productType=\(target.productType?.rawValue ?? "unknown"), configuration=\(resolvedConfiguration))."]
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "Could not resolve PRODUCT_BUNDLE_IDENTIFIER for target '\(target.name)' (productType=\(target.productType?.rawValue ?? "unknown"), configuration=\(resolvedConfiguration))."
+                    ]
                 )
             }
 
@@ -650,7 +972,8 @@ public enum XCodeTasks {
             )
         }
 
-        let mainTarget = resolvedTargets.first(where: { $0.name == mainAppTargetName }) ?? resolvedTargets.first
+        let mainTarget =
+            resolvedTargets.first(where: { $0.name == mainAppTargetName }) ?? resolvedTargets.first
         let mainBundleId = mainTarget?.bundleId
 
         return IosIdentifiersResult(
@@ -688,14 +1011,14 @@ public enum XCodeTasks {
         "watchkit2-extension",
     ]
 
-    private static func isDistributableTarget(_ target: PBXNativeTarget) -> Bool {
+    public static func isDistributableTarget(_ target: PBXNativeTarget) -> Bool {
         guard let pType = target.productType?.rawValue else { return false }
         if excludedProductTypes.contains(pType) { return false }
         return distributableKeywords.contains { pType.contains($0) }
     }
 
-    private static func isApplicationTarget(_ target: PBXNativeTarget) -> Bool {
-        target.productType == .application || target.productType?.rawValue == "com.apple.product-type.application"
+    public static func isApplicationTarget(_ target: PBXNativeTarget) -> Bool {
+        target.productType == .application
     }
 
     private static func expandBuildableTargets(
@@ -707,7 +1030,8 @@ public enum XCodeTasks {
             // 1. Dependencies
             for dep in target.dependencies {
                 if let depNative = dep.target as? PBXNativeTarget,
-                   !expanded.contains(where: { $0.uuid == depNative.uuid }) {
+                    !expanded.contains(where: { $0.uuid == depNative.uuid })
+                {
                     expanded.append(depNative)
                 }
             }
@@ -715,9 +1039,10 @@ public enum XCodeTasks {
             // 2. Embedded appex build phases
             for phase in target.buildPhases {
                 guard let copyPhase = phase as? PBXCopyFilesBuildPhase else { continue }
-                let isAppexPhase = copyPhase.dstSubfolderSpec == .plugins ||
-                    "\(copyPhase.dstSubfolderSpec ?? .resources)".contains("13") ||
-                    "\(copyPhase.dstSubfolderSpec ?? .resources)".contains("plugin")
+                let isAppexPhase =
+                    copyPhase.dstSubfolderSpec == .plugins
+                    || "\(copyPhase.dstSubfolderSpec ?? .resources)".contains("13")
+                    || "\(copyPhase.dstSubfolderSpec ?? .resources)".contains("plugin")
 
                 if isAppexPhase, let files = copyPhase.files {
                     for f in files {
@@ -725,7 +1050,8 @@ public enum XCodeTasks {
                         if name.hasSuffix(".appex") {
                             let appexName = (name as NSString).deletingPathExtension
                             if let candidate = allTargets.first(where: {
-                                $0.name == appexName || $0.productName == appexName || $0.product?.name == name
+                                $0.name == appexName || $0.productName == appexName
+                                    || $0.product?.name == name
                             }), !expanded.contains(where: { $0.uuid == candidate.uuid }) {
                                 expanded.append(candidate)
                             }
@@ -744,8 +1070,13 @@ public enum XCodeTasks {
         return val.contains("$(") || val.contains("${")
     }
 
-    private static func rawBundleIdentifier(for target: PBXNativeTarget, configurationName: String) -> String? {
-        let config = target.buildConfigurationList?.buildConfigurations.first(where: { $0.name == configurationName })
+    private static func rawBundleIdentifier(for target: PBXNativeTarget, configurationName: String)
+        -> String?
+    {
+        let config =
+            target.buildConfigurationList?.buildConfigurations.first(where: {
+                $0.name == configurationName
+            })
             ?? target.buildConfigurationList?.buildConfigurations.first
         return config?.buildSettings["PRODUCT_BUNDLE_IDENTIFIER"] as? String
     }
@@ -775,7 +1106,8 @@ public enum XCodeTasks {
 
         let scanDir: (URL) -> Void = { dir in
             guard fm.fileExists(atPath: dir.path),
-                  let files = try? fm.contentsOfDirectory(atPath: dir.path) else { return }
+                let files = try? fm.contentsOfDirectory(atPath: dir.path)
+            else { return }
             for file in files where file.hasSuffix(".xcscheme") {
                 let name = URL(fileURLWithPath: file).deletingPathExtension().lastPathComponent
                 if !schemes.contains(name) {
@@ -785,7 +1117,8 @@ public enum XCodeTasks {
         }
 
         // Shared schemes
-        scanDir(iosDir.appendingPathComponent("\(workspaceName).xcworkspace/xcshareddata/xcschemes"))
+        scanDir(
+            iosDir.appendingPathComponent("\(workspaceName).xcworkspace/xcshareddata/xcschemes"))
         scanDir(iosDir.appendingPathComponent("\(workspaceName).xcodeproj/xcshareddata/xcschemes"))
 
         // User schemes
@@ -801,17 +1134,20 @@ public enum XCodeTasks {
         return schemes.filter { !$0.hasPrefix("Pods-") }
     }
 
-    private static func getCandidateSchemePaths(scheme: String, workspaceUrl: URL, projectUrl: URL) -> [URL] {
+    private static func getCandidateSchemePaths(scheme: String, workspaceUrl: URL, projectUrl: URL)
+        -> [URL]
+    {
         var paths = [
             workspaceUrl.appendingPathComponent("xcshareddata/xcschemes/\(scheme).xcscheme"),
-            projectUrl.appendingPathComponent("xcshareddata/xcschemes/\(scheme).xcscheme")
+            projectUrl.appendingPathComponent("xcshareddata/xcschemes/\(scheme).xcscheme"),
         ]
         let fm = FileManager.default
         for root in [workspaceUrl, projectUrl] {
             let userDir = root.appendingPathComponent("xcuserdata")
             if let users = try? fm.contentsOfDirectory(atPath: userDir.path) {
                 for u in users {
-                    paths.append(userDir.appendingPathComponent("\(u)/xcschemes/\(scheme).xcscheme"))
+                    paths.append(
+                        userDir.appendingPathComponent("\(u)/xcschemes/\(scheme).xcscheme"))
                 }
             }
         }
@@ -823,13 +1159,15 @@ public enum XCodeTasks {
         workspaceUrl: URL,
         projectUrl: URL
     ) -> [String] {
-        let candidatePaths = getCandidateSchemePaths(scheme: scheme, workspaceUrl: workspaceUrl, projectUrl: projectUrl)
+        let candidatePaths = getCandidateSchemePaths(
+            scheme: scheme, workspaceUrl: workspaceUrl, projectUrl: projectUrl)
         for path in candidatePaths {
             guard let content = try? String(contentsOf: path, encoding: .utf8) else { continue }
             var names: [String] = []
             let pattern = #"BlueprintName\s*=\s*"([^"]+)""#
             if let regex = try? NSRegularExpression(pattern: pattern) {
-                let matches = regex.matches(in: content, range: NSRange(content.startIndex..., in: content))
+                let matches = regex.matches(
+                    in: content, range: NSRange(content.startIndex..., in: content))
                 for match in matches where match.numberOfRanges > 1 {
                     if let range = Range(match.range(at: 1), in: content) {
                         let name = String(content[range])
@@ -851,14 +1189,17 @@ public enum XCodeTasks {
         workspaceUrl: URL,
         projectUrl: URL
     ) -> String? {
-        let candidatePaths = getCandidateSchemePaths(scheme: scheme, workspaceUrl: workspaceUrl, projectUrl: projectUrl)
+        let candidatePaths = getCandidateSchemePaths(
+            scheme: scheme, workspaceUrl: workspaceUrl, projectUrl: projectUrl)
         for path in candidatePaths {
             guard let content = try? String(contentsOf: path, encoding: .utf8) else { continue }
             let pattern = #"<ArchiveAction[\s\S]*?buildConfiguration\s*=\s*"([^"]+)""#
             if let regex = try? NSRegularExpression(pattern: pattern),
-               let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-               match.numberOfRanges > 1,
-               let range = Range(match.range(at: 1), in: content) {
+                let match = regex.firstMatch(
+                    in: content, range: NSRange(content.startIndex..., in: content)),
+                match.numberOfRanges > 1,
+                let range = Range(match.range(at: 1), in: content)
+            {
                 return String(content[range])
             }
         }
@@ -894,7 +1235,8 @@ public enum XCodeTasks {
         }
     }
 
-    private static func parseXcodebuildBuildSettings(_ output: String) -> [String: [String: String]] {
+    private static func parseXcodebuildBuildSettings(_ output: String) -> [String: [String: String]]
+    {
         var settingsByTarget: [String: [String: String]] = [:]
         var currentTarget: String? = nil
 
@@ -903,8 +1245,10 @@ public enum XCodeTasks {
             if line.contains("Build settings for action") && line.contains("and target") {
                 let pattern = #"and target ([^:]+):"#
                 if let regex = try? NSRegularExpression(pattern: pattern),
-                   let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
-                   let range = Range(match.range(at: 1), in: line) {
+                    let match = regex.firstMatch(
+                        in: line, range: NSRange(line.startIndex..., in: line)),
+                    let range = Range(match.range(at: 1), in: line)
+                {
                     let extracted = String(line[range]).trimmingCharacters(in: .whitespaces)
                     currentTarget = extracted
                     settingsByTarget[extracted] = [:]
@@ -921,7 +1265,8 @@ public enum XCodeTasks {
 
             if let equalIndex = trimmed.firstIndex(of: "=") {
                 let key = String(trimmed[..<equalIndex]).trimmingCharacters(in: .whitespaces)
-                let value = String(trimmed[trimmed.index(after: equalIndex)...]).trimmingCharacters(in: .whitespaces)
+                let value = String(trimmed[trimmed.index(after: equalIndex)...]).trimmingCharacters(
+                    in: .whitespaces)
                 if !key.isEmpty {
                     settingsByTarget[current, default: [:]][key] = value
                 }
@@ -945,16 +1290,23 @@ public enum XCodeTasks {
 
         // 1. Project level build settings & xcconfig
         if let project = xcodeProj.pbxproj.projects.first,
-           let projConfig = project.buildConfigurationList?.buildConfigurations.first(where: { $0.name == configurationName }) {
-            loadXcconfigSettings(into: &settings, baseConfig: projConfig.baseConfiguration, projectDir: projectDir)
+            let projConfig = project.buildConfigurationList?.buildConfigurations.first(where: {
+                $0.name == configurationName
+            })
+        {
+            loadXcconfigSettings(
+                into: &settings, baseConfig: projConfig.baseConfiguration, projectDir: projectDir)
             for (k, v) in projConfig.buildSettings {
                 if let str = v as? String { settings[k] = str }
             }
         }
 
         // 2. Target level build settings & xcconfig
-        if let targetConfig = target.buildConfigurationList?.buildConfigurations.first(where: { $0.name == configurationName }) {
-            loadXcconfigSettings(into: &settings, baseConfig: targetConfig.baseConfiguration, projectDir: projectDir)
+        if let targetConfig = target.buildConfigurationList?.buildConfigurations.first(where: {
+            $0.name == configurationName
+        }) {
+            loadXcconfigSettings(
+                into: &settings, baseConfig: targetConfig.baseConfiguration, projectDir: projectDir)
             for (k, v) in targetConfig.buildSettings {
                 if let str = v as? String { settings[k] = str }
             }
@@ -975,14 +1327,16 @@ public enum XCodeTasks {
         guard let ref = baseConfig, let relPath = ref.path else { return }
         let candidate = projectDir.appendingPathComponent(relPath)
         guard FileManager.default.fileExists(atPath: candidate.path),
-              let content = try? String(contentsOf: candidate, encoding: .utf8) else { return }
+            let content = try? String(contentsOf: candidate, encoding: .utf8)
+        else { return }
 
         for line in content.components(separatedBy: .newlines) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if trimmed.hasPrefix("//") || trimmed.isEmpty { continue }
             if let eq = trimmed.firstIndex(of: "=") {
                 let k = String(trimmed[..<eq]).trimmingCharacters(in: .whitespaces)
-                let v = String(trimmed[trimmed.index(after: eq)...]).trimmingCharacters(in: .whitespaces)
+                let v = String(trimmed[trimmed.index(after: eq)...]).trimmingCharacters(
+                    in: .whitespaces)
                 if !k.isEmpty {
                     settings[k] = v
                 }
@@ -1008,9 +1362,11 @@ public enum XCodeTasks {
         let matches = regex.matches(in: value, range: NSRange(value.startIndex..., in: value))
 
         for match in matches.reversed() {
-            let varRange = match.range(at: 1).location != NSNotFound ? match.range(at: 1) : match.range(at: 2)
+            let varRange =
+                match.range(at: 1).location != NSNotFound ? match.range(at: 1) : match.range(at: 2)
             guard let swiftVarRange = Range(varRange, in: value),
-                  let fullMatchRange = Range(match.range, in: resolved) else { continue }
+                let fullMatchRange = Range(match.range, in: resolved)
+            else { continue }
 
             let rawVarName = String(value[swiftVarRange])
             let settingName = rawVarName.components(separatedBy: ":").first ?? rawVarName
@@ -1018,7 +1374,9 @@ public enum XCodeTasks {
             if settingName == "TARGET_NAME", let targetName = settings["TARGET_NAME"] {
                 resolved.replaceSubrange(fullMatchRange, with: targetName)
             } else if settings[settingName] != nil {
-                if let resolvedSub = getResolvedSettingFromMap(key: settingName, settings: settings, seen: nextSeen) {
+                if let resolvedSub = getResolvedSettingFromMap(
+                    key: settingName, settings: settings, seen: nextSeen)
+                {
                     resolved.replaceSubrange(fullMatchRange, with: resolvedSub)
                 }
             }

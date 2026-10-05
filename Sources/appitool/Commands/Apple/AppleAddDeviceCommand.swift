@@ -25,11 +25,11 @@ struct AppleAddDeviceCommand: AsyncParsableCommand {
         _ = try? EnvLoader.loadEnv()
 
         guard let service = try appleCredentials.makeService() else {
-            print("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
+            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return
         }
 
-        print("🚀 Registering device '\(name)' (\(udid)) on Apple Developer Portal...".dim)
+        Log("🚀 Registering device '\(name)' (\(udid)) on Apple Developer Portal...".dim)
         let device = try await service.registerDevice(name: name, udid: udid, platform: platform)
 
         let devName = device.attributes?.name ?? name
@@ -37,13 +37,13 @@ struct AppleAddDeviceCommand: AsyncParsableCommand {
         let devClass = device.attributes?.deviceClass?.rawValue ?? "-"
         let devStatus = device.attributes?.status?.rawValue ?? "ENABLED"
 
-        print("\n✓ Device registered successfully!".green.bold)
-        print("  • Name: ".cyan + "\(devName)".bold)
-        print("  • Portal ID: ".cyan + "\(device.id)")
-        print("  • UDID: ".cyan + "\(udid)")
-        print("  • Platform: ".cyan + "\(devPlatform)")
-        print("  • Class: ".cyan + "\(devClass)")
-        print("  • Status: ".cyan + "\(devStatus)".green)
-        print("")
+        Log("\n✓ Device registered successfully!".green.bold)
+        Log("  • Name: ".cyan + "\(devName)".bold)
+        Log("  • Portal ID: ".cyan + "\(device.id)")
+        Log("  • UDID: ".cyan + "\(udid)")
+        Log("  • Platform: ".cyan + "\(devPlatform)")
+        Log("  • Class: ".cyan + "\(devClass)")
+        Log("  • Status: ".cyan + "\(devStatus)".green)
+        Log("")
     }
 }

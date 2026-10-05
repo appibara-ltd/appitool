@@ -682,7 +682,7 @@ public struct XcodeBuildTask: Task {
         arguments.append(contentsOf: input.xcargs)
 
         if !input.silent {
-            print("   🔨 ".bold + "Compiling Xcode archive: \(scheme) (\(input.configuration))...".dim)
+            Log("   🔨 ".bold + "Compiling Xcode archive: \(scheme) (\(input.configuration))...".dim)
         }
 
         let result = try await runCommand(
@@ -701,7 +701,7 @@ public struct XcodeBuildTask: Task {
         }
 
         if !input.silent {
-            print("   ✓ ".green.bold + "Xcode archive created at \(archivePath)".dim)
+            Log("   ✓ ".green.bold + "Xcode archive created at \(archivePath)".dim)
         }
     }
 
@@ -745,7 +745,7 @@ public struct XcodeBuildTask: Task {
         arguments.append(contentsOf: input.exportXcargs)
 
         if !input.silent {
-            print("   📦 ".bold + "Packaging IPA with export method: \(input.exportMethod.rawValue)...".dim)
+            Log("   📦 ".bold + "Packaging IPA with export method: \(input.exportMethod.rawValue)...".dim)
         }
 
         let result = try await runCommand(
@@ -805,7 +805,7 @@ public struct XcodeBuildTask: Task {
         }
 
         if !input.silent {
-            print("   ✓ ".green.bold + "IPA packaged successfully at \(resolvedIpa)".dim)
+            Log("   ✓ ".green.bold + "IPA packaged successfully at \(resolvedIpa)".dim)
         }
 
         return (resolvedIpa, resolvedDsym)

@@ -130,7 +130,7 @@ public final class GitStorage: Sendable {
         // Commit with explicit author to avoid failures on headless CI environments
         let commitArgs = [
             "-c", "user.name=appitool",
-            "-c", "user.email=match@appitool.dev",
+            "-c", "user.email=tool@appibara.com",
             "commit",
             "-m", commitMessage
         ]

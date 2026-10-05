@@ -9,26 +9,26 @@ struct AndroidAdHocPreset: FlowPreset {
     init() {}
 
     func setup(context: inout FlowContext) async throws {
-        print("   🔍 [\(name)] Checking Android SDK, Gradle environment, and signing keystores...".dim)
+        Log("   🔍 [\(name)] Checking Android SDK, Gradle environment, and signing keystores...".dim)
     }
 
     func prebuild(context: inout FlowContext) async throws {
-        print("   🔧 [\(name)] Updating versionCode, versionName, and release notes...".dim)
+        Log("   🔧 [\(name)] Updating versionCode, versionName, and release notes...".dim)
     }
 
     func build(context: inout FlowContext) async throws {
-        print("   🔨 [\(name)] Running Gradle assembleRelease for universal APK...".dim)
+        Log("   🔨 [\(name)] Running Gradle assembleRelease for universal APK...".dim)
     }
 
     func postbuild(context: inout FlowContext) async throws {
-        print("   📦 [\(name)] Verifying APK signature and zipalign...".dim)
+        Log("   📦 [\(name)] Verifying APK signature and zipalign...".dim)
     }
 
     func prerelease(context: inout FlowContext) async throws {
-        print("   📝 [\(name)] Packaging APK artifact and tester changelog...".dim)
+        Log("   📝 [\(name)] Packaging APK artifact and tester changelog...".dim)
     }
 
     func release(context: inout FlowContext) async throws {
-        print("   🚀 [\(name)] Distributing APK to distribution channels...".dim)
+        Log("   🚀 [\(name)] Distributing APK to distribution channels...".dim)
     }
 }
