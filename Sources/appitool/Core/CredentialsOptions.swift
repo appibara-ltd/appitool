@@ -54,19 +54,101 @@ struct GoogleCredentialsOptions: ParsableArguments, Sendable {
     }
 }
 
-/// Reusable CLI options and environment resolution for Firebase credentials.
-struct FirebaseCredentialsOptions: ParsableArguments, Sendable {
-    @Option(name: .long, help: "Firebase App ID (defaults to FIREBASE_IOS_APP_ID or FIREBASE_ANDROID_APP_ID in .env).")
-    var firebaseAppId: String?
+/// Reusable CLI options and environment resolution for Firebase project-level operations (e.g. tester groups).
+struct FirebaseProjectOptions: ParsableArguments, Sendable {
+    @Option(name: .shortAndLong, help: "Google Service Account Key (file path, raw JSON, or Base64 string; defaults to GOOGLE_KEY in .env).")
+    var googleKey: String?
 
-    /// Resolves credentials from CLI options or environment and creates a `FirebaseService`.
-    func makeService(googleKey: String? = nil) throws -> FirebaseService? {
+    @Option(name: .shortAndLong, help: "Firebase/Google Cloud project number or project ID (defaults to FIREBASE_PROJECT_ID in .env).")
+    var project: String?
+
+    /// Resolves the Google Key from option or environment.
+    func resolveKey() -> String? {
         let env = ProcessInfo.processInfo.environment
-        let resolvedGoogleKey = googleKey ?? env["GOOGLE_KEY"]
-        if let resolvedGoogleKey, !resolvedGoogleKey.isEmpty {
-            return try FirebaseService(key: resolvedGoogleKey)
+        let resolved = googleKey ?? env["GOOGLE_KEY"]
+        return resolved?.isEmpty == false ? resolved : nil
+    }
+
+    /// Resolves the Firebase project identifier (project number or project ID).
+    func resolveProject(fallbackAppId: String? = nil) -> String? {
+        if let project, !project.isEmpty {
+            return project
+        }
+        let env = ProcessInfo.processInfo.environment
+        if let envProj = env["FIREBASE_PROJECT_ID"] ?? env["GOOGLE_PROJECT_ID"], !envProj.isEmpty {
+            return envProj
+        }
+        if let appId = fallbackAppId ?? env["FIREBASE_IOS_APP_ID"] ?? env["FIREBASE_ANDROID_APP_ID"], appId.contains(":") {
+            let segments = appId.split(separator: ":")
+            if segments.count >= 2 {
+                return String(segments[1])
+            }
         }
         return nil
+    }
+
+    /// Resolves credentials from CLI options or environment and creates a `FirebaseService`.
+    func makeService() throws -> FirebaseService? {
+        guard let key = resolveKey() else { return nil }
+        return try FirebaseService(key: key)
+    }
+}
+
+/// Reusable CLI options and environment resolution for Firebase application-level operations (e.g. releases).
+struct FirebaseCredentialsOptions: ParsableArguments, Sendable {
+    @OptionGroup
+    var projectOptions: FirebaseProjectOptions
+
+    @Option(name: .customLong("firebase-app-id"), help: "Firebase App ID (defaults to FIREBASE_IOS_APP_ID or FIREBASE_ANDROID_APP_ID in .env).")
+    var firebaseAppId: String?
+
+    var googleKey: String? {
+        projectOptions.googleKey
+    }
+
+    var project: String? {
+        projectOptions.project
+    }
+
+    enum Platform: String, ExpressibleByArgument, CaseIterable, Sendable {
+        case ios
+        case android
+    }
+
+    @Option(name: .customLong("platform"), help: "Target platform for Firebase App ID resolution (ios, android).")
+    var platform: Platform?
+
+    /// Resolves the Google Key from option or environment.
+    func resolveKey() -> String? {
+        projectOptions.resolveKey()
+    }
+
+    /// Resolves the Firebase App ID from option or environment, targeting iOS or Android.
+    func resolveAppId(for platform: Platform? = nil) -> String? {
+        if let firebaseAppId, !firebaseAppId.isEmpty {
+            return firebaseAppId
+        }
+        let env = ProcessInfo.processInfo.environment
+        let targetPlatform = platform ?? self.platform
+
+        switch targetPlatform {
+        case .ios:
+            return env["FIREBASE_IOS_APP_ID"]
+        case .android:
+            return env["FIREBASE_ANDROID_APP_ID"]
+        case nil:
+            return env["FIREBASE_IOS_APP_ID"] ?? env["FIREBASE_ANDROID_APP_ID"]
+        }
+    }
+
+    /// Resolves the Firebase project identifier (project number or project ID).
+    func resolveProject() -> String? {
+        projectOptions.resolveProject(fallbackAppId: resolveAppId())
+    }
+
+    /// Resolves credentials from CLI options or environment and creates a `FirebaseService`.
+    func makeService() throws -> FirebaseService? {
+        try projectOptions.makeService()
     }
 }
 

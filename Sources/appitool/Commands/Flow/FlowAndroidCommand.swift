@@ -30,7 +30,7 @@ struct FlowAndroidCommand: AsyncParsableCommand {
 
         let notifications = notificationOptions.resolve()
         let resolvedPackageName = packageName ?? ProcessInfo.processInfo.environment["GOOGLE_PACKAGE_NAME"]
-        let resolvedFirebaseAppId = firebaseCredentials.firebaseAppId ?? ProcessInfo.processInfo.environment["FIREBASE_ANDROID_APP_ID"]
+        let resolvedFirebaseAppId = firebaseCredentials.resolveAppId(for: .android)
         let resolvedGoogleKey = googleCredentials.resolveKey()
 
         let preset: (any FlowPreset) = {

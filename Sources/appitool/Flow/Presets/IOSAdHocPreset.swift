@@ -127,11 +127,8 @@ struct IOSAdHocPreset: FlowPreset {
 
         // Fetch latest build number / version from Firebase App Distribution
         Log("   🔥 [\(name)] Fetching latest build info from Firebase App Distribution...".dim)
-        guard let firebaseAppId = context.firebaseAppId,
-              let googleKey = context.googleKey,
-              let firebaseService = try FirebaseService.makeService(googleKey: googleKey) else {
-            return
-        }
+        let firebaseAppId = context.firebaseAppId!
+        let firebaseService = try FirebaseService(key: context.googleKey!)
 
         Log.depth += 3
         let buildTask = GetLatestBuildNumberTask()
@@ -244,9 +241,85 @@ struct IOSAdHocPreset: FlowPreset {
 
     func prerelease(context: inout FlowContext) async throws {
         Log("   📝 [\(name)] Preparing release packaging and tester release notes...".dim)
+        context.metadata["firebase_test_groups"] = "Internal"
+        context.artifactPaths = [URL(fileURLWithPath: "/Users/tumerorkun/Downloads/case_closed_1007.ipa")]
+        context.changelog = "APPITOOL TEST"
+
     }
 
     func release(context: inout FlowContext) async throws {
-        Log("   🚀 [\(name)] Distributing Ad-Hoc build to testers...".dim)
+        Log("   🚀 [\(name)] Distributing Ad-Hoc build to testers via Firebase App Distribution...".dim)
+
+        let firebaseAppId = context.firebaseAppId!
+        let firebaseService = try FirebaseService(key: context.googleKey!)
+
+        // Read .ipa binary directly from context
+        guard let ipaUrl = context.artifactPaths.first(where: { $0.pathExtension.lowercased() == "ipa" })
+                ?? context.metadata["ipa_path"].map({ URL(fileURLWithPath: $0) }) else {
+            Log("   ⚠️  [\(name)] No .ipa package found in context artifacts to upload.".yellow)
+            return
+        }
+
+        if context.isDryRun {
+            Log("   🔍 [\(name)] Dry-run enabled: would upload \(ipaUrl.lastPathComponent) to Firebase App Distribution (\(firebaseAppId)).".yellow)
+            return
+        }
+
+        let releaseNotes = context.changelog ?? context.metadata["release_notes"]
+        let testGroups: [String]? = {
+            if let groupsStr = context.metadata["firebase_test_groups"] ?? context.metadata["test_groups"] {
+                return groupsStr.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            }
+            return nil
+        }()
+
+        let testerEmails: [String]? = {
+            if let emailsStr = context.metadata["firebase_tester_emails"] ?? context.metadata["tester_emails"] {
+                return emailsStr.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            }
+            return nil
+        }()
+
+        // Ensure configured test groups exist before upload and resolve their actual aliases
+        var resolvedTestGroups: [String] = []
+        if let testGroups, !testGroups.isEmpty {
+            for group in testGroups {
+                let g = try await firebaseService.createOrGetGroup(
+                    project: firebaseAppId,
+                    groupAlias: group
+                )
+                // Use the group's actual alias from its resource name (projects/.../groups/{alias}) or fallback to group
+                let alias = g.name?.components(separatedBy: "/").last ?? group
+                resolvedTestGroups.append(alias)
+            }
+        }
+
+        Log.depth += 3
+        let uploadTask = UploadToFirebaseTask()
+        let result = try await uploadTask.run(
+            UploadToFirebaseTask.Input(
+                binaryPath: ipaUrl.path,
+                firebaseAppId: firebaseAppId,
+                service: firebaseService,
+                releaseNotes: releaseNotes,
+                testGroups: resolvedTestGroups.isEmpty ? testGroups : resolvedTestGroups,
+                testerEmails: testerEmails
+            )
+        )
+        Log.depth -= 3
+
+        context.metadata["firebase_release_name"] = result.releaseName
+        if let consoleUri = result.firebaseConsoleUri {
+            context.metadata["firebase_console_uri"] = consoleUri
+            Log("   🔗 Firebase Console: \(consoleUri)".cyan)
+        }
+        if let downloadUri = result.binaryDownloadUri {
+            context.metadata["firebase_download_uri"] = downloadUri
+        }
+        if let testingUri = result.testingUri {
+            context.metadata["firebase_testing_uri"] = testingUri
+        }
+
+        Log("   ✓ [\(name)] Successfully distributed build to Firebase App Distribution!".green.bold)
     }
 }

@@ -132,18 +132,6 @@ let package = Package(
                 .plugin(name: "OpenAPIGenerator", package: "swift-openapi-generator"),
             ]
         ),
-        // Firebase App Distribution API (OpenAPI generator plugin target)
-        .target(
-            name: "FirebaseAppDistributionAPI",
-            dependencies: [
-                .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
-                .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
-            ],
-            swiftSettings: apiSwiftSettings,
-            plugins: [
-                .plugin(name: "OpenAPIGenerator", package: "swift-openapi-generator"),
-            ]
-        ),
         .target(
             name: "AppleServices",
             dependencies: [
@@ -168,7 +156,6 @@ let package = Package(
                 "GooglePlayCustomAppAPI",
                 "GooglePlayGamesManagementAPI",
                 "FirebaseManagementAPI",
-                "FirebaseAppDistributionAPI",
                 .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
                 .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
                 .product(name: "Crypto", package: "swift-crypto"),
@@ -189,7 +176,6 @@ let package = Package(
                 "GooglePlayCustomAppAPI",
                 "GooglePlayGamesManagementAPI",
                 "FirebaseManagementAPI",
-                "FirebaseAppDistributionAPI",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
                 .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),

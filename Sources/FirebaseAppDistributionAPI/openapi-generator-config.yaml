@@ -1,7 +1,0 @@
-generate:
-  - types
-  - client
-accessModifier: package
-filter:
-  paths:
-    - /v1/{parent}/releases

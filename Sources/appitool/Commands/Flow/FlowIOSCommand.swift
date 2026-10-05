@@ -44,8 +44,8 @@ struct FlowIOSCommand: AsyncParsableCommand {
         let appleCreds = appleCredentials.resolve()
         let match = matchOptions.resolve()
         let resolvedTeamId = match.teamId ?? ProcessInfo.processInfo.environment["APPLE_TEAM_ID"]
-        let resolvedFirebaseAppId = firebaseCredentials.firebaseAppId ?? ProcessInfo.processInfo.environment["FIREBASE_IOS_APP_ID"]
-        let resolvedGoogleKey = ProcessInfo.processInfo.environment["GOOGLE_KEY"]
+        let resolvedFirebaseAppId = firebaseCredentials.resolveAppId(for: .ios)
+        let resolvedGoogleKey = firebaseCredentials.resolveKey() ?? ProcessInfo.processInfo.environment["GOOGLE_KEY"]
 
         let preset: (any FlowPreset) = {
             switch distribution {

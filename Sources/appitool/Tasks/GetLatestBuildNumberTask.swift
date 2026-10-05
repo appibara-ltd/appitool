@@ -1,7 +1,6 @@
 import Foundation
 import AppStoreConnectAPI
 import GooglePlayStoreAPI
-import FirebaseAppDistributionAPI
 import AppleServices
 import GoogleServices
 import Rainbow
@@ -252,28 +251,13 @@ struct GetLatestBuildNumberTask: Task {
     // MARK: - AdHoc (Firebase App Distribution)
 
     private func fetchLatestFirebaseAppDistributionBuild(appId: String, service: FirebaseService) async throws -> LatestBuildInfo {
-        let segments = appId.split(separator: ":")
-        let projectNumber = segments.count >= 2 ? String(segments[1]) : "-"
-
-        let response = try await service.appDistribution.firebaseappdistribution_period_projects_period_apps_period_releases_period_list(.init(
-            path: .init(parent: "projects/\(projectNumber)/apps/\(appId)"),
-            query: .init(pageSize: 1)
-        ))
-
-        switch response {
-        case .ok(let okResponse):
-            guard case .json(let payload) = okResponse.body else {
-                throw GetLatestBuildNumberError.apiError("Failed to decode JSON response from Firebase App Distribution.")
-            }
-            guard let latestRelease = payload.releases?.first else {
-                return LatestBuildInfo(version: "1.0.0", buildNumber: "0")
-            }
-            return LatestBuildInfo(
-                version: latestRelease.displayVersion ?? "1.0.0",
-                buildNumber: latestRelease.buildVersion ?? "0"
-            )
-        case .undocumented(let statusCode, _):
-            throw GetLatestBuildNumberError.apiError("Firebase App Distribution API returned HTTP \(statusCode)")
+        let (releases, _) = try await service.listReleases(firebaseAppId: appId, pageSize: 1)
+        guard let latestRelease = releases.first else {
+            return LatestBuildInfo(version: "1.0.0", buildNumber: "0")
         }
+        return LatestBuildInfo(
+            version: latestRelease.displayVersion ?? "1.0.0",
+            buildNumber: latestRelease.buildVersion ?? "0"
+        )
     }
 }
