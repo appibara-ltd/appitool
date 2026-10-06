@@ -682,7 +682,7 @@ public struct XcodeBuildTask: Task {
         arguments.append(contentsOf: input.xcargs)
 
         if !input.silent {
-            Log("   🔨 ".bold + "Compiling Xcode archive: \(scheme) (\(input.configuration))...".dim)
+            Log("🔨 ".bold + "Compiling Xcode archive: \(scheme) (\(input.configuration))...".dim)
         }
 
         let result = try await runCommand(
@@ -701,7 +701,7 @@ public struct XcodeBuildTask: Task {
         }
 
         if !input.silent {
-            Log("   ✓ ".green.bold + "Xcode archive created at \(archivePath)".dim)
+            Log("✓ ".green.bold + "Xcode archive created at \(archivePath)".dim)
         }
     }
 

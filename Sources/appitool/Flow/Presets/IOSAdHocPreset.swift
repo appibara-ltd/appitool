@@ -233,6 +233,52 @@ struct IOSAdHocPreset: FlowPreset {
 
     func build(context: inout FlowContext) async throws {
         Log("   🔨 [\(name)] Compiling iOS application with Ad-Hoc export configuration...".dim)
+
+        if context.isDryRun {
+            Log("   🔍 [\(name)] Dry-run enabled: skipping xcodebuild archive/export.".yellow)
+            return
+        }
+
+        let targetRoot = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".appitool")
+            .appendingPathComponent("ios")
+            .appendingPathComponent(context.targetName ?? context.scheme ?? "app")
+        let outputDir = targetRoot.appendingPathComponent("build").path
+        let derivedData = targetRoot.appendingPathComponent("derivedData").path
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy_MM_dd_HH_mm"
+        let outputName = "\(context.scheme ?? "app")_\(formatter.string(from: Date()))"
+
+        let profiles = context.installedProfiles.mapValues { $0.name }
+
+        Log.depth += 3
+        defer { Log.depth -= 3 }
+
+        let output = try await XcodeBuildTask().run(
+            XcodeBuildTask.Input(
+                workspace: context.workspacePath,
+                project: context.xcodeProjectPath,
+                scheme: context.scheme,
+                configuration: context.configuration ?? "Release",
+                outputDirectory: outputDir,
+                outputName: outputName,
+                derivedDataPath: derivedData,
+                exportMethod: .adHoc,
+                exportTeamId: context.teamId,
+                signingStyle: profiles.isEmpty ? nil : .manual,
+                provisioningProfiles: profiles.isEmpty ? nil : profiles
+            )
+        )
+
+        if let ipaPath = output.ipaPath {
+            context.artifactPaths.append(URL(fileURLWithPath: ipaPath))
+            context.metadata["ipa_path"] = ipaPath
+        }
+        if let dsymPath = output.dsymPath {
+            context.artifactPaths.append(URL(fileURLWithPath: dsymPath))
+        }
     }
 
     func postbuild(context: inout FlowContext) async throws {
@@ -242,7 +288,6 @@ struct IOSAdHocPreset: FlowPreset {
     func prerelease(context: inout FlowContext) async throws {
         Log("   📝 [\(name)] Preparing release packaging and tester release notes...".dim)
         context.metadata["firebase_test_groups"] = "Internal"
-        context.artifactPaths = [URL(fileURLWithPath: "/Users/tumerorkun/Downloads/case_closed_1007.ipa")]
         context.changelog = "APPITOOL TEST"
 
     }
