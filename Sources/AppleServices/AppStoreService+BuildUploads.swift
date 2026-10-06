@@ -146,8 +146,15 @@ extension AppStoreService {
             throw AppStoreServiceError.apiError(status: 422, message: formatAppleErrors(try? r.body.json.errors))
         case .tooManyRequests(let r):
             throw AppStoreServiceError.apiError(status: 429, message: formatAppleErrors(try? r.body.json.errors))
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        case .undocumented(let statusCode, let payload):
+            var body = ""
+            if let b = payload.body {
+                body = (try? await String(collecting: b, upTo: 64 * 1024)) ?? ""
+            }
+            throw AppStoreServiceError.apiError(
+                status: statusCode,
+                message: "Unexpected status code. Body: \(body)"
+            )
         }
     }
 
@@ -179,8 +186,15 @@ extension AppStoreService {
             throw AppStoreServiceError.apiError(status: 422, message: formatAppleErrors(try? r.body.json.errors))
         case .tooManyRequests(let r):
             throw AppStoreServiceError.apiError(status: 429, message: formatAppleErrors(try? r.body.json.errors))
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        case .undocumented(let statusCode, let payload):
+            var body = ""
+            if let b = payload.body {
+                body = (try? await String(collecting: b, upTo: 64 * 1024)) ?? ""
+            }
+            throw AppStoreServiceError.apiError(
+                status: statusCode,
+                message: "Unexpected status code. Body: \(body)"
+            )
         }
     }
 
@@ -215,8 +229,136 @@ extension AppStoreService {
             throw AppStoreServiceError.apiError(status: 404, message: formatAppleErrors(try? r.body.json.errors))
         case .tooManyRequests(let r):
             throw AppStoreServiceError.apiError(status: 429, message: formatAppleErrors(try? r.body.json.errors))
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        case .undocumented(let statusCode, let payload):
+            var body = ""
+            if let b = payload.body {
+                body = (try? await String(collecting: b, upTo: 64 * 1024)) ?? ""
+            }
+            throw AppStoreServiceError.apiError(
+                status: statusCode,
+                message: "Unexpected status code. Body: \(body)"
+            )
+        }
+    }
+}
+
+extension AppStoreService {
+    // MARK: - TestFlight "What to Test"
+
+    /// Sets the TestFlight "What to Test" text of a processed build for the given locale.
+    /// Updates the existing localization if there is one, otherwise creates it.
+    package func setWhatsNew(buildId: String, whatsNew: String, locale: String) async throws {
+        if let existingId = try await findBetaBuildLocalizationId(buildId: buildId, locale: locale) {
+            try await updateBetaBuildLocalization(id: existingId, whatsNew: whatsNew)
+        } else {
+            try await createBetaBuildLocalization(buildId: buildId, whatsNew: whatsNew, locale: locale)
+        }
+    }
+
+    private func findBetaBuildLocalizationId(buildId: String, locale: String) async throws -> String? {
+        let response = try await client.builds_betaBuildLocalizations_getToManyRelated(
+            path: .init(id: buildId),
+            query: .init(limit: 200)
+        )
+        switch response {
+        case .ok(let ok):
+            guard case .json(let collection) = ok.body else { return nil }
+            return collection.data.first(where: { $0.attributes?.locale == locale })?.id
+        case .badRequest(let r):
+            throw AppStoreServiceError.apiError(status: 400, message: formatAppleErrors(try? r.body.json.errors))
+        case .unauthorized(let r):
+            throw AppStoreServiceError.apiError(status: 401, message: formatAppleErrors(try? r.body.json.errors))
+        case .forbidden(let r):
+            throw AppStoreServiceError.apiError(status: 403, message: formatAppleErrors(try? r.body.json.errors))
+        case .notFound(let r):
+            throw AppStoreServiceError.apiError(status: 404, message: formatAppleErrors(try? r.body.json.errors))
+        case .tooManyRequests(let r):
+            throw AppStoreServiceError.apiError(status: 429, message: formatAppleErrors(try? r.body.json.errors))
+        case .undocumented(let statusCode, let payload):
+            var body = ""
+            if let b = payload.body {
+                body = (try? await String(collecting: b, upTo: 64 * 1024)) ?? ""
+            }
+            throw AppStoreServiceError.apiError(
+                status: statusCode,
+                message: "Unexpected status code. Body: \(body)"
+            )
+        }
+    }
+
+    private func createBetaBuildLocalization(buildId: String, whatsNew: String, locale: String) async throws {
+        let payload = Components.Schemas.BetaBuildLocalizationCreateRequest(
+            data: .init(
+                _type: .betaBuildLocalizations,
+                attributes: .init(whatsNew: whatsNew, locale: locale),
+                relationships: .init(build: .init(data: .init(_type: .builds, id: buildId)))
+            )
+        )
+
+        let response = try await client.betaBuildLocalizations_createInstance(body: .json(payload))
+        switch response {
+        case .created:
+            return
+        case .badRequest(let r):
+            throw AppStoreServiceError.apiError(status: 400, message: formatAppleErrors(try? r.body.json.errors))
+        case .unauthorized(let r):
+            throw AppStoreServiceError.apiError(status: 401, message: formatAppleErrors(try? r.body.json.errors))
+        case .forbidden(let r):
+            throw AppStoreServiceError.apiError(status: 403, message: formatAppleErrors(try? r.body.json.errors))
+        case .conflict(let r):
+            throw AppStoreServiceError.apiError(status: 409, message: formatAppleErrors(try? r.body.json.errors))
+        case .unprocessableContent(let r):
+            throw AppStoreServiceError.apiError(status: 422, message: formatAppleErrors(try? r.body.json.errors))
+        case .tooManyRequests(let r):
+            throw AppStoreServiceError.apiError(status: 429, message: formatAppleErrors(try? r.body.json.errors))
+        case .undocumented(let statusCode, let payload):
+            var body = ""
+            if let b = payload.body {
+                body = (try? await String(collecting: b, upTo: 64 * 1024)) ?? ""
+            }
+            throw AppStoreServiceError.apiError(
+                status: statusCode,
+                message: "Unexpected status code. Body: \(body)"
+            )
+        }
+    }
+
+    private func updateBetaBuildLocalization(id: String, whatsNew: String) async throws {
+        let payload = Components.Schemas.BetaBuildLocalizationUpdateRequest(
+            data: .init(
+                _type: .betaBuildLocalizations,
+                id: id,
+                attributes: .init(whatsNew: whatsNew)
+            )
+        )
+
+        let response = try await client.betaBuildLocalizations_updateInstance(path: .init(id: id), body: .json(payload))
+        switch response {
+        case .ok:
+            return
+        case .badRequest(let r):
+            throw AppStoreServiceError.apiError(status: 400, message: formatAppleErrors(try? r.body.json.errors))
+        case .unauthorized(let r):
+            throw AppStoreServiceError.apiError(status: 401, message: formatAppleErrors(try? r.body.json.errors))
+        case .forbidden(let r):
+            throw AppStoreServiceError.apiError(status: 403, message: formatAppleErrors(try? r.body.json.errors))
+        case .notFound(let r):
+            throw AppStoreServiceError.apiError(status: 404, message: formatAppleErrors(try? r.body.json.errors))
+        case .conflict(let r):
+            throw AppStoreServiceError.apiError(status: 409, message: formatAppleErrors(try? r.body.json.errors))
+        case .unprocessableContent(let r):
+            throw AppStoreServiceError.apiError(status: 422, message: formatAppleErrors(try? r.body.json.errors))
+        case .tooManyRequests(let r):
+            throw AppStoreServiceError.apiError(status: 429, message: formatAppleErrors(try? r.body.json.errors))
+        case .undocumented(let statusCode, let payload):
+            var body = ""
+            if let b = payload.body {
+                body = (try? await String(collecting: b, upTo: 64 * 1024)) ?? ""
+            }
+            throw AppStoreServiceError.apiError(
+                status: statusCode,
+                message: "Unexpected status code. Body: \(body)"
+            )
         }
     }
 }

@@ -317,5 +317,49 @@ struct IOSInternalPreset: FlowPreset {
 
     func release(context: inout FlowContext) async throws {
         Log("🚀 Uploading build to App Store Connect / TestFlight...".dim)
+
+        // Use the IPA path tracked from the build stage
+        guard
+            let ipaUrl = context.artifactPaths.first(where: { $0.pathExtension.lowercased() == "ipa" })
+                ?? context.metadata["ipa_path"].map({ URL(fileURLWithPath: $0) })
+        else {
+            Log("🚧 No .ipa package found in context artifacts to upload.".yellow)
+            return
+        }
+
+        if context.isDryRun {
+            Log("🟡 Dry-run enabled: would upload \(ipaUrl.lastPathComponent) to App Store Connect.".yellow)
+            return
+        }
+
+        guard let appleKeyId = context.appleKeyId, let appleKey = context.appleKey,
+            let appleIssuerId = context.appleIssuerId
+        else {
+            throw FlowRequirementError(
+                presetName: name, missing: ["APPLE_KEY_ID", "APPLE_ISSUER_ID", "APPLE_KEY"])
+        }
+        let service = try AppStoreService(
+            keyId: appleKeyId, issuerId: appleIssuerId, key: appleKey)
+
+        // Version and build number are read from the IPA's Info.plist (the values Apple validates).
+        let result = try await UploadToAppStoreTask().run(
+            .init(
+                ipaPath: ipaUrl.path,
+                service: service,
+                bundleId: context.bundleId,
+                waitForProcessing: false
+            )
+        )
+
+        context.metadata["appstore_build_upload_id"] = result.buildUploadId
+        context.metadata["appstore_uploaded_version"] = result.version
+        context.metadata["appstore_uploaded_build_number"] = result.buildNumber
+        if let buildId = result.buildId {
+            context.metadata["appstore_build_id"] = buildId
+        }
+
+        Log(
+            "✅ Uploaded \(result.version.bold) (\(result.buildNumber.bold)) to App Store Connect. State: \(result.state.rawValue)"
+                .green.bold)
     }
 }

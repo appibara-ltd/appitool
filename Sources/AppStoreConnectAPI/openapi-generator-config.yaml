@@ -20,3 +20,6 @@ filter:
     - /v1/buildUploads/{id}
     - /v1/buildUploadFiles
     - /v1/buildUploadFiles/{id}
+    - /v1/betaBuildLocalizations
+    - /v1/betaBuildLocalizations/{id}
+    - /v1/builds/{id}/betaBuildLocalizations

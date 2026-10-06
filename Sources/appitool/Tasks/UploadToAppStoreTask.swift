@@ -73,6 +73,13 @@ struct UploadToAppStoreTask: Task {
 
         let platform: BuildUploadPlatform
 
+        /// TestFlight "What to Test" text. When provided, it is applied once the build finished processing
+        /// (this forces waiting for processing, since the build must exist first).
+        let changelog: String?
+
+        /// Locale of the changelog (e.g. `en-US`, `tr`).
+        let changelogLocale: String
+
         /// Whether to wait until App Store Connect finished processing the upload.
         let waitForProcessing: Bool
 
@@ -90,7 +97,9 @@ struct UploadToAppStoreTask: Task {
             version: String? = nil,
             buildNumber: String? = nil,
             platform: BuildUploadPlatform = .ios,
-            waitForProcessing: Bool = true,
+            changelog: String? = nil,
+            changelogLocale: String = "en-US",
+            waitForProcessing: Bool = false,
             pollInterval: TimeInterval = 15,
             processingTimeout: TimeInterval = 30 * 60
         ) {
@@ -101,6 +110,8 @@ struct UploadToAppStoreTask: Task {
             self.version = version
             self.buildNumber = buildNumber
             self.platform = platform
+            self.changelog = changelog
+            self.changelogLocale = changelogLocale
             self.waitForProcessing = waitForProcessing
             self.pollInterval = pollInterval
             self.processingTimeout = processingTimeout
@@ -141,14 +152,17 @@ struct UploadToAppStoreTask: Task {
         )
 
         // 3. Upload content chunk by chunk
-        Log("📤 Uploading \(ipaUrl.lastPathComponent) (\(Self.formatBytes(fileSize))) in \(reservation.operations.count) part(s)...".dim)
-        for (index, operation) in reservation.operations.enumerated() {
-            try await upload(operation: operation, index: index, from: ipaUrl)
-            Log("   ✓ Part \(index + 1)/\(reservation.operations.count) uploaded".dim)
-        }
+        Log(
+            "📤 Uploading \(ipaUrl.lastPathComponent) (\(Self.formatBytes(fileSize))) in \(reservation.operations.count) part(s)..."
+                .dim)
+        try await uploadAll(operations: reservation.operations, from: ipaUrl)
 
         // 4. Commit
-        try await input.service.commitBuildUploadFile(id: reservation.id)
+        try await commitWithRetry(
+            service: input.service,
+            fileId: reservation.id,
+            buildUploadId: buildUploadId
+        )
         Log("   ✓ Upload committed, App Store Connect is processing the build.".green)
 
         guard input.waitForProcessing else {
@@ -195,12 +209,15 @@ struct UploadToAppStoreTask: Task {
 
     /// Uses explicit values when provided, otherwise reads them from the IPA's embedded Info.plist
     /// (the values App Store Connect will validate against).
-    private func resolveVersionInfo(_ input: Input, ipaUrl: URL) async throws -> (version: String, buildNumber: String) {
+    private func resolveVersionInfo(_ input: Input, ipaUrl: URL) async throws -> (
+        version: String, buildNumber: String
+    ) {
         if let version = input.version, let buildNumber = input.buildNumber {
             return (version, buildNumber)
         }
         let embedded = try await Self.readInfoPlist(fromIpa: ipaUrl)
-        guard let version = input.version ?? embedded["CFBundleShortVersionString"] as? String else {
+        guard let version = input.version ?? embedded["CFBundleShortVersionString"] as? String
+        else {
             throw UploadToAppStoreError.missingVersionInfo("CFBundleShortVersionString not found")
         }
         guard let buildNumber = input.buildNumber ?? embedded["CFBundleVersion"] as? String else {
@@ -211,7 +228,8 @@ struct UploadToAppStoreTask: Task {
 
     private static func readInfoPlist(fromIpa ipaUrl: URL) async throws -> [String: Any] {
         let fm = FileManager.default
-        let tempDir = fm.temporaryDirectory.appendingPathComponent("appitool-ipa-\(UUID().uuidString)")
+        let tempDir = fm.temporaryDirectory.appendingPathComponent(
+            "appitool-ipa-\(UUID().uuidString)")
         try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: tempDir) }
 
@@ -226,26 +244,77 @@ struct UploadToAppStoreTask: Task {
         }
 
         let payloadDir = tempDir.appendingPathComponent("Payload")
-        guard let appName = (try? fm.contentsOfDirectory(atPath: payloadDir.path))?.first(where: { $0.hasSuffix(".app") }),
-              let data = fm.contents(atPath: payloadDir.appendingPathComponent(appName).appendingPathComponent("Info.plist").path),
-              let plist = (try? PropertyListSerialization.propertyList(from: data, format: nil)) as? [String: Any] else {
-            throw UploadToAppStoreError.missingVersionInfo("Payload/*.app/Info.plist not found or unreadable")
+        guard
+            let appName = (try? fm.contentsOfDirectory(atPath: payloadDir.path))?.first(where: {
+                $0.hasSuffix(".app")
+            }),
+            let data = fm.contents(
+                atPath: payloadDir.appendingPathComponent(appName).appendingPathComponent(
+                    "Info.plist"
+                ).path),
+            let plist = (try? PropertyListSerialization.propertyList(from: data, format: nil))
+                as? [String: Any]
+        else {
+            throw UploadToAppStoreError.missingVersionInfo(
+                "Payload/*.app/Info.plist not found or unreadable")
         }
         return plist
     }
 
     // MARK: - Chunk Upload
+    private func uploadAll(
+        operations: [BuildUploadOperation],
+        from fileUrl: URL,
+        maxConcurrent: Int = 6
+    ) async throws {
+        let total = operations.count
+        let width = String(total).count
+        var completed = 0
+        var iterator = operations.enumerated().makeIterator()
 
-    private func upload(operation: BuildUploadOperation, index: Int, from fileUrl: URL) async throws {
+        try await withThrowingTaskGroup(of: Int.self) { group in
+            // İlk dalga
+            for _ in 0..<min(max(1, maxConcurrent), total) {
+                guard let (index, operation) = iterator.next() else { break }
+                group.addTask {
+                    try await self.upload(operation: operation, index: index, from: fileUrl)
+                    return index
+                }
+            }
+
+            // Biri bitince sıradakini başlat
+            while try await group.next() != nil {
+                completed += 1
+                let done = String(completed).leftPad(to: width)
+                let all = String(total).leftPad(to: width)
+                Log("   Part \(done)/\(all) uploaded".dim)
+
+                if let (index, operation) = iterator.next() {
+                    group.addTask {
+                        try await self.upload(operation: operation, index: index, from: fileUrl)
+                        return index
+                    }
+                }
+            }
+        }
+    }
+
+    private func upload(operation: BuildUploadOperation, index: Int, from fileUrl: URL) async throws
+    {
         guard let url = URL(string: operation.url) else {
-            throw UploadToAppStoreError.chunkUploadFailed(index: index, status: nil, message: "Invalid upload URL.")
+            throw UploadToAppStoreError.chunkUploadFailed(
+                index: index, status: nil, message: "Invalid upload URL.")
         }
 
         let handle = try FileHandle(forReadingFrom: fileUrl)
         defer { try? handle.close() }
         try handle.seek(toOffset: UInt64(operation.offset))
-        guard let chunk = try handle.read(upToCount: Int(operation.length)), chunk.count == Int(operation.length) else {
-            throw UploadToAppStoreError.chunkUploadFailed(index: index, status: nil, message: "Could not read \(operation.length) bytes at offset \(operation.offset).")
+        guard let chunk = try handle.read(upToCount: Int(operation.length)),
+            chunk.count == Int(operation.length)
+        else {
+            throw UploadToAppStoreError.chunkUploadFailed(
+                index: index, status: nil,
+                message: "Could not read \(operation.length) bytes at offset \(operation.offset).")
         }
 
         var request = URLRequest(url: url)
@@ -261,15 +330,56 @@ struct UploadToAppStoreTask: Task {
                 let (_, response) = try await URLSession.shared.upload(for: request, from: chunk)
                 let status = (response as? HTTPURLResponse)?.statusCode
                 if let status, (200...299).contains(status) { return }
-                lastError = .chunkUploadFailed(index: index, status: status, message: "Unexpected response.")
+                lastError = .chunkUploadFailed(
+                    index: index, status: status, message: "Unexpected response.")
             } catch {
-                lastError = .chunkUploadFailed(index: index, status: nil, message: error.localizedDescription)
+                lastError = .chunkUploadFailed(
+                    index: index, status: nil, message: error.localizedDescription)
             }
             if attempt < maxAttempts {
                 try await _Concurrency.Task.sleep(nanoseconds: UInt64(attempt) * 2_000_000_000)
             }
         }
-        throw lastError ?? UploadToAppStoreError.chunkUploadFailed(index: index, status: nil, message: "Unknown error.")
+        throw lastError
+            ?? UploadToAppStoreError.chunkUploadFailed(
+                index: index, status: nil, message: "Unknown error.")
+    }
+
+    // MARK: - Commit
+
+    private func commitWithRetry(
+        service: AppStoreService,
+        fileId: String,
+        buildUploadId: String,
+        maxAttempts: Int = 4
+    ) async throws {
+        for attempt in 1...maxAttempts {
+            do {
+                try await service.commitBuildUploadFile(id: fileId)
+                return
+            } catch AppStoreServiceError.apiError(let status, let message)
+                where (status ?? 0) >= 500 || status == 429
+            {
+
+                // İstek sunucuda işlenmiş olabilir; durumu kontrol et
+                if let s = try? await service.fetchBuildUpload(id: buildUploadId),
+                    s.state == .processing || s.state == .complete
+                {
+                    return
+                }
+                guard attempt < maxAttempts else {
+                    throw AppStoreServiceError.apiError(
+                        status: status,
+                        message: "Commit failed after \(maxAttempts) attempts: \(message)"
+                    )
+                }
+                Log(
+                    "   🟡  Commit failed (HTTP \(status.map(String.init) ?? "?")), retrying (\(attempt)/\(maxAttempts - 1))..."
+                        .yellow)
+                try await _Concurrency.Task.sleep(
+                    nanoseconds: UInt64(attempt * attempt) * 3_000_000_000)
+            }
+        }
     }
 
     // MARK: - Processing
@@ -294,7 +404,7 @@ struct UploadToAppStoreTask: Task {
             switch status.state {
             case .complete:
                 for warning in status.warnings {
-                    Log("   ⚠️  \(warning)".yellow)
+                    Log("   🟡  \(warning)".yellow)
                 }
                 return status
             case .failed:
@@ -306,11 +416,19 @@ struct UploadToAppStoreTask: Task {
             guard Date() < deadline else {
                 throw UploadToAppStoreError.processingTimeout(buildUploadId: buildUploadId)
             }
-            try await _Concurrency.Task.sleep(nanoseconds: UInt64(max(1, pollInterval) * 1_000_000_000))
+            try await _Concurrency.Task.sleep(
+                nanoseconds: UInt64(max(1, pollInterval) * 1_000_000_000))
         }
     }
 
     private static func formatBytes(_ bytes: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
+}
+
+
+private extension String {
+    func leftPad(to width: Int, with pad: Character = "0") -> String {
+        count >= width ? self : String(repeating: pad, count: width - count) + self
     }
 }
