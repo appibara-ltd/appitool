@@ -16,3 +16,7 @@ filter:
     - /v1/devices/{id}
     - /v1/bundleIdCapabilities
     - /v1/bundleIds/{id}/bundleIdCapabilities
+    - /v1/buildUploads
+    - /v1/buildUploads/{id}
+    - /v1/buildUploadFiles
+    - /v1/buildUploadFiles/{id}
