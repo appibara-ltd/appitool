@@ -47,7 +47,9 @@ struct FlowRunner: Sendable {
         }
 
         // Resolve handlers: context.preset handlers as baseline, overridden by any custom stageHandlers
-        let effectiveHandlers = (context.preset?.stageHandlers ?? [:]).merging(stageHandlers) { _, custom in custom }
+        let effectiveHandlers = (context.preset?.stageHandlers ?? [:]).merging(stageHandlers) {
+            _, custom in custom
+        }
 
         do {
             for stage in FlowStage.allCases {
@@ -65,7 +67,9 @@ struct FlowRunner: Sendable {
         stageHandlers: [FlowStage: any FlowStageHandler] = [:]
     ) async throws {
         guard let platform, let distribution else {
-            fatalError("FlowRunner must be initialized with platform and distribution, or run(context:stageHandlers:) must be called.")
+            fatalError(
+                "FlowRunner must be initialized with platform and distribution, or run(context:stageHandlers:) must be called."
+            )
         }
         var context = FlowContext(
             platform: platform,
@@ -89,8 +93,11 @@ struct FlowRunner: Sendable {
         guard let handler else { return }
         context.currentStage = stage
         let stageStart = Date()
+        let presetName = context.preset.map { "(\($0.name)) ".dim } ?? ""
 
-        Log("\n\(stage.emoji) [\(stage.rawValue.uppercased())] ".cyan.bold + stage.displayName.bold)
+        Log(
+            "\n\(stage.emoji) [\(stage.rawValue.uppercased())] ".cyan.bold + presetName
+                + stage.displayName.bold)
         Log("   " + "─".repeated(50).dim)
 
         Log.depth += 3
@@ -100,7 +107,7 @@ struct FlowRunner: Sendable {
 
         let duration = Date().timeIntervalSince(stageStart)
         context.stageDurations[stage] = duration
-        Log("🟢 " + "\(stage.displayName) completed in \(String(format: "%.2fs", duration))".green.dim)
+        Log("\(stage.emoji) \(stage.displayName) completed in \(duration.formattedDuration)".green.dim)
     }
 
     // MARK: - Global Error Handling
@@ -122,7 +129,7 @@ struct FlowRunner: Sendable {
             "Platform": context.platform.rawValue.uppercased(),
             "Distribution": context.distribution.rawValue,
             "Failing Stage": "\(stage.emoji) \(stage.displayName)",
-            "Elapsed Time": String(format: "%.2fs", totalDuration),
+            "Elapsed Time": totalDuration.formattedDuration,
         ]
         if let bundleId = context.bundleId {
             let key = context.platform == .ios ? "Bundle ID" : "Package Name"
@@ -156,7 +163,10 @@ struct FlowRunner: Sendable {
     // MARK: - Presentation Helpers
 
     private func printHeader(context: FlowContext) {
-        Log("\n" + "🌊 Starting AppiFlow: \(context.platform.rawValue.uppercased()) (\(context.distribution.rawValue))".cyan.bold)
+        Log(
+            "\n"
+                + "🌊 Starting AppiFlow: \(context.platform.rawValue.uppercased()) (\(context.distribution.rawValue))"
+                .cyan.bold)
         if let preset = context.preset {
             Log("   Preset: \(preset.name)".magenta.bold + " - \(preset.description)".dim)
         }
@@ -184,8 +194,8 @@ struct FlowRunner: Sendable {
     }
 }
 
-private extension String {
-    func repeated(_ count: Int) -> String {
+extension String {
+    fileprivate func repeated(_ count: Int) -> String {
         String(repeating: self, count: count)
     }
 }

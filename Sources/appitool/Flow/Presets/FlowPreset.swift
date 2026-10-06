@@ -109,7 +109,7 @@ extension FlowPreset {
         var metadata: [String: String] = [
             "Platform": context.platform.rawValue.uppercased(),
             "Distribution": context.distribution.rawValue,
-            "Total Duration": String(format: "%.2fs", totalDuration),
+            "Total Duration": totalDuration.formattedDuration,
         ]
         if let version = context.version {
             metadata["Version"] = version

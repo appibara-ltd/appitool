@@ -33,7 +33,7 @@ struct IOSInternalPreset: FlowPreset {
     }
 
     func setup(context: inout FlowContext) async throws {
-        Log("🔍 [\(name)] Validating App Store Connect credentials and AppStore profiles...".dim)
+        Log("🔍 Validating App Store Connect credentials and AppStore profiles...".dim)
         if context.workspacePath == nil && context.xcodeProjectPath == nil {
             let detected = XcodeBuildTask.autoDetect(in: context.projectDirectory)
             context.workspacePath = detected.workspace
@@ -46,7 +46,7 @@ struct IOSInternalPreset: FlowPreset {
             in: context.projectDirectory
         )
         Log(
-            "🔍 [\(name)] Inspected project targets: \(info.targets.joined(separator: ", "))".dim)
+            "🔍 Inspected project targets: \(info.targets.joined(separator: ", "))".dim)
 
         let result = try await XCodeTasks.getIosIdentifiers(
             workspaceRoot: context.projectDirectory,
@@ -89,7 +89,7 @@ struct IOSInternalPreset: FlowPreset {
             return
         }
 
-        Log("🔐 [\(name)] Running Match AppStore synchronization...".dim)
+        Log("🔐 Running Match AppStore synchronization...".dim)
         let output = try await MatchTask().run(
             .init(
                 gitUrl: gitUrl,
@@ -111,7 +111,7 @@ struct IOSInternalPreset: FlowPreset {
             ))
 
         // Log installed certificates and provisioning profiles
-        Log("✨ [\(name)] Match AppStore completed successfully.".green.bold)
+        Log("✨ Match AppStore completed successfully.".green.bold)
         if !output.installedCertificates.isEmpty {
             Log("📜 Installed Certificates (\(output.installedCertificates.count)):".bold)
             for cert in output.installedCertificates {
@@ -135,7 +135,7 @@ struct IOSInternalPreset: FlowPreset {
         context.installedProfiles = output.installedProfiles
 
         // Fetch latest build number / version from App Store Connect
-        Log("🔥 [\(name)] Fetching latest build info from App Store Connect...".dim)
+        Log("🔥 Fetching latest build info from App Store Connect...".dim)
 
         guard let appleKeyId = context.appleKeyId, let appleKey = context.appleKey,
             let appleIssuerId = context.appleIssuerId
@@ -160,16 +160,16 @@ struct IOSInternalPreset: FlowPreset {
         context.metadata["appstore_build_number"] = buildInfo.buildNumber
 
         Log(
-            "🟢 [\(name)] Retrieved AppStore build info: Version: \(buildInfo.version.bold), Build Number: \(buildInfo.buildNumber.bold)"
+            "🟢 Retrieved AppStore build info: Version: \(buildInfo.version.bold), Build Number: \(buildInfo.buildNumber.bold)"
                 .green)
     }
 
     func prebuild(context: inout FlowContext) async throws {
-        Log("🔧 [\(name)] Preparing project for manual code signing...".dim)
+        Log("🔧 Preparing project for manual code signing...".dim)
 
         guard !context.installedProfiles.isEmpty else {
             Log(
-                "🚧  [\(name)] No provisioning profiles installed in context to configure manual signing."
+                "🚧  No provisioning profiles installed in context to configure manual signing."
                     .yellow)
             return
         }
@@ -216,11 +216,11 @@ struct IOSInternalPreset: FlowPreset {
 
         if results.isEmpty {
             Log(
-                "🚧 [\(name)] No signable targets found or updated for configuration '\(configuration)'."
+                "🚧 No signable targets found or updated for configuration '\(configuration)'."
                     .yellow)
         } else {
             Log(
-                "📝 [\(name)] Configured manual signing for \(results.count) target(s) [Configuration: \(configuration)]:"
+                "📝 Configured manual signing for \(results.count) target(s) [Configuration: \(configuration)]:"
                     .green.bold)
             for r in results {
                 Log("   • Target: \(r.targetName.bold) (\(r.bundleId))")
@@ -237,7 +237,7 @@ struct IOSInternalPreset: FlowPreset {
                 context.buildNumber != nil
                 ? "\(context.buildNumber!) (App Store: \(baseBuildStr))" : baseBuildStr
             Log(
-                "🔢 [\(name)] Incrementing build number: \(prevDisplay.bold) -> \(nextBuildNumber.bold.green)"
+                "🔢 Incrementing build number: \(prevDisplay.bold) -> \(nextBuildNumber.bold.green)"
                     .dim)
 
             if !context.isDryRun {
@@ -258,10 +258,10 @@ struct IOSInternalPreset: FlowPreset {
     }
 
     func build(context: inout FlowContext) async throws {
-        Log("🔨 [\(name)] Compiling iOS archive with App Store export configuration...".dim)
+        Log("🔨 Compiling iOS archive with App Store export configuration...".dim)
 
         if context.isDryRun {
-            Log("🟡 [\(name)] Dry-run enabled: skipping xcodebuild archive/export.".yellow)
+            Log("🟡 Dry-run enabled: skipping xcodebuild archive/export.".yellow)
             return
         }
 
@@ -308,14 +308,14 @@ struct IOSInternalPreset: FlowPreset {
     }
 
     func postbuild(context: inout FlowContext) async throws {
-        Log("📦 [\(name)] Verifying .ipa archive for App Store upload compliance...".dim)
+        Log("📦 Verifying .ipa archive for App Store upload compliance...".dim)
     }
 
     func prerelease(context: inout FlowContext) async throws {
-        Log("📝 [\(name)] Packaging release artifacts and localized what-to-test notes...".dim)
+        Log("📝 Packaging release artifacts and localized what-to-test notes...".dim)
     }
 
     func release(context: inout FlowContext) async throws {
-        Log("🚀 [\(name)] Uploading build to App Store Connect / TestFlight...".dim)
+        Log("🚀 Uploading build to App Store Connect / TestFlight...".dim)
     }
 }
