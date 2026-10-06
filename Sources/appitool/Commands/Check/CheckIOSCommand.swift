@@ -101,9 +101,8 @@ struct CheckIOSCommand: AsyncParsableCommand {
             }
 
             Log("Fetching latest build from App Store Connect for ".dim + "\(targetBundleId)".bold + "...".dim)
-            let task = GetLatestBuildNumberTask()
             do {
-                let info = try await task.run(.init(
+                let info = try await GetLatestBuildNumberTask().run(.init(
                     target: .ios(bundleId: targetBundleId, service: service),
                     distribution: .appstore
                 ))

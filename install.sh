@@ -13,12 +13,12 @@ echo "🌊 Installing appitool..."
 
 # 1. OS & Architecture Check
 if [ "$OS" != "Darwin" ]; then
-    echo "❌ Error: Only macOS (Darwin) is currently supported." >&2
+    echo "🔴 Error: Only macOS (Darwin) is currently supported." >&2
     exit 1
 fi
 
 if [ "$ARCH" != "arm64" ]; then
-    echo "❌ Error: Only Apple Silicon (arm64) is currently supported." >&2
+    echo "🔴 Error: Only Apple Silicon (arm64) is currently supported." >&2
     exit 1
 fi
 
@@ -35,11 +35,11 @@ if [ -n "$TOKEN" ]; then
     AUTH_HEADER=(-H "Authorization: Bearer $TOKEN")
 fi
 
-echo "   🟡 Fetching latest release information..."
+echo "   🔄 Fetching latest release information..."
 RELEASE_JSON="$(curl -fsSL ${AUTH_HEADER[@]+"${AUTH_HEADER[@]}"} -H "Accept: application/vnd.github.v3+json" "$GITHUB_API" 2>/dev/null || true)"
 
 if [ -z "$RELEASE_JSON" ] || echo "$RELEASE_JSON" | grep -q '"message": *"Not Found"'; then
-    echo "❌ Error: Could not fetch releases from GitHub (404 Not Found)." >&2
+    echo "🔴 Error: Could not fetch releases from GitHub (404 Not Found)." >&2
     if [ -z "$TOKEN" ]; then
         echo "   If this repository is private, please export GITHUB_TOKEN before running:" >&2
         echo "   export GITHUB_TOKEN=\"ghp_...\"" >&2
@@ -55,11 +55,11 @@ TARBALL_API_URL="$(echo "$RELEASE_JSON" | awk -F'"' '/"url":/ { last_url=$4 } /"
 CHECKSUMS_API_URL="$(echo "$RELEASE_JSON" | awk -F'"' '/"url":/ { last_url=$4 } /"name": *"checksums\.txt"/ { print last_url; exit }')"
 
 if [ -z "$TARBALL_URL" ] || [ -z "$CHECKSUMS_URL" ]; then
-    echo "❌ Error: Could not locate release artifacts for arm64 macOS (${TAG_NAME:-unknown})." >&2
+    echo "🔴 Error: Could not locate release artifacts for arm64 macOS (${TAG_NAME:-unknown})." >&2
     exit 1
 fi
 
-echo "   🟡 Downloading appitool ${TAG_NAME}..."
+echo "   🔄 Downloading appitool ${TAG_NAME}..."
 if [ -n "$TOKEN" ] && [ -n "$TARBALL_API_URL" ]; then
     curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/octet-stream" "$TARBALL_API_URL" -o "$TMP_DIR/appitool-darwin-arm64.tar.gz"
     curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/octet-stream" "$CHECKSUMS_API_URL" -o "$TMP_DIR/checksums.txt"
@@ -69,17 +69,17 @@ else
 fi
 
 # 3. Verify SHA256 Checksum
-echo "   🟡 Verifying checksum..."
+echo "   🔄 Verifying checksum..."
 EXPECTED_SHA="$(grep 'appitool-darwin-arm64\.tar\.gz' "$TMP_DIR/checksums.txt" | awk '{print $1}')"
 ACTUAL_SHA="$(shasum -a 256 "$TMP_DIR/appitool-darwin-arm64.tar.gz" | awk '{print $1}')"
 
 if [ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]; then
-    echo "❌ Error: Checksum verification failed!" >&2
+    echo "🔴 Error: Checksum verification failed!" >&2
     echo "   Expected: $EXPECTED_SHA" >&2
     echo "   Actual:   $ACTUAL_SHA" >&2
     exit 1
 fi
-echo "   ✅ Checksum verified."
+echo "   🟢 Checksum verified."
 
 # 4. Determine Installation Directory
 INSTALL_DIR=""
@@ -90,7 +90,7 @@ else
     mkdir -p "$INSTALL_DIR"
 fi
 
-echo "   🟡 Installing binary to ${INSTALL_DIR}/appitool..."
+echo "   🔄 Installing binary to ${INSTALL_DIR}/appitool..."
 tar -xzf "$TMP_DIR/appitool-darwin-arm64.tar.gz" -C "$TMP_DIR"
 cp -f "$TMP_DIR/appitool" "$INSTALL_DIR/appitool"
 chmod +x "$INSTALL_DIR/appitool"

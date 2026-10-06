@@ -50,7 +50,7 @@ struct KokonoCommand: AsyncParsableCommand {
                 kokonoUrl: resolvedUrl,
                 kokonoPublicKey: resolvedPublicKey
             ))
-            Log("✅ ".green.bold + "KokoNo notification sent successfully.".bold)
+            Log("🟢 KokoNo notification sent successfully.".bold)
         } catch {
             Log("Error: ".red.bold + "Failed to send KokoNo notification: \(error.localizedDescription)")
             throw ExitCode.failure

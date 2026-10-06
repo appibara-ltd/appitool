@@ -169,7 +169,7 @@ struct BuildAndroidCommand: AsyncParsableCommand {
                 Log("   Package (APK): ".dim + "\(apk)".green.bold)
             }
         } catch {
-            Log("\n" + "❌ Build Failed: ".red.bold + "\(error.localizedDescription)")
+            Log("\n" + "🔴 Build Failed: ".red.bold + "\(error.localizedDescription)")
             throw ExitCode.failure
         }
     }

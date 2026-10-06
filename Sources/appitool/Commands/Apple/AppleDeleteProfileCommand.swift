@@ -52,7 +52,7 @@ struct AppleDeleteProfileCommand: AsyncParsableCommand {
 
             if result.deleted {
                 let displayName = result.matchedProfile?.attributes?.name ?? result.targetDescription
-                Log("✅ Successfully deleted provisioning profile '\(displayName)'.".green.bold)
+                Log("🟢 Successfully deleted provisioning profile '\(displayName)'.".green.bold)
             } else {
                 Log("🟡️ Provisioning profile '\(result.targetDescription)' does not exist on Apple Developer Portal (already absent).".yellow)
             }

@@ -66,7 +66,7 @@ struct SelfUpdateCommand: AsyncParsableCommand {
         }
 
         if !isUpdateAvailable && !force {
-            Log("✅ ".green.bold + "appitool is already up to date (\(currentVersionString)).".dim)
+            Log("🟢 appitool is already up to date (\(currentVersionString)).".dim)
             return
         }
 
@@ -75,12 +75,12 @@ struct SelfUpdateCommand: AsyncParsableCommand {
                 Log("🎉 A new version of appitool is available: ".green.bold + "\(currentVersionString)".dim + " → " + "\(latestTag)".green.bold)
                 Log("   Run 'appitool self-update' to upgrade.")
             } else {
-                Log("✅ ".green.bold + "appitool is up to date (\(currentVersionString)).".dim)
+                Log("🟢 appitool is up to date (\(currentVersionString)).".dim)
             }
             return
         }
 
-        Log("   🟡 Found update: \(latestTag)".cyan)
+        Log("   🟢 Found update: \(latestTag)".cyan)
 
         let platform = currentPlatform
         let expectedArtifactNames = [
@@ -89,7 +89,7 @@ struct SelfUpdateCommand: AsyncParsableCommand {
         ]
 
         guard let tarballAsset = release.assets.first(where: { expectedArtifactNames.contains($0.name) }) else {
-            Log("❌ Error: No compatible release artifact found for \(platform.os) (\(platform.arch)) in release \(latestTag).".red)
+            Log("🔴 Error: No compatible release artifact found for \(platform.os) (\(platform.arch)) in release \(latestTag).".red)
             if !release.assets.isEmpty {
                 Log("   Available assets for \(latestTag):".yellow)
                 for asset in release.assets {
@@ -100,7 +100,7 @@ struct SelfUpdateCommand: AsyncParsableCommand {
         }
 
         guard let checksumsAsset = release.assets.first(where: { $0.name == Self.checksumsName }) else {
-            Log("❌ Error: Could not locate '\(Self.checksumsName)' in release assets for \(latestTag).".red)
+            Log("🔴 Error: Could not locate '\(Self.checksumsName)' in release assets for \(latestTag).".red)
             throw ExitCode.failure
         }
 
@@ -111,38 +111,38 @@ struct SelfUpdateCommand: AsyncParsableCommand {
             try? FileManager.default.removeItem(at: tempDir)
         }
 
-        Log("   🟡 Downloading \(artifactName)...")
+        Log("   🔄 Downloading \(artifactName)...")
         let tarballData = try await downloadData(for: tarballAsset)
         let checksumsData = try await downloadData(for: checksumsAsset)
 
         let tarballPath = tempDir.appendingPathComponent(artifactName)
         try tarballData.write(to: tarballPath)
 
-        Log("   🟡 Verifying SHA256 checksum...")
+        Log("   🔄 Verifying SHA256 checksum...")
         guard let checksumsString = String(data: checksumsData, encoding: .utf8) else {
-            Log("❌ Error: Invalid checksums file format.".red)
+            Log("🔴 Error: Invalid checksums file format.".red)
             throw ExitCode.failure
         }
 
         let calculatedHash = SHA256.hash(data: tarballData).map { String(format: "%02x", $0) }.joined()
         guard let expectedHash = parseChecksum(from: checksumsString, for: artifactName) else {
-            Log("❌ Error: Checksum for '\(artifactName)' not found in \(Self.checksumsName).".red)
+            Log("🔴 Error: Checksum for '\(artifactName)' not found in \(Self.checksumsName).".red)
             throw ExitCode.failure
         }
 
         if calculatedHash.lowercased() != expectedHash.lowercased() {
-            Log("❌ Error: Checksum verification failed!".red)
+            Log("🔴 Error: Checksum verification failed!".red)
             Log("   Expected: \(expectedHash)")
             Log("   Actual:   \(calculatedHash)")
             throw ExitCode.failure
         }
-        Log("   ✅ Checksum verified.")
+        Log("   🟢 Checksum verified.")
 
-        Log("   🟡 Unpacking archive...")
+        Log("   🔄 Unpacking archive...")
         try await runProcess("tar", arguments: ["-xzf", tarballPath.path, "-C", tempDir.path])
         let extractedBinary = tempDir.appendingPathComponent("appitool")
         guard FileManager.default.fileExists(atPath: extractedBinary.path) else {
-            Log("❌ Error: 'appitool' binary was not found in the extracted archive.".red)
+            Log("🔴 Error: 'appitool' binary was not found in the extracted archive.".red)
             throw ExitCode.failure
         }
 
@@ -155,12 +155,12 @@ struct SelfUpdateCommand: AsyncParsableCommand {
             (!fileManager.fileExists(atPath: currentExecutableURL.path) || fileManager.isWritableFile(atPath: currentExecutableURL.path))
 
         if !isWritable {
-            Log("❌ Error: Permission denied to write to '\(currentExecutableURL.path)'.".red)
+            Log("🔴 Error: Permission denied to write to '\(currentExecutableURL.path)'.".red)
             Log("   Please re-run with sudo: sudo appitool self-update".yellow)
             throw ExitCode.failure
         }
 
-        Log("   🟡 Replacing binary at \(currentExecutableURL.path)...")
+        Log("   🔄 Replacing binary at \(currentExecutableURL.path)...")
         let backupURL = currentExecutableURL.appendingPathExtension("old")
         if fileManager.fileExists(atPath: backupURL.path) {
             try? fileManager.removeItem(at: backupURL)
@@ -203,11 +203,11 @@ struct SelfUpdateCommand: AsyncParsableCommand {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
             let body = String(data: data, encoding: .utf8) ?? ""
             if statusCode == 404 && githubToken == nil {
-                Log("❌ Error: Release not found on GitHub (HTTP 404).".red)
+                Log("🔴 Error: Release not found on GitHub (HTTP 404).".red)
                 Log("   If the repository is private, please set the GITHUB_TOKEN environment variable:".yellow)
                 Log("   export GITHUB_TOKEN=\"ghp_...\"".dim)
             } else {
-                Log("❌ Error: Failed to fetch latest release from GitHub (HTTP \(statusCode)): \(body)".red)
+                Log("🔴 Error: Failed to fetch latest release from GitHub (HTTP \(statusCode)): \(body)".red)
             }
             throw ExitCode.failure
         }
@@ -227,7 +227,7 @@ struct SelfUpdateCommand: AsyncParsableCommand {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-            Log("❌ Error: Failed to download asset '\(asset.name)' from \(targetURL) (HTTP \(statusCode)).".red)
+            Log("🔴 Error: Failed to download asset '\(asset.name)' from \(targetURL) (HTTP \(statusCode)).".red)
             throw ExitCode.failure
         }
         return data

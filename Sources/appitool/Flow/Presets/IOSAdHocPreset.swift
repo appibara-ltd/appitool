@@ -9,19 +9,21 @@ struct IOSAdHocPreset: FlowPreset {
 
     init() {}
 
+
     func requirements(context: FlowContext) throws {
-        try validateRequirements([
-            ("MATCH_GIT_URL", context.matchGitUrl, "Match Git repository URL"),
-            ("MATCH_PASSWORD", context.matchPassword, "Match encryption password"),
-            ("FIREBASE_IOS_APP_ID", context.firebaseAppId, "Firebase iOS App ID"),
-            ("GOOGLE_KEY", context.googleKey, "Google Service Account key for Firebase"),
-        ], context: context)
+        try validateRequirements(
+            [
+                ("MATCH_GIT_URL", context.matchGitUrl, "Match Git repository URL"),
+                ("MATCH_PASSWORD", context.matchPassword, "Match encryption password"),
+                ("FIREBASE_IOS_APP_ID", context.firebaseAppId, "Firebase iOS App ID"),
+                ("GOOGLE_KEY", context.googleKey, "Google Service Account key for Firebase"),
+            ], context: context)
     }
 
     func setup(context: inout FlowContext) async throws {
         Log(
-            "🔍 [\(name)] Validating iOS environment, signing identities, and Match Ad-Hoc profiles..."
-                .dim)
+            "🔍 [\(name)] Validating iOS environment, signing identities, and Ad-Hoc profiles...".dim
+        )
 
         if context.workspacePath == nil && context.xcodeProjectPath == nil {
             let detected = XcodeBuildTask.autoDetect(in: context.projectDirectory)
@@ -81,7 +83,7 @@ struct IOSAdHocPreset: FlowPreset {
         Log("🔐 [\(name)] Running Match Ad-Hoc synchronization...".dim)
         let task = MatchTask()
         let output = try await task.run(
-            MatchTask.Input(
+            .init(
                 gitUrl: gitUrl,
                 gitBranch: context.matchGitBranch ?? "master",
                 gitToken: context.matchGitToken,
@@ -129,9 +131,8 @@ struct IOSAdHocPreset: FlowPreset {
         let firebaseAppId = context.firebaseAppId!
         let firebaseService = try FirebaseService(key: context.googleKey!)
 
-        let buildTask = GetLatestBuildNumberTask()
-        let buildInfo = try await buildTask.run(
-            GetLatestBuildNumberTask.Input(
+        let buildInfo = try await GetLatestBuildNumberTask().run(
+            .init(
                 target: .ios(
                     bundleId: context.bundleId,
                     firebaseAppId: firebaseAppId,
@@ -144,14 +145,18 @@ struct IOSAdHocPreset: FlowPreset {
         context.metadata["firebase_version"] = buildInfo.version
         context.metadata["firebase_build_number"] = buildInfo.buildNumber
 
-        Log("✅ [\(name)] Retrieved Firebase build info: Version: \(buildInfo.version.bold), Build Number: \(buildInfo.buildNumber.bold)".green)
+        Log(
+            "🟢 [\(name)] Retrieved Firebase build info: Version: \(buildInfo.version.bold), Build Number: \(buildInfo.buildNumber.bold)"
+                .green)
     }
 
     func prebuild(context: inout FlowContext) async throws {
         Log("🔧 [\(name)] Preparing project for manual code signing...".dim)
 
         guard !context.installedProfiles.isEmpty else {
-            Log("🚧  [\(name)] No provisioning profiles installed in context to configure manual signing.".yellow)
+            Log(
+                "🚧  [\(name)] No provisioning profiles installed in context to configure manual signing."
+                    .yellow)
             return
         }
 
@@ -174,8 +179,10 @@ struct IOSAdHocPreset: FlowPreset {
         if context.teamId == nil, let cert = context.installedCertificates.first {
             let pattern = #"\(([A-Z0-9]{10})\)"#
             if let regex = try? NSRegularExpression(pattern: pattern),
-               let match = regex.firstMatch(in: cert, range: NSRange(cert.startIndex..., in: cert)),
-               let range = Range(match.range(at: 1), in: cert) {
+                let match = regex.firstMatch(
+                    in: cert, range: NSRange(cert.startIndex..., in: cert)),
+                let range = Range(match.range(at: 1), in: cert)
+            {
                 context.teamId = String(cert[range])
             }
         }
@@ -194,9 +201,13 @@ struct IOSAdHocPreset: FlowPreset {
         let results = try XCodeTasks.configureManualSigning(input, in: context.projectDirectory)
 
         if results.isEmpty {
-            Log("🚧 [\(name)] No signable targets found or updated for configuration '\(configuration)'.".yellow)
+            Log(
+                "🚧 [\(name)] No signable targets found or updated for configuration '\(configuration)'."
+                    .yellow)
         } else {
-            Log("✍️  [\(name)] Configured manual signing for \(results.count) target(s) [Configuration: \(configuration)]:".green.bold)
+            Log(
+                "📝 [\(name)] Configured manual signing for \(results.count) target(s) [Configuration: \(configuration)]:"
+                    .green.bold)
             for r in results {
                 Log("   • Target: \(r.targetName.bold) (\(r.bundleId))")
                 Log("     Profile: \(r.profileName) [UUID: \(r.profileUUID)]".dim)
@@ -208,12 +219,16 @@ struct IOSAdHocPreset: FlowPreset {
         let baseBuildStr = context.metadata["firebase_build_number"] ?? context.buildNumber
         if let baseBuildStr = baseBuildStr, let baseBuild = Int(baseBuildStr) {
             let nextBuildNumber = String(baseBuild + 1)
-            let prevDisplay = context.buildNumber != nil ? "\(context.buildNumber!) (Firebase: \(baseBuildStr))" : baseBuildStr
-            Log("🔢 [\(name)] Incrementing build number: \(prevDisplay.bold) -> \(nextBuildNumber.bold.green)".dim)
+            let prevDisplay =
+                context.buildNumber != nil
+                ? "\(context.buildNumber!) (Firebase: \(baseBuildStr))" : baseBuildStr
+            Log(
+                "🔢 [\(name)] Incrementing build number: \(prevDisplay.bold) -> \(nextBuildNumber.bold.green)"
+                    .dim)
 
             if !context.isDryRun {
                 try XCodeTasks.updateBuildNumber(
-                    XCodeTasks.UpdateBuildNumberInput(
+                    .init(
                         projectPath: context.xcodeProjectPath,
                         workspacePath: context.workspacePath,
                         buildNumber: nextBuildNumber,
@@ -253,7 +268,7 @@ struct IOSAdHocPreset: FlowPreset {
         let profiles = context.installedProfiles.mapValues { $0.name }
 
         let output = try await XcodeBuildTask().run(
-            XcodeBuildTask.Input(
+            .init(
                 workspace: context.workspacePath,
                 project: context.xcodeProjectPath,
                 scheme: context.scheme,
@@ -284,40 +299,54 @@ struct IOSAdHocPreset: FlowPreset {
 
     func prerelease(context: inout FlowContext) async throws {
         Log("📝 [\(name)] Preparing release packaging and tester release notes...".dim)
-        context.metadata["firebase_test_groups"] = "internal"
-        context.changelog = "APPITOOL TEST"
-
     }
 
     func release(context: inout FlowContext) async throws {
         Log("🚀 [\(name)] Distributing Ad-Hoc build to testers via Firebase App Distribution...".dim)
 
+        context.metadata["firebase_test_groups"] = "internal"
+        context.changelog = "APPITOOL TEST"
+
         let firebaseAppId = context.firebaseAppId!
         let firebaseService = try FirebaseService(key: context.googleKey!)
 
         // Read .ipa binary directly from context
-        guard let ipaUrl = context.artifactPaths.first(where: { $0.pathExtension.lowercased() == "ipa" })
-                ?? context.metadata["ipa_path"].map({ URL(fileURLWithPath: $0) }) else {
+        guard
+            let ipaUrl = context.artifactPaths.first(where: {
+                $0.pathExtension.lowercased() == "ipa"
+            })
+                ?? context.metadata["ipa_path"].map({ URL(fileURLWithPath: $0) })
+        else {
             Log("🚧 [\(name)] No .ipa package found in context artifacts to upload.".yellow)
             return
         }
 
         if context.isDryRun {
-            Log("🟡 [\(name)] Dry-run enabled: would upload \(ipaUrl.lastPathComponent) to Firebase App Distribution (\(firebaseAppId)).".yellow)
+            Log(
+                "🟡 [\(name)] Dry-run enabled: would upload \(ipaUrl.lastPathComponent) to Firebase App Distribution (\(firebaseAppId))."
+                    .yellow)
             return
         }
 
         let releaseNotes = context.changelog ?? context.metadata["release_notes"]
         let testGroups: [String]? = {
-            if let groupsStr = context.metadata["firebase_test_groups"] ?? context.metadata["test_groups"] {
-                return groupsStr.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            if let groupsStr = context.metadata["firebase_test_groups"]
+                ?? context.metadata["test_groups"]
+            {
+                return groupsStr.components(separatedBy: ",").map {
+                    $0.trimmingCharacters(in: .whitespaces)
+                }.filter { !$0.isEmpty }
             }
             return nil
         }()
 
         let testerEmails: [String]? = {
-            if let emailsStr = context.metadata["firebase_tester_emails"] ?? context.metadata["tester_emails"] {
-                return emailsStr.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            if let emailsStr = context.metadata["firebase_tester_emails"]
+                ?? context.metadata["tester_emails"]
+            {
+                return emailsStr.components(separatedBy: ",").map {
+                    $0.trimmingCharacters(in: .whitespaces)
+                }.filter { !$0.isEmpty }
             }
             return nil
         }()
@@ -336,9 +365,8 @@ struct IOSAdHocPreset: FlowPreset {
             }
         }
 
-        let uploadTask = UploadToFirebaseTask()
-        let result = try await uploadTask.run(
-            UploadToFirebaseTask.Input(
+        let result = try await UploadToFirebaseTask().run(
+            .init(
                 binaryPath: ipaUrl.path,
                 firebaseAppId: firebaseAppId,
                 service: firebaseService,
@@ -360,6 +388,6 @@ struct IOSAdHocPreset: FlowPreset {
             context.metadata["firebase_testing_uri"] = testingUri
         }
 
-        Log("✅ [\(name)] Successfully distributed build to Firebase App Distribution!".green.bold)
+        Log("🟢 [\(name)] Successfully distributed build to Firebase App Distribution!".green.bold)
     }
 }

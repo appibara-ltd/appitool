@@ -22,20 +22,13 @@ struct FlowIOSCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Build configuration (Debug, Release). Defaults to XCODE_CONFIGURATION in .env.")
     var configuration: String?
 
-    @OptionGroup
-    var appleCredentials: AppleCredentialsOptions
+    @OptionGroup var appleCredentials: AppleCredentialsOptions
+    @OptionGroup var firebaseCredentials: FirebaseCredentialsOptions
+    @OptionGroup var matchOptions: MatchOptions
+    @OptionGroup var notificationOptions: NotificationOptions
 
-    @OptionGroup
-    var firebaseCredentials: FirebaseCredentialsOptions
-
-    @OptionGroup
-    var matchOptions: MatchOptions
-
-    @OptionGroup
-    var notificationOptions: NotificationOptions
-
-    @Flag(name: .long, help: "Suppress xcodebuild standard output and logs.")
-    var silent: Bool = false
+    @Flag(name: .long, inversion: .prefixedNo, help: "Suppress xcodebuild standard output and logs.")
+    var silent: Bool = true
 
     func run() async throws {
         _ = try? EnvLoader.loadEnv()

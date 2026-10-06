@@ -63,7 +63,7 @@ struct AppleCreateProfileCommand: AsyncParsableCommand {
                 outputPath: output
             )
 
-            Log("\n✅ Provisioning profile created successfully!".green.bold)
+            Log("\n🟢 Provisioning profile created successfully!".green.bold)
             Log("  • Name: ".cyan + "\(result.profile.name)".bold)
             Log("  • Portal ID: ".cyan + "\(result.profile.id)".bold)
             Log("  • UUID: ".cyan + "\(result.profile.uuid)".bold)

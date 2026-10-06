@@ -131,7 +131,7 @@ struct UploadToFirebaseTask: Task {
 
         let versionDisplay = release.displayVersion ?? "unknown"
         let buildDisplay = release.buildVersion ?? "unknown"
-        Log("✅ Release created: v\(versionDisplay) (\(buildDisplay)) [\(releaseResourceName)]".green)
+        Log("🟢 Release created: v\(versionDisplay) (\(buildDisplay))".green)
 
         // 2. Attach release notes via FirebaseService
         if let notes = input.releaseNotes, !notes.isEmpty {
@@ -140,7 +140,7 @@ struct UploadToFirebaseTask: Task {
                 releaseName: releaseResourceName,
                 releaseNotes: notes
             )
-            Log("✅ Release notes attached.".green)
+            Log("🟢 Release notes attached.".green)
         }
 
         // 3. Distribute release to test groups and/or testers via FirebaseService
@@ -155,7 +155,7 @@ struct UploadToFirebaseTask: Task {
                 groupAliases: input.testGroups,
                 testerEmails: input.testerEmails
             )
-            Log("✅ Distributed release successfully.".green)
+            Log("🟢 Distributed release successfully.".green)
         }
 
         return UploadToFirebaseResult(

@@ -52,7 +52,7 @@ struct FirebaseUpdateReleaseCommand: AsyncParsableCommand {
         if let notes = releaseNotes {
             Log("📝 Updating release notes for [\(resolvedReleaseName)]...".dim)
             try await service.addReleaseNotes(releaseName: resolvedReleaseName, releaseNotes: notes)
-            Log("✅ Release notes updated successfully.".green)
+            Log("🟢 Release notes updated successfully.".green)
             anyUpdated = true
         }
 
@@ -70,7 +70,7 @@ struct FirebaseUpdateReleaseCommand: AsyncParsableCommand {
                 groupAliases: parsedGroups,
                 testerEmails: parsedEmails
             )
-            Log("✅ Release distributed successfully.".green)
+            Log("🟢 Release distributed successfully.".green)
             anyUpdated = true
         }
 

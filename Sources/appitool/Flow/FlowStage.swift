@@ -19,8 +19,8 @@ enum FlowStage: String, CaseIterable, Sendable, CustomStringConvertible {
         case .setup: return "Setup & Environment"
         case .prebuild: return "Pre-Build & Versioning"
         case .build: return "Build Compilation"
-        case .postbuild: return "Post-Build Verification"
-        case .prerelease: return "Pre-Release & Packaging"
+        case .postbuild: return "Post-Build"
+        case .prerelease: return "Pre-Release"
         case .release: return "Release & Store Upload"
         case .postrelease: return "Post-Release & Notifications"
         }

@@ -67,7 +67,7 @@ struct AppleCreateCertificateCommand: AsyncParsableCommand {
         let serialNumber = result.certificate.attributes?.serialNumber ?? "-"
         let expirationDate = result.certificate.attributes?.expirationDate?.description ?? "-"
 
-        Log("\n✅ Certificate created successfully!".green.bold)
+        Log("\n🟢 Certificate created successfully!".green.bold)
         Log("  • Type: ".cyan + "\(result.typeLabel)".bold)
         Log("  • Name: ".cyan + "\(result.commonName)")
         Log("  • Portal ID: ".cyan + "\(portalId)")

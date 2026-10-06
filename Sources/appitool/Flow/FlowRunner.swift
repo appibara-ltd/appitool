@@ -86,6 +86,7 @@ struct FlowRunner: Sendable {
         context: inout FlowContext,
         handler: (any FlowStageHandler)?
     ) async throws {
+        guard let handler else { return }
         context.currentStage = stage
         let stageStart = Date()
 
@@ -93,16 +94,13 @@ struct FlowRunner: Sendable {
         Log("   " + "─".repeated(50).dim)
 
         Log.depth += 3
-        defer {
-            Log.depth -= 3
-        }
-        if let handler {
-            try await handler.execute(context: &context)
-        }
+        defer { Log.depth -= 3 }
+
+        try await handler.execute(context: &context)
 
         let duration = Date().timeIntervalSince(stageStart)
         context.stageDurations[stage] = duration
-        Log("✅ ".green.bold + "\(stage.displayName) completed in \(String(format: "%.2fs", duration))".dim)
+        Log("🟢 " + "\(stage.displayName) completed in \(String(format: "%.2fs", duration))".green.dim)
     }
 
     // MARK: - Global Error Handling

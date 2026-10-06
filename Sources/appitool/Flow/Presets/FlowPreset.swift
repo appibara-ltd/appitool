@@ -94,13 +94,13 @@ extension FlowPreset {
             }
         }
         if !missing.isEmpty {
-            Log("   ❌ [\(name)] Missing \(missing.count) required configuration value(s):".red.bold)
+            Log("   🔴 [\(name)] Missing \(missing.count) required configuration value(s):".red.bold)
             for m in missing {
                 Log("      • \(m)".red)
             }
             throw FlowRequirementError(presetName: name, missing: missing)
         }
-        Log("   ✅ [\(name)] Requirements verified (\(items.count) checked).".green)
+        Log("   🟢 [\(name)] Requirements verified (\(items.count) checked).".green)
     }
 
     /// Default post-release handler sends configured success notifications (Slack, KokoNo).
@@ -122,7 +122,7 @@ extension FlowPreset {
             metadata[key] = bundleId
         }
 
-        let title = "✅ AppiFlow \(context.platform.icon) \(context.distribution.icon)"
+        let title = "🟢 AppiFlow \(context.platform.icon) \(context.distribution.icon)"
         let message = "Release completed successfully."
 
         guard !context.isDryRun else {

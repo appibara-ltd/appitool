@@ -32,7 +32,7 @@ struct ApplePruneCertificatesCommand: AsyncParsableCommand {
 
         if result.candidates.isEmpty {
             let filterDesc = type.map { " (\($0))" } ?? ""
-            Log("✅ No expired certificates\(filterDesc) found on Apple Developer Portal. Portal is clean!".green.bold)
+            Log("🟢 No expired certificates\(filterDesc) found on Apple Developer Portal. Portal is clean!".green.bold)
             return
         }
 
@@ -61,13 +61,13 @@ struct ApplePruneCertificatesCommand: AsyncParsableCommand {
         for cert in result.candidates {
             let nameStr = cert.attributes?.name ?? "unnamed"
             if let fail = result.failedCertificates.first(where: { $0.name == nameStr }) {
-                Log("  ❌ Failed to delete '\(nameStr)': \(fail.error)".red)
+                Log("  🔴 Failed to delete '\(nameStr)': \(fail.error)".red)
             } else {
-                Log("  ✅ Pruned: ".green + "\(nameStr)".bold)
+                Log("  🟢 Pruned: ".green + "\(nameStr)".bold)
             }
         }
 
-        Log("\n✅ Pruning finished: \(result.deletedCount) certificate(s) deleted".green.bold + (result.failedCertificates.count > 0 ? ", \(result.failedCertificates.count) failed/skipped.".yellow : "."))
+        Log("\n🟢 Pruning finished: \(result.deletedCount) certificate(s) deleted".green.bold + (result.failedCertificates.count > 0 ? ", \(result.failedCertificates.count) failed/skipped.".yellow : "."))
         if result.deletedCount > 0 {
             Log("🟡️ Note: Any provisioning profiles that were tied to these pruned certificates have been invalidated by Apple.".dim)
         }

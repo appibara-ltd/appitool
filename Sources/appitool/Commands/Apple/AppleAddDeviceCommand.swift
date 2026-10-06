@@ -37,7 +37,7 @@ struct AppleAddDeviceCommand: AsyncParsableCommand {
         let devClass = device.attributes?.deviceClass?.rawValue ?? "-"
         let devStatus = device.attributes?.status?.rawValue ?? "ENABLED"
 
-        Log("\n✅ Device registered successfully!".green.bold)
+        Log("\n🟢 Device registered successfully!".green.bold)
         Log("  • Name: ".cyan + "\(devName)".bold)
         Log("  • Portal ID: ".cyan + "\(device.id)")
         Log("  • UDID: ".cyan + "\(udid)")

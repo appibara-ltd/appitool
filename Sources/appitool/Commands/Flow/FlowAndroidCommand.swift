@@ -16,14 +16,9 @@ struct FlowAndroidCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Target Android package name (defaults to GOOGLE_PACKAGE_NAME in .env).")
     var packageName: String?
 
-    @OptionGroup
-    var googleCredentials: GoogleCredentialsOptions
-
-    @OptionGroup
-    var firebaseCredentials: FirebaseCredentialsOptions
-
-    @OptionGroup
-    var notificationOptions: NotificationOptions
+    @OptionGroup var googleCredentials: GoogleCredentialsOptions
+    @OptionGroup var firebaseCredentials: FirebaseCredentialsOptions
+    @OptionGroup var notificationOptions: NotificationOptions
 
     func run() async throws {
         _ = try? EnvLoader.loadEnv()

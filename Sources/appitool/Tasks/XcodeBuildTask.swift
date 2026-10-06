@@ -704,7 +704,7 @@ public struct XcodeBuildTask: Task {
         }
 
         if !input.silent {
-            Log("✅ ".green.bold + "Xcode archive created at \(archivePath)".dim)
+            Log("🟢 Xcode archive created at \(archivePath)".dim)
         }
     }
 
@@ -807,7 +807,7 @@ public struct XcodeBuildTask: Task {
         }
 
         if !input.silent {
-            Log("✅ ".green.bold + "IPA packaged successfully at \(resolvedIpa)".dim)
+            Log("🟢 IPA packaged successfully at \(resolvedIpa)".dim)
         }
 
         return (resolvedIpa, resolvedDsym)

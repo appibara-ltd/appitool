@@ -217,7 +217,7 @@ struct BuildIOSCommand: AsyncParsableCommand {
                 Log("   dSYM:    ".dim + "\(dsym)".dim)
             }
         } catch {
-            Log("\n" + "❌ Build Failed: ".red.bold + "\(error.localizedDescription)")
+            Log("\n" + "🔴 Build Failed: ".red.bold + "\(error.localizedDescription)")
             throw ExitCode.failure
         }
     }

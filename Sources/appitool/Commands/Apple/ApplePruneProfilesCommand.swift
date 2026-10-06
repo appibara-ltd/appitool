@@ -32,7 +32,7 @@ struct ApplePruneProfilesCommand: AsyncParsableCommand {
 
         if result.candidates.isEmpty {
             let scopeMsg = includeExpired ? "invalid or expired" : "invalid"
-            Log("✅ No \(scopeMsg) provisioning profiles found on Apple Developer Portal. Portal is clean!".green.bold)
+            Log("🟢 No \(scopeMsg) provisioning profiles found on Apple Developer Portal. Portal is clean!".green.bold)
             return
         }
 
@@ -57,12 +57,12 @@ struct ApplePruneProfilesCommand: AsyncParsableCommand {
         for (p, _) in result.candidates {
             let nameStr = p.attributes?.name ?? "unnamed"
             if let fail = result.failedProfiles.first(where: { $0.name == nameStr }) {
-                Log("  ❌ Failed to delete '\(nameStr)': \(fail.error)".red)
+                Log("  🔴 Failed to delete '\(nameStr)': \(fail.error)".red)
             } else {
-                Log("  ✅ Pruned: ".green + "\(nameStr)".bold)
+                Log("  🟢 Pruned: ".green + "\(nameStr)".bold)
             }
         }
 
-        Log("\n✅ Pruning finished: \(result.deletedCount) profile(s) deleted".green.bold + (result.failedProfiles.count > 0 ? ", \(result.failedProfiles.count) failed/skipped.".yellow : "."))
+        Log("\n🟢 Pruning finished: \(result.deletedCount) profile(s) deleted".green.bold + (result.failedProfiles.count > 0 ? ", \(result.failedProfiles.count) failed/skipped.".yellow : "."))
     }
 }
