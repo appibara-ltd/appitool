@@ -67,7 +67,7 @@ struct AppleCreateIdentifierCommand: AsyncParsableCommand {
         let platformStr = result.bundleId.attributes?.platform?.rawValue ?? platform.uppercased()
         let seedId = result.bundleId.attributes?.seedId ?? "-"
 
-        Log("\n✓ App Identifier registered successfully!".green.bold)
+        Log("\n✅ App Identifier registered successfully!".green.bold)
         Log("  • Identifier: ".cyan + "\(targetIdentifier)".bold)
         Log("  • Name: ".cyan + "\(createdName)")
         Log("  • Portal ID: ".cyan + "\(portalId)")
@@ -77,12 +77,12 @@ struct AppleCreateIdentifierCommand: AsyncParsableCommand {
         if !capList.isEmpty {
             Log("\n⚙️  Configuring capabilities...".dim)
             for cap in result.enabledCapabilities {
-                Log("  ✓ Enabled: ".green + "\(cap.rawValue)".bold)
+                Log("  ✅ Enabled: ".green + "\(cap.rawValue)".bold)
             }
             for fail in result.failedCapabilities {
                 Log("  ❌ Failed to enable '\(fail.capability.rawValue)': \(fail.error)".red)
             }
-            Log("\n✓ Capabilities configured: \(result.enabledCapabilities.count)/\(capList.count) enabled.".green.bold)
+            Log("\n✅ Capabilities configured: \(result.enabledCapabilities.count)/\(capList.count) enabled.".green.bold)
         }
         Log("")
     }

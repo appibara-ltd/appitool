@@ -37,7 +37,7 @@ struct AppleDisableDeviceCommand: AsyncParsableCommand {
         let updatedDevice = try await service.disableDevice(id: device.id)
         let statusStr = updatedDevice.attributes?.status?.rawValue ?? "DISABLED"
 
-        Log("\n✓ Device disabled successfully!".green.bold)
+        Log("\n✅ Device disabled successfully!".green.bold)
         Log("  • Name: ".cyan + "\(devName)".bold)
         Log("  • Portal ID: ".cyan + "\(updatedDevice.id)")
         Log("  • UDID: ".cyan + "\(devUdid)")

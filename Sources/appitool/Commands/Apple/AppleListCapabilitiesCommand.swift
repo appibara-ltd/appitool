@@ -31,12 +31,12 @@ struct AppleListCapabilitiesCommand: AsyncParsableCommand {
             do {
                 result = try await service.fetchCapabilitiesForIdentifier(identifier: targetBundleId)
             } catch {
-                Log("ℹ️ App Identifier '\(targetBundleId)' was not found on Apple Developer Portal.".yellow)
+                Log("🟡️ App Identifier '\(targetBundleId)' was not found on Apple Developer Portal.".yellow)
                 return
             }
 
             if result.capabilities.isEmpty {
-                Log("\nℹ️ No custom capabilities are currently enabled for '\(targetBundleId)'.".yellow)
+                Log("\n🟡️ No custom capabilities are currently enabled for '\(targetBundleId)'.".yellow)
                 return
             }
 

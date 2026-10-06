@@ -67,7 +67,7 @@ struct AppleCreateCertificateCommand: AsyncParsableCommand {
         let serialNumber = result.certificate.attributes?.serialNumber ?? "-"
         let expirationDate = result.certificate.attributes?.expirationDate?.description ?? "-"
 
-        Log("\n✓ Certificate created successfully!".green.bold)
+        Log("\n✅ Certificate created successfully!".green.bold)
         Log("  • Type: ".cyan + "\(result.typeLabel)".bold)
         Log("  • Name: ".cyan + "\(result.commonName)")
         Log("  • Portal ID: ".cyan + "\(portalId)")
@@ -90,7 +90,7 @@ struct AppleCreateCertificateCommand: AsyncParsableCommand {
         }
 
         if !result.keychainImported {
-            Log("\n⚠️  Keep the private key safe! It cannot be re-downloaded from Apple.".yellow.bold)
+            Log("\n🚧 Keep the private key safe! It cannot be re-downloaded from Apple.".yellow.bold)
         }
         Log("")
     }

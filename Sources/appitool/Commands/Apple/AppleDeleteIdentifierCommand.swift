@@ -34,10 +34,10 @@ struct AppleDeleteIdentifierCommand: AsyncParsableCommand {
             let (deleted, portalId) = try await service.deleteBundleIdByIdentifier(identifier: targetIdentifier)
             if let portalId, deleted {
                 Log("🗑️ Deleting bundle identifier ".red + "\(targetIdentifier)".bold + " (Portal ID: \(portalId))...".dim)
-                Log("✓ Successfully deleted bundle identifier '\(targetIdentifier)' from Apple Developer Portal.".green.bold)
-                Log("ℹ️ Note: Any provisioning profiles tied to this bundle identifier have been invalidated by Apple.".dim)
+                Log("✅ Successfully deleted bundle identifier '\(targetIdentifier)' from Apple Developer Portal.".green.bold)
+                Log("🟡️ Note: Any provisioning profiles tied to this bundle identifier have been invalidated by Apple.".dim)
             } else {
-                Log("ℹ️ Bundle identifier '\(targetIdentifier)' does not exist on Apple Developer Portal (already absent).".yellow)
+                Log("🟡️ Bundle identifier '\(targetIdentifier)' does not exist on Apple Developer Portal (already absent).".yellow)
             }
         } catch {
             Log("Error: ".red.bold + "Failed to delete bundle identifier: \(error.localizedDescription)")

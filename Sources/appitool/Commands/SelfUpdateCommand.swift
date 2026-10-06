@@ -66,7 +66,7 @@ struct SelfUpdateCommand: AsyncParsableCommand {
         }
 
         if !isUpdateAvailable && !force {
-            Log("✓ ".green.bold + "appitool is already up to date (\(currentVersionString)).".dim)
+            Log("✅ ".green.bold + "appitool is already up to date (\(currentVersionString)).".dim)
             return
         }
 
@@ -75,12 +75,12 @@ struct SelfUpdateCommand: AsyncParsableCommand {
                 Log("🎉 A new version of appitool is available: ".green.bold + "\(currentVersionString)".dim + " → " + "\(latestTag)".green.bold)
                 Log("   Run 'appitool self-update' to upgrade.")
             } else {
-                Log("✓ ".green.bold + "appitool is up to date (\(currentVersionString)).".dim)
+                Log("✅ ".green.bold + "appitool is up to date (\(currentVersionString)).".dim)
             }
             return
         }
 
-        Log("   ℹ Found update: \(latestTag)".cyan)
+        Log("   🟡 Found update: \(latestTag)".cyan)
 
         let platform = currentPlatform
         let expectedArtifactNames = [
@@ -111,14 +111,14 @@ struct SelfUpdateCommand: AsyncParsableCommand {
             try? FileManager.default.removeItem(at: tempDir)
         }
 
-        Log("   ℹ Downloading \(artifactName)...")
+        Log("   🟡 Downloading \(artifactName)...")
         let tarballData = try await downloadData(for: tarballAsset)
         let checksumsData = try await downloadData(for: checksumsAsset)
 
         let tarballPath = tempDir.appendingPathComponent(artifactName)
         try tarballData.write(to: tarballPath)
 
-        Log("   ℹ Verifying SHA256 checksum...")
+        Log("   🟡 Verifying SHA256 checksum...")
         guard let checksumsString = String(data: checksumsData, encoding: .utf8) else {
             Log("❌ Error: Invalid checksums file format.".red)
             throw ExitCode.failure
@@ -136,9 +136,9 @@ struct SelfUpdateCommand: AsyncParsableCommand {
             Log("   Actual:   \(calculatedHash)")
             throw ExitCode.failure
         }
-        Log("   ✓ Checksum verified.")
+        Log("   ✅ Checksum verified.")
 
-        Log("   ℹ Unpacking archive...")
+        Log("   🟡 Unpacking archive...")
         try await runProcess("tar", arguments: ["-xzf", tarballPath.path, "-C", tempDir.path])
         let extractedBinary = tempDir.appendingPathComponent("appitool")
         guard FileManager.default.fileExists(atPath: extractedBinary.path) else {
@@ -160,7 +160,7 @@ struct SelfUpdateCommand: AsyncParsableCommand {
             throw ExitCode.failure
         }
 
-        Log("   ℹ Replacing binary at \(currentExecutableURL.path)...")
+        Log("   🟡 Replacing binary at \(currentExecutableURL.path)...")
         let backupURL = currentExecutableURL.appendingPathExtension("old")
         if fileManager.fileExists(atPath: backupURL.path) {
             try? fileManager.removeItem(at: backupURL)

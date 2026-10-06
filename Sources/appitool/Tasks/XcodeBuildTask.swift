@@ -9,9 +9,9 @@ public struct XcodeBuildTask: Task {
     /// Export method options for IPA packaging.
     public enum ExportMethod: String, Sendable, CaseIterable {
         case appStore = "app-store-connect"
-        case adHoc = "ad-hoc"
+        case adHoc = "release-testing"
         case enterprise = "enterprise"
-        case development = "development"
+        case development = "debugging"
     }
 
     /// Signing style options for export options plist.
@@ -244,6 +244,7 @@ public struct XcodeBuildTask: Task {
         case archiveFailed(exitCode: Int32, output: String)
         case exportFailed(exitCode: Int32, output: String)
         case ipaNotFound(expectedPath: String)
+        case ambiguousIpa(paths: [String])
         case plistSerializationFailed(String)
 
         public var errorDescription: String? {
@@ -267,6 +268,8 @@ public struct XcodeBuildTask: Task {
                 return "xcodebuild -exportArchive failed with exit code \(code):\n\(output)"
             case .ipaNotFound(let path):
                 return "Exported IPA file was not found in directory: \(path)"
+            case .ambiguousIpa(let paths):
+                return "Export produced multiple IPA files, cannot determine which one to use: \(paths.joined(separator: ", "))"
             case .plistSerializationFailed(let message):
                 return "Failed to generate ExportOptions.plist: \(message)"
             }
@@ -701,7 +704,7 @@ public struct XcodeBuildTask: Task {
         }
 
         if !input.silent {
-            Log("✓ ".green.bold + "Xcode archive created at \(archivePath)".dim)
+            Log("✅ ".green.bold + "Xcode archive created at \(archivePath)".dim)
         }
     }
 
@@ -745,8 +748,10 @@ public struct XcodeBuildTask: Task {
         arguments.append(contentsOf: input.exportXcargs)
 
         if !input.silent {
-            Log("   📦 ".bold + "Packaging IPA with export method: \(input.exportMethod.rawValue)...".dim)
+            Log("📦 ".bold + "Packaging IPA with export method: \(input.exportMethod.rawValue)...".dim)
         }
+
+        let ipasBefore = Self.ipaModificationDates(in: input.outputDirectory)
 
         let result = try await runCommand(
             binary: "xcodebuild",
@@ -759,26 +764,23 @@ public struct XcodeBuildTask: Task {
             throw XcodeBuildError.exportFailed(exitCode: result.exitCode, output: result.output)
         }
 
-        // Locate exported .ipa file and ensure it is named after baseName (scheme name)
-        let expectedIpaPath = URL(fileURLWithPath: input.outputDirectory).appendingPathComponent("\(baseName).ipa").path
+        // Locate the IPA produced by this export. The output directory is dedicated to this build,
+        // so only IPAs that are new (or rewritten) since before the export are considered.
+        // No guessing or renaming: exactly one IPA must have been produced.
+        let ipasAfter = Self.ipaModificationDates(in: input.outputDirectory)
+        let producedIpas = ipasAfter
+            .filter { ipasBefore[$0.key] != $0.value }
+            .map { URL(fileURLWithPath: input.outputDirectory).appendingPathComponent($0.key).path }
+            .sorted()
+
         let resolvedIpa: String
-        if fileManager.fileExists(atPath: expectedIpaPath) {
-            resolvedIpa = expectedIpaPath
-        } else {
-            // Find newly created .ipa file in the output directory and rename to baseName.ipa
-            let contents = (try? fileManager.contentsOfDirectory(atPath: input.outputDirectory)) ?? []
-            if let foundIpa = contents.first(where: { $0.hasSuffix(".ipa") }) {
-                let actualIpaPath = URL(fileURLWithPath: input.outputDirectory).appendingPathComponent(foundIpa).path
-                if actualIpaPath != expectedIpaPath {
-                    if fileManager.fileExists(atPath: expectedIpaPath) {
-                        try? fileManager.removeItem(atPath: expectedIpaPath)
-                    }
-                    try fileManager.moveItem(atPath: actualIpaPath, toPath: expectedIpaPath)
-                }
-                resolvedIpa = expectedIpaPath
-            } else {
-                throw XcodeBuildError.ipaNotFound(expectedPath: input.outputDirectory)
-            }
+        switch producedIpas.count {
+        case 1:
+            resolvedIpa = producedIpas[0]
+        case 0:
+            throw XcodeBuildError.ipaNotFound(expectedPath: input.outputDirectory)
+        default:
+            throw XcodeBuildError.ambiguousIpa(paths: producedIpas)
         }
 
         // Check for dSYM bundle / zip
@@ -805,10 +807,23 @@ public struct XcodeBuildTask: Task {
         }
 
         if !input.silent {
-            Log("   ✓ ".green.bold + "IPA packaged successfully at \(resolvedIpa)".dim)
+            Log("✅ ".green.bold + "IPA packaged successfully at \(resolvedIpa)".dim)
         }
 
         return (resolvedIpa, resolvedDsym)
+    }
+
+    /// Snapshot of `.ipa` file names (top-level only) mapped to their modification dates.
+    private static func ipaModificationDates(in directory: String) -> [String: Date] {
+        let fm = FileManager.default
+        let names = (try? fm.contentsOfDirectory(atPath: directory)) ?? []
+        var result: [String: Date] = [:]
+        for name in names where name.hasSuffix(".ipa") {
+            let path = URL(fileURLWithPath: directory).appendingPathComponent(name).path
+            let date = (try? fm.attributesOfItem(atPath: path)[.modificationDate]) as? Date
+            result[name] = date ?? .distantPast
+        }
+        return result
     }
 
     // MARK: - Plist Generation
@@ -938,14 +953,30 @@ public struct XcodeBuildTask: Task {
             output: .sequence,
             error: .combinedWithOutput
         ) { execution in
+            var pending = Data()
+            let newline = UInt8(ascii: "\n")
+
+            func emit(_ lineData: Data) {
+                var line = String(decoding: lineData, as: UTF8.self)
+                if line.hasSuffix("\r") { line.removeLast() }
+                Log(line)
+            }
+
             for try await bufferChunk in execution.standardOutput {
                 let data = Data(buffer: bufferChunk)
-                if !data.isEmpty {
-                    buffer.append(data)
-                    if !silent {
-                        FileHandle.standardOutput.write(data)
-                    }
+                guard !data.isEmpty else { continue }
+                buffer.append(data)
+                guard !silent else { continue }
+
+                pending.append(data)
+                while let idx = pending.firstIndex(of: newline) {
+                    emit(pending.subdata(in: pending.startIndex..<idx))
+                    pending.removeSubrange(pending.startIndex...idx)
                 }
+            }
+
+            if !silent, !pending.isEmpty {
+                emit(pending)
             }
         }
 

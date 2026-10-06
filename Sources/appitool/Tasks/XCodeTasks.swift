@@ -1494,6 +1494,12 @@ public enum XCodeTasks {
                 if let version = input.version {
                     config.buildSettings["MARKETING_VERSION"] = version
                 }
+                syncInfoPlist(
+                    config: config,
+                    projectDirectory: URL(fileURLWithPath: effectiveProjectPath).deletingLastPathComponent(),
+                    buildNumber: input.buildNumber,
+                    version: input.version
+                )
                 targetModified = true
             }
 
@@ -1504,6 +1510,51 @@ public enum XCodeTasks {
 
         try xcodeProj.writePBXProj(path: projectPath, override: true, outputSettings: PBXOutputSettings())
         return modifiedTargets
+    }
+
+    /// Updates `CFBundleVersion` / `CFBundleShortVersionString` in the Info.plist referenced by `INFOPLIST_FILE`
+    /// only when they contain literal values. Values referencing build settings (e.g. `$(CURRENT_PROJECT_VERSION)`)
+    /// are left untouched. The plist is edited as text to preserve formatting; binary plists are skipped.
+    private static func syncInfoPlist(
+        config: XCBuildConfiguration,
+        projectDirectory: URL,
+        buildNumber: String,
+        version: String?
+    ) {
+        guard var plistRef = config.buildSettings["INFOPLIST_FILE"] as? String, !plistRef.isEmpty else { return }
+
+        for variable in ["SRCROOT", "PROJECT_DIR"] {
+            plistRef = plistRef
+                .replacingOccurrences(of: "$(\(variable))", with: projectDirectory.path)
+                .replacingOccurrences(of: "${\(variable)}", with: projectDirectory.path)
+        }
+        guard !plistRef.contains("$") else { return }
+
+        let plistUrl = plistRef.hasPrefix("/")
+            ? URL(fileURLWithPath: plistRef)
+            : projectDirectory.appendingPathComponent(plistRef)
+
+        guard var content = try? String(contentsOf: plistUrl, encoding: .utf8) else { return }
+        let original = content
+
+        func replaceLiteral(key: String, value: String) {
+            let pattern = "(<key>\(key)</key>\\s*<string>)([^<]*)(</string>)"
+            guard let regex = try? NSRegularExpression(pattern: pattern),
+                  let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
+                  let valueRange = Range(match.range(at: 2), in: content) else { return }
+            let current = content[valueRange]
+            guard !current.contains("$(") && !current.contains("${") else { return }
+            content.replaceSubrange(valueRange, with: value)
+        }
+
+        replaceLiteral(key: "CFBundleVersion", value: buildNumber)
+        if let version {
+            replaceLiteral(key: "CFBundleShortVersionString", value: version)
+        }
+
+        if content != original {
+            try? content.write(to: plistUrl, atomically: true, encoding: .utf8)
+        }
     }
 
     /// Reads the current `CURRENT_PROJECT_VERSION` (build number) and `MARKETING_VERSION` (version string)

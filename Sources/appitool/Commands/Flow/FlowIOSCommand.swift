@@ -34,6 +34,9 @@ struct FlowIOSCommand: AsyncParsableCommand {
     @OptionGroup
     var notificationOptions: NotificationOptions
 
+    @Flag(name: .long, help: "Suppress xcodebuild standard output and logs.")
+    var silent: Bool = false
+
     func run() async throws {
         _ = try? EnvLoader.loadEnv()
 
@@ -79,7 +82,8 @@ struct FlowIOSCommand: AsyncParsableCommand {
             slackUrl: notifications.slackUrl,
             kokonoUrl: notifications.kokonoUrl,
             kokonoPublicKey: notifications.kokonoPublicKey,
-            preset: preset
+            preset: preset,
+            silent: silent,
         )
 
         let runner = FlowRunner()

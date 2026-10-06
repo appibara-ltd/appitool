@@ -52,7 +52,7 @@ struct FirebaseCreateReleaseCommand: AsyncParsableCommand {
             )
         )
 
-        Log("\n✓ Release created and processed successfully!".green.bold)
+        Log("\n✅ Release created and processed successfully!".green.bold)
         Log("  • Name: \(result.releaseName)".bold)
         if let version = result.displayVersion, let build = result.buildVersion {
             Log("  • Version: v\(version) (\(build))".bold.green)

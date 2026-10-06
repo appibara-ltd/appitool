@@ -63,7 +63,7 @@ struct AppleCreateProfileCommand: AsyncParsableCommand {
                 outputPath: output
             )
 
-            Log("\n✓ Provisioning profile created successfully!".green.bold)
+            Log("\n✅ Provisioning profile created successfully!".green.bold)
             Log("  • Name: ".cyan + "\(result.profile.name)".bold)
             Log("  • Portal ID: ".cyan + "\(result.profile.id)".bold)
             Log("  • UUID: ".cyan + "\(result.profile.uuid)".bold)
@@ -73,7 +73,7 @@ struct AppleCreateProfileCommand: AsyncParsableCommand {
             if let fileURL = result.savedURL {
                 Log("  💾 Saved to: ".green.bold + "\(fileURL.path)")
             } else {
-                Log("ℹ️ To save the profile to a file, re-run with -o, --output <path>.".dim)
+                Log("🟡️ To save the profile to a file, re-run with -o, --output <path>.".dim)
             }
             Log("")
         } catch {

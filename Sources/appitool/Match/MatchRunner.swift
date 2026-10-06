@@ -185,7 +185,7 @@ public final class MatchRunner: Sendable {
 
             if filesToDelete.isEmpty {
                 if !config.silent {
-                    Log("✓ [Match] No invalid certificates or profiles found. Git repository is already clean!".green.bold)
+                    Log("✅ [Match] No invalid certificates or profiles found. Git repository is already clean!".green.bold)
                 }
                 return MatchResult()
             }
@@ -272,7 +272,7 @@ public final class MatchRunner: Sendable {
             filesToCommit.append(newCerPath)
             filesToCommit.append(newP12Path)
             if !config.silent {
-                Log("✓ [Match] Created Certificate: ".green.bold + "\(certData.id)")
+                Log("✅ [Match] Created Certificate: ".green.bold + "\(certData.id)")
             }
         }
 
@@ -309,7 +309,7 @@ public final class MatchRunner: Sendable {
             p12Path: selectedP12Path
         )
         if !config.silent {
-            Log("✓ [Match] Installed Certificate: ".green.bold + "\(certInfo.name)".bold + " [Cert: \(selectedCertId)]".dim)
+            Log("✅ [Match] Installed Certificate: ".green.bold + "\(certInfo.name)".bold + " [Cert: \(selectedCertId)]".dim)
         }
 
         // Discover and install provisioning profiles
@@ -363,7 +363,7 @@ public final class MatchRunner: Sendable {
                 }
 
                 if isRevokedOnPortal && !config.silent {
-                    Log("⚠️ [Match] Profile '\(profileName)' is revoked or invalid on Apple Developer Portal.".yellow)
+                    Log("🚧 [Match] Profile '\(profileName)' is revoked or invalid on Apple Developer Portal.".yellow)
                 }
 
                 if (!hasCert || isRevokedOnPortal) && config.readonly {
@@ -430,7 +430,7 @@ public final class MatchRunner: Sendable {
             installedProfiles[bundleId] = profileInfo
 
             if !config.silent {
-                Log("✓ [Match] Installed Profile: ".green.bold + "\(profileInfo.name)".bold + " (\(bundleId))".dim)
+                Log("✅ [Match] Installed Profile: ".green.bold + "\(profileInfo.name)".bold + " (\(bundleId))".dim)
             }
 
             let normalizedType = config.type.rawValue

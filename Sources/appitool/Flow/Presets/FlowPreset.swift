@@ -100,7 +100,7 @@ extension FlowPreset {
             }
             throw FlowRequirementError(presetName: name, missing: missing)
         }
-        Log("   ✓ [\(name)] Requirements verified (\(items.count) checked).".green)
+        Log("   ✅ [\(name)] Requirements verified (\(items.count) checked).".green)
     }
 
     /// Default post-release handler sends configured success notifications (Slack, KokoNo).
@@ -126,11 +126,11 @@ extension FlowPreset {
         let message = "Release completed successfully."
 
         guard !context.isDryRun else {
-            Log("   ℹ Skipping notifications (dry-run mode).".yellow)
+            Log("🟡 Skipping notifications (dry-run mode).".yellow)
             return
         }
 
-        Log("   ℹ Dispatching release notifications...".dim)
+        Log("📣 Dispatching release notifications...".dim)
         await NotifyTask().notifyAllConfigured(
             status: .success,
             title: title,

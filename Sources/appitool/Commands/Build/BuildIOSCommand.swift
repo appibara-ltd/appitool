@@ -104,27 +104,33 @@ struct BuildIOSCommand: AsyncParsableCommand {
             .appendingPathComponent("ios")
             .appendingPathComponent(mainTarget)
 
-        let resolvedOutputDir = targetRoot.appendingPathComponent("build").path
+        let buildRoot = targetRoot.appendingPathComponent("build")
         let resolvedDerivedData = targetRoot.appendingPathComponent("derivedData").path
 
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy_MM_dd_HH_mm"
         let timestamp = formatter.string(from: Date())
-        let resolvedOutputName = "\(resolvedScheme)_\(timestamp)"
+        // All files of this build live in their own timestamped directory.
+        let resolvedOutputDir = buildRoot.appendingPathComponent(timestamp).path
+        let resolvedOutputName = resolvedScheme
 
         var resolvedArchivePath: String? = nil
         if skipBuildArchive {
+            // Latest .xcarchive across previous per-build directories.
             let fm = FileManager.default
-            if let files = try? fm.contentsOfDirectory(atPath: resolvedOutputDir) {
-                let archives = files.filter { $0.hasSuffix(".xcarchive") }
-                    .map { URL(fileURLWithPath: resolvedOutputDir).appendingPathComponent($0) }
-                resolvedArchivePath = archives.compactMap { url -> (URL, Date)? in
-                    guard let attrs = try? fm.attributesOfItem(atPath: url.path),
-                          let modDate = attrs[.modificationDate] as? Date else { return nil }
-                    return (url, modDate)
-                }.sorted { $0.1 > $1.1 }.first?.0.path
+            let buildDirs = ((try? fm.contentsOfDirectory(atPath: buildRoot.path)) ?? [])
+                .map { buildRoot.appendingPathComponent($0) }
+            let archives = buildDirs.flatMap { dir -> [URL] in
+                ((try? fm.contentsOfDirectory(atPath: dir.path)) ?? [])
+                    .filter { $0.hasSuffix(".xcarchive") }
+                    .map { dir.appendingPathComponent($0) }
             }
+            resolvedArchivePath = archives.compactMap { url -> (URL, Date)? in
+                guard let attrs = try? fm.attributesOfItem(atPath: url.path),
+                      let modDate = attrs[.modificationDate] as? Date else { return nil }
+                return (url, modDate)
+            }.sorted { $0.1 > $1.1 }.first?.0.path
         }
 
         let resolvedConfiguration = configuration ?? env["XCODE_CONFIGURATION"] ?? "Release"

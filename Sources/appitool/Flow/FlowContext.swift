@@ -75,6 +75,9 @@ struct FlowContext: Sendable {
     // Preconfigured flow preset
     var preset: (any FlowPreset)?
 
+    // Build configuration
+    var silent: Bool = false
+
     init(
         platform: Platform,
         distribution: BuildCommand.Distribution,
@@ -102,7 +105,8 @@ struct FlowContext: Sendable {
         slackUrl: String? = nil,
         kokonoUrl: String? = nil,
         kokonoPublicKey: String? = nil,
-        preset: (any FlowPreset)? = nil
+        preset: (any FlowPreset)? = nil,
+        silent: Bool = false,
     ) {
         self.platform = platform
         self.distribution = distribution
@@ -132,5 +136,6 @@ struct FlowContext: Sendable {
         self.kokonoUrl = kokonoUrl
         self.kokonoPublicKey = kokonoPublicKey
         self.preset = preset
+        self.silent = silent
     }
 }

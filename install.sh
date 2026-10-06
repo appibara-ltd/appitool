@@ -35,7 +35,7 @@ if [ -n "$TOKEN" ]; then
     AUTH_HEADER=(-H "Authorization: Bearer $TOKEN")
 fi
 
-echo "   ℹ Fetching latest release information..."
+echo "   🟡 Fetching latest release information..."
 RELEASE_JSON="$(curl -fsSL ${AUTH_HEADER[@]+"${AUTH_HEADER[@]}"} -H "Accept: application/vnd.github.v3+json" "$GITHUB_API" 2>/dev/null || true)"
 
 if [ -z "$RELEASE_JSON" ] || echo "$RELEASE_JSON" | grep -q '"message": *"Not Found"'; then
@@ -59,7 +59,7 @@ if [ -z "$TARBALL_URL" ] || [ -z "$CHECKSUMS_URL" ]; then
     exit 1
 fi
 
-echo "   ℹ Downloading appitool ${TAG_NAME}..."
+echo "   🟡 Downloading appitool ${TAG_NAME}..."
 if [ -n "$TOKEN" ] && [ -n "$TARBALL_API_URL" ]; then
     curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/octet-stream" "$TARBALL_API_URL" -o "$TMP_DIR/appitool-darwin-arm64.tar.gz"
     curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/octet-stream" "$CHECKSUMS_API_URL" -o "$TMP_DIR/checksums.txt"
@@ -69,7 +69,7 @@ else
 fi
 
 # 3. Verify SHA256 Checksum
-echo "   ℹ Verifying checksum..."
+echo "   🟡 Verifying checksum..."
 EXPECTED_SHA="$(grep 'appitool-darwin-arm64\.tar\.gz' "$TMP_DIR/checksums.txt" | awk '{print $1}')"
 ACTUAL_SHA="$(shasum -a 256 "$TMP_DIR/appitool-darwin-arm64.tar.gz" | awk '{print $1}')"
 
@@ -79,7 +79,7 @@ if [ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]; then
     echo "   Actual:   $ACTUAL_SHA" >&2
     exit 1
 fi
-echo "   ✓ Checksum verified."
+echo "   ✅ Checksum verified."
 
 # 4. Determine Installation Directory
 INSTALL_DIR=""
@@ -90,7 +90,7 @@ else
     mkdir -p "$INSTALL_DIR"
 fi
 
-echo "   ℹ Installing binary to ${INSTALL_DIR}/appitool..."
+echo "   🟡 Installing binary to ${INSTALL_DIR}/appitool..."
 tar -xzf "$TMP_DIR/appitool-darwin-arm64.tar.gz" -C "$TMP_DIR"
 cp -f "$TMP_DIR/appitool" "$INSTALL_DIR/appitool"
 chmod +x "$INSTALL_DIR/appitool"
@@ -166,7 +166,7 @@ fi
 echo "🎉 appitool ${TAG_NAME} installed successfully to ${INSTALL_DIR}/appitool!"
 if [ "$PATH_NEEDS_RELOAD" -eq 1 ] && [ -n "$UPDATED_RC" ]; then
     echo ""
-    echo "   ⚠️  PATH Configuration:"
+    echo "   🚧 PATH Configuration:"
     echo "   Added ~/.local/bin to your ${UPDATED_RC}."
     echo "   To start using 'appitool' in this terminal session, run:"
     echo "       export PATH=\"\$HOME/.local/bin:\$PATH\""

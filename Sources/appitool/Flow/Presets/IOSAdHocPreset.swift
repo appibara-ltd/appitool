@@ -20,7 +20,7 @@ struct IOSAdHocPreset: FlowPreset {
 
     func setup(context: inout FlowContext) async throws {
         Log(
-            "   🔍 [\(name)] Validating iOS environment, signing identities, and Match Ad-Hoc profiles..."
+            "🔍 [\(name)] Validating iOS environment, signing identities, and Match Ad-Hoc profiles..."
                 .dim)
 
         if context.workspacePath == nil && context.xcodeProjectPath == nil {
@@ -35,7 +35,7 @@ struct IOSAdHocPreset: FlowPreset {
             in: context.projectDirectory
         )
         Log(
-            "   🔍 [\(name)] Inspected project targets: \(info.targets.joined(separator: ", "))".dim)
+            "🔍 [\(name)] Inspected project targets: \(info.targets.joined(separator: ", "))".dim)
 
         let result = try await XCodeTasks.getIosIdentifiers(
             workspaceRoot: context.projectDirectory,
@@ -78,8 +78,7 @@ struct IOSAdHocPreset: FlowPreset {
             return
         }
 
-        Log("   🔐 [\(name)] Running Match Ad-Hoc synchronization...".dim)
-        Log.depth += 3
+        Log("🔐 [\(name)] Running Match Ad-Hoc synchronization...".dim)
         let task = MatchTask()
         let output = try await task.run(
             MatchTask.Input(
@@ -97,40 +96,39 @@ struct IOSAdHocPreset: FlowPreset {
                 apiIssuerId: context.appleIssuerId,
                 apiKey: context.appleKey,
                 keychainName: context.matchKeychainName,
-                keychainPassword: context.matchKeychainPassword
+                keychainPassword: context.matchKeychainPassword,
+                silent: context.silent,
             ))
-        Log.depth -= 3
 
         // Log installed certificates and provisioning profiles
-        Log("   ✨ [\(name)] Match Ad-Hoc completed successfully.".green.bold)
+        Log("✨ [\(name)] Match Ad-Hoc completed successfully.".green.bold)
         if !output.installedCertificates.isEmpty {
-            Log("   📜 Installed Certificates (\(output.installedCertificates.count)):".bold)
+            Log("📜 Installed Certificates (\(output.installedCertificates.count)):".bold)
             for cert in output.installedCertificates {
-                Log("      • \(cert)".dim)
+                Log("   • \(cert)".dim)
             }
         } else {
-            Log("   📜 Installed Certificates: None".dim)
+            Log("📜 Installed Certificates: None".dim)
         }
 
         if !output.installedProfiles.isEmpty {
-            Log("   📄 Installed Provisioning Profiles (\(output.installedProfiles.count)):".bold)
+            Log("📄 Installed Provisioning Profiles (\(output.installedProfiles.count)):".bold)
             for (bundleId, profile) in output.installedProfiles.sorted(by: { $0.key < $1.key }) {
-                Log("      • [\(bundleId)] \(profile.name) (UUID: \(profile.uuid))".dim)
-                Log("        Path: \(profile.path)".dim)
+                Log("   • [\(bundleId)] \(profile.name) (UUID: \(profile.uuid))".dim)
+                Log("     Path: \(profile.path)".dim)
             }
         } else {
-            Log("   📄 Installed Provisioning Profiles: None".dim)
+            Log("📄 Installed Provisioning Profiles: None".dim)
         }
 
         context.installedCertificates = output.installedCertificates
         context.installedProfiles = output.installedProfiles
 
         // Fetch latest build number / version from Firebase App Distribution
-        Log("   🔥 [\(name)] Fetching latest build info from Firebase App Distribution...".dim)
+        Log("🔥 [\(name)] Fetching latest build info from Firebase App Distribution...".dim)
         let firebaseAppId = context.firebaseAppId!
         let firebaseService = try FirebaseService(key: context.googleKey!)
 
-        Log.depth += 3
         let buildTask = GetLatestBuildNumberTask()
         let buildInfo = try await buildTask.run(
             GetLatestBuildNumberTask.Input(
@@ -142,19 +140,18 @@ struct IOSAdHocPreset: FlowPreset {
                 distribution: .adhoc
             )
         )
-        Log.depth -= 3
 
         context.metadata["firebase_version"] = buildInfo.version
         context.metadata["firebase_build_number"] = buildInfo.buildNumber
 
-        Log("   ✓ [\(name)] Retrieved Firebase build info: Version: \(buildInfo.version.bold), Build Number: \(buildInfo.buildNumber.bold)".green)
+        Log("✅ [\(name)] Retrieved Firebase build info: Version: \(buildInfo.version.bold), Build Number: \(buildInfo.buildNumber.bold)".green)
     }
 
     func prebuild(context: inout FlowContext) async throws {
-        Log("   🔧 [\(name)] Preparing project for manual code signing...".dim)
+        Log("🔧 [\(name)] Preparing project for manual code signing...".dim)
 
         guard !context.installedProfiles.isEmpty else {
-            Log("   ⚠️  [\(name)] No provisioning profiles installed in context to configure manual signing.".yellow)
+            Log("🚧  [\(name)] No provisioning profiles installed in context to configure manual signing.".yellow)
             return
         }
 
@@ -197,13 +194,13 @@ struct IOSAdHocPreset: FlowPreset {
         let results = try XCodeTasks.configureManualSigning(input, in: context.projectDirectory)
 
         if results.isEmpty {
-            Log("   ⚠️  [\(name)] No signable targets found or updated for configuration '\(configuration)'.".yellow)
+            Log("🚧 [\(name)] No signable targets found or updated for configuration '\(configuration)'.".yellow)
         } else {
-            Log("   ✍️  [\(name)] Configured manual signing for \(results.count) target(s) [Configuration: \(configuration)]:".green.bold)
+            Log("✍️  [\(name)] Configured manual signing for \(results.count) target(s) [Configuration: \(configuration)]:".green.bold)
             for r in results {
-                Log("      • Target: \(r.targetName.bold) (\(r.bundleId))")
-                Log("        Profile: \(r.profileName) [UUID: \(r.profileUUID)]".dim)
-                Log("        Identity: \(r.identity), Team: \(r.teamId ?? "None")".dim)
+                Log("   • Target: \(r.targetName.bold) (\(r.bundleId))")
+                Log("     Profile: \(r.profileName) [UUID: \(r.profileUUID)]".dim)
+                Log("     Identity: \(r.identity), Team: \(r.teamId ?? "None")".dim)
             }
         }
 
@@ -212,7 +209,7 @@ struct IOSAdHocPreset: FlowPreset {
         if let baseBuildStr = baseBuildStr, let baseBuild = Int(baseBuildStr) {
             let nextBuildNumber = String(baseBuild + 1)
             let prevDisplay = context.buildNumber != nil ? "\(context.buildNumber!) (Firebase: \(baseBuildStr))" : baseBuildStr
-            Log("   🔢 [\(name)] Incrementing build number: \(prevDisplay.bold) -> \(nextBuildNumber.bold.green)".dim)
+            Log("🔢 [\(name)] Incrementing build number: \(prevDisplay.bold) -> \(nextBuildNumber.bold.green)".dim)
 
             if !context.isDryRun {
                 try XCodeTasks.updateBuildNumber(
@@ -232,10 +229,10 @@ struct IOSAdHocPreset: FlowPreset {
     }
 
     func build(context: inout FlowContext) async throws {
-        Log("   🔨 [\(name)] Compiling iOS application with Ad-Hoc export configuration...".dim)
+        Log("🔨 [\(name)] Compiling iOS application with Ad-Hoc export configuration...".dim)
 
         if context.isDryRun {
-            Log("   🔍 [\(name)] Dry-run enabled: skipping xcodebuild archive/export.".yellow)
+            Log("🟡 [\(name)] Dry-run enabled: skipping xcodebuild archive/export.".yellow)
             return
         }
 
@@ -243,18 +240,17 @@ struct IOSAdHocPreset: FlowPreset {
             .appendingPathComponent(".appitool")
             .appendingPathComponent("ios")
             .appendingPathComponent(context.targetName ?? context.scheme ?? "app")
-        let outputDir = targetRoot.appendingPathComponent("build").path
+        let buildRoot = targetRoot.appendingPathComponent("build")
         let derivedData = targetRoot.appendingPathComponent("derivedData").path
 
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy_MM_dd_HH_mm"
-        let outputName = "\(context.scheme ?? "app")_\(formatter.string(from: Date()))"
+        // All files of this build live in their own timestamped directory.
+        let outputDir = buildRoot.appendingPathComponent(formatter.string(from: Date())).path
+        let outputName = context.scheme ?? "app"
 
         let profiles = context.installedProfiles.mapValues { $0.name }
-
-        Log.depth += 3
-        defer { Log.depth -= 3 }
 
         let output = try await XcodeBuildTask().run(
             XcodeBuildTask.Input(
@@ -268,7 +264,8 @@ struct IOSAdHocPreset: FlowPreset {
                 exportMethod: .adHoc,
                 exportTeamId: context.teamId,
                 signingStyle: profiles.isEmpty ? nil : .manual,
-                provisioningProfiles: profiles.isEmpty ? nil : profiles
+                provisioningProfiles: profiles.isEmpty ? nil : profiles,
+                silent: context.silent,
             )
         )
 
@@ -282,18 +279,18 @@ struct IOSAdHocPreset: FlowPreset {
     }
 
     func postbuild(context: inout FlowContext) async throws {
-        Log("   📦 [\(name)] Verifying generated .ipa package and signature...".dim)
+        Log("📦 [\(name)] Verifying generated .ipa package and signature...".dim)
     }
 
     func prerelease(context: inout FlowContext) async throws {
-        Log("   📝 [\(name)] Preparing release packaging and tester release notes...".dim)
-        context.metadata["firebase_test_groups"] = "Internal"
+        Log("📝 [\(name)] Preparing release packaging and tester release notes...".dim)
+        context.metadata["firebase_test_groups"] = "internal"
         context.changelog = "APPITOOL TEST"
 
     }
 
     func release(context: inout FlowContext) async throws {
-        Log("   🚀 [\(name)] Distributing Ad-Hoc build to testers via Firebase App Distribution...".dim)
+        Log("🚀 [\(name)] Distributing Ad-Hoc build to testers via Firebase App Distribution...".dim)
 
         let firebaseAppId = context.firebaseAppId!
         let firebaseService = try FirebaseService(key: context.googleKey!)
@@ -301,12 +298,12 @@ struct IOSAdHocPreset: FlowPreset {
         // Read .ipa binary directly from context
         guard let ipaUrl = context.artifactPaths.first(where: { $0.pathExtension.lowercased() == "ipa" })
                 ?? context.metadata["ipa_path"].map({ URL(fileURLWithPath: $0) }) else {
-            Log("   ⚠️  [\(name)] No .ipa package found in context artifacts to upload.".yellow)
+            Log("🚧 [\(name)] No .ipa package found in context artifacts to upload.".yellow)
             return
         }
 
         if context.isDryRun {
-            Log("   🔍 [\(name)] Dry-run enabled: would upload \(ipaUrl.lastPathComponent) to Firebase App Distribution (\(firebaseAppId)).".yellow)
+            Log("🟡 [\(name)] Dry-run enabled: would upload \(ipaUrl.lastPathComponent) to Firebase App Distribution (\(firebaseAppId)).".yellow)
             return
         }
 
@@ -339,7 +336,6 @@ struct IOSAdHocPreset: FlowPreset {
             }
         }
 
-        Log.depth += 3
         let uploadTask = UploadToFirebaseTask()
         let result = try await uploadTask.run(
             UploadToFirebaseTask.Input(
@@ -351,12 +347,11 @@ struct IOSAdHocPreset: FlowPreset {
                 testerEmails: testerEmails
             )
         )
-        Log.depth -= 3
 
         context.metadata["firebase_release_name"] = result.releaseName
         if let consoleUri = result.firebaseConsoleUri {
             context.metadata["firebase_console_uri"] = consoleUri
-            Log("   🔗 Firebase Console: \(consoleUri)".cyan)
+            Log("🔗 Firebase Console: \(consoleUri)".cyan)
         }
         if let downloadUri = result.binaryDownloadUri {
             context.metadata["firebase_download_uri"] = downloadUri
@@ -365,6 +360,6 @@ struct IOSAdHocPreset: FlowPreset {
             context.metadata["firebase_testing_uri"] = testingUri
         }
 
-        Log("   ✓ [\(name)] Successfully distributed build to Firebase App Distribution!".green.bold)
+        Log("✅ [\(name)] Successfully distributed build to Firebase App Distribution!".green.bold)
     }
 }

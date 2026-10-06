@@ -92,13 +92,17 @@ struct FlowRunner: Sendable {
         Log("\n\(stage.emoji) [\(stage.rawValue.uppercased())] ".cyan.bold + stage.displayName.bold)
         Log("   " + "─".repeated(50).dim)
 
+        Log.depth += 3
+        defer {
+            Log.depth -= 3
+        }
         if let handler {
             try await handler.execute(context: &context)
         }
 
         let duration = Date().timeIntervalSince(stageStart)
         context.stageDurations[stage] = duration
-        Log("   ✓ ".green.bold + "\(stage.displayName) completed in \(String(format: "%.2fs", duration))".dim)
+        Log("✅ ".green.bold + "\(stage.displayName) completed in \(String(format: "%.2fs", duration))".dim)
     }
 
     // MARK: - Global Error Handling
@@ -131,7 +135,7 @@ struct FlowRunner: Sendable {
         let message = error.localizedDescription
 
         guard !context.isDryRun else {
-            Log("   ℹ Skipping failure notifications (dry-run mode).".yellow)
+            Log("   🟡 Skipping failure notifications (dry-run mode).".yellow)
             Log("     Title:   \(title)".dim)
             Log("     Message: \(message)".dim)
             for (key, value) in metadata.sorted(by: { $0.key < $1.key }) {
@@ -170,14 +174,13 @@ struct FlowRunner: Sendable {
         Log("🎉 FLOW COMPLETED SUCCESSFULLY".green.bold)
         Log("   Platform:     \(context.platform.rawValue.uppercased())")
         Log("   Distribution: \(context.distribution.rawValue)")
-        Log("   Total Time:   \(String(format: "%.2fs", totalDuration))")
+        Log("   Total Time:   \(totalDuration.formattedDuration)")
         Log("─".repeated(60).dim)
         Log("   Stage Durations:")
         for stage in FlowStage.allCases {
             let duration = context.stageDurations[stage] ?? 0.0
             let name = stage.rawValue.padding(toLength: 12, withPad: " ", startingAt: 0)
-            let formattedDuration = String(format: "%5.2fs", duration)
-            Log("   • \(stage.emoji) \(name): \(formattedDuration)".dim)
+            Log("   • \(stage.emoji) \(name): \(duration.formattedDuration)".dim)
         }
         Log("=".repeated(60).green.bold + "\n")
     }
@@ -186,5 +189,24 @@ struct FlowRunner: Sendable {
 private extension String {
     func repeated(_ count: Int) -> String {
         String(repeating: self, count: count)
+    }
+}
+
+extension TimeInterval {
+    /// Human-readable duration: `12.34s` below a minute, `1m 5s` below an hour, `1h 2m 5s` otherwise.
+    /// Zero-valued trailing units are omitted (e.g. `1m`, `1h`).
+    var formattedDuration: String {
+        guard self >= 60 else { return String(format: "%.2fs", self) }
+
+        let total = Int(self.rounded())
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+
+        var parts: [String] = []
+        if hours > 0 { parts.append("\(hours)h") }
+        if minutes > 0 { parts.append("\(minutes)m") }
+        if seconds > 0 { parts.append("\(seconds)s") }
+        return parts.joined(separator: " ")
     }
 }

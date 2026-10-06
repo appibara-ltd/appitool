@@ -48,10 +48,10 @@ struct AppleDeleteCertificateCommand: AsyncParsableCommand {
 
             if result.deleted {
                 let displayName = result.matchedCertificate?.attributes?.name ?? result.targetDescription
-                Log("✓ Successfully deleted certificate '\(displayName)' from Apple Developer Portal.".green.bold)
-                Log("ℹ️ Note: Any provisioning profiles tied to this certificate have been invalidated by Apple.".dim)
+                Log("✅ Successfully deleted certificate '\(displayName)' from Apple Developer Portal.".green.bold)
+                Log("🟡️ Note: Any provisioning profiles tied to this certificate have been invalidated by Apple.".dim)
             } else {
-                Log("ℹ️ Certificate '\(result.targetDescription)' does not exist on Apple Developer Portal (already absent).".yellow)
+                Log("🟡️ Certificate '\(result.targetDescription)' does not exist on Apple Developer Portal (already absent).".yellow)
             }
         } catch {
             Log("Error: ".red.bold + "Failed to delete certificate: \(error.localizedDescription)")

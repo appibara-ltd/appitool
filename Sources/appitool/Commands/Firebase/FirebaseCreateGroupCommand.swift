@@ -42,6 +42,6 @@ struct FirebaseCreateGroupCommand: AsyncParsableCommand {
 
         let resolvedName = group.name ?? "-"
         let resolvedAlias = resolvedName.components(separatedBy: "/").last ?? alias
-        Log("✓ Tester group ready: ".green.bold + "\(group.displayName ?? displayName)".bold + " [Alias: \(resolvedAlias), Name: \(resolvedName)]".dim)
+        Log("✅ Tester group ready: ".green.bold + "\(group.displayName ?? displayName)".bold + " [Alias: \(resolvedAlias), Name: \(resolvedName)]".dim)
     }
 }

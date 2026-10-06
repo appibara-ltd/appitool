@@ -120,7 +120,7 @@ struct GetLatestBuildNumberTask: Task {
     // MARK: - Development
 
     private func handleDevelopmentDistribution() throws -> LatestBuildInfo {
-        Log("⚠️  Warning: ".yellow.bold + "Development distribution cannot be checked remotely (development builds are not distributed).")
+        Log("🚧 Warning: ".yellow.bold + "Development distribution cannot be checked remotely (development builds are not distributed).")
         throw GetLatestBuildNumberError.developmentNotSupported
     }
 

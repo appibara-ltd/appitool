@@ -169,7 +169,7 @@ struct MatchCommand: AsyncParsableCommand {
                 if !discovered.isEmpty {
                     resolvedIdentifiers = discovered
                     if !silent {
-                        Log("ℹ Discovered project bundle identifiers: \(resolvedIdentifiers.joined(separator: ", "))".dim)
+                        Log("🟡 Discovered project bundle identifiers: \(resolvedIdentifiers.joined(separator: ", "))".dim)
                     }
                 }
             }

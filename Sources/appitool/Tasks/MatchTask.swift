@@ -70,6 +70,9 @@ public struct MatchTask: Task {
         /// Force renewal of provisioning profiles even if still valid.
         public let force: Bool
 
+        /// Silent mode (suppress output).
+        public let silent: Bool
+
         public init(
             gitUrl: String,
             gitBranch: String = "master",
@@ -87,7 +90,8 @@ public struct MatchTask: Task {
             apiKey: String? = nil,
             keychainName: String? = nil,
             keychainPassword: String? = nil,
-            force: Bool = false
+            force: Bool = false,
+            silent: Bool = false,
         ) {
             self.gitUrl = gitUrl
             self.gitBranch = gitBranch
@@ -106,6 +110,7 @@ public struct MatchTask: Task {
             self.keychainName = keychainName
             self.keychainPassword = keychainPassword
             self.force = force
+            self.silent = silent
         }
     }
 
@@ -203,7 +208,8 @@ public struct MatchTask: Task {
             apiKey: input.apiKey,
             keychainName: input.keychainName,
             keychainPassword: input.keychainPassword,
-            force: input.force
+            force: input.force,
+            silent: input.silent,
         )
 
         let runner = MatchRunner()
