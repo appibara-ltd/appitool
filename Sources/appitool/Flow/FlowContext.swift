@@ -54,6 +54,9 @@ struct FlowContext: Sendable {
     var installedCertificates: [String] = []
     var installedProfiles: [String: MatchTask.ProfileInfo] = [:]
 
+    // Android Product Flavors
+    var androidFlavors: [AndroidTasks.AndroidFlavor] = []
+
     // Pre-build state
     var version: String?
     var buildNumber: String?

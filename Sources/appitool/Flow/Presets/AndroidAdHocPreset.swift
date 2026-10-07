@@ -1,11 +1,12 @@
 import Foundation
+import GoogleServices
 import Rainbow
 
-/// Preconfigured preset for building and distributing Android Ad-Hoc / APK releases.
+/// Preconfigured preset for building and distributing Android Ad-Hoc / APK releases via Firebase App Distribution.
 struct AndroidAdHocPreset: FlowPreset {
     let name: String = "Android AdHoc"
     let description: String =
-        "Automated Android release flow configured for direct APK distribution."
+        "Automated Android release flow configured for direct APK distribution via Firebase App Distribution."
 
     init() {}
 
@@ -18,26 +19,230 @@ struct AndroidAdHocPreset: FlowPreset {
     }
 
     func setup(context: inout FlowContext) async throws {
-        Log("🔍 [\(name)] Checking Android SDK, Gradle environment, and signing keystores...".dim)
+        Log("🔍 Validating Firebase App Distribution and Android project setup...".dim)
+
+        // 1. Initial fast regex inspection
+        if let identifiers = try? AndroidTasks.getAndroidIdentifiers(workspaceRoot: context.projectDirectory) {
+            context.bundleId ??= identifiers.packageName
+            if let versionName = identifiers.versionName {
+                context.version ??= versionName
+                // Log("   • Detected project versionName: \(versionName.bold)".dim)
+            }
+            if let versionCode = identifiers.versionCode {
+                context.buildNumber ??= versionCode
+                // Log("   • Detected project versionCode: \(versionCode.bold)".dim)
+            }
+            if let ns = identifiers.namespace {
+                context.metadata["android_namespace"] = ns
+            }
+            if let appId = identifiers.applicationId {
+                context.metadata["android_application_id"] = appId
+            }
+            if !identifiers.flavors.isEmpty {
+                context.androidFlavors = identifiers.flavors
+                context.metadata["android_flavors"] = identifiers.flavors.map(\.name).joined(separator: ", ")
+            }
+        }
+
+        // 2. Evaluate dynamically via Gradle for exact runtime values (package, namespace, version, flavors)
+        if let evaluated = try? await AndroidTasks.evaluateAppInfoViaGradle(workspaceRoot: context.projectDirectory, offline: true) {
+            context.bundleId ??= evaluated.packageName ?? evaluated.applicationId
+            context.version ??= evaluated.versionName
+            context.buildNumber ??= evaluated.versionCode
+
+            if let pkg = evaluated.packageName {
+                context.metadata["android_package_name"] = pkg
+            }
+            if let appId = evaluated.applicationId {
+                context.metadata["android_application_id"] = appId
+            }
+            if let ns = evaluated.namespace {
+                context.metadata["android_namespace"] = ns
+            }
+            if let vn = evaluated.versionName {
+                context.metadata["android_version_name"] = vn
+                Log("   • Evaluated Gradle versionName: \(vn.bold)".dim)
+            }
+            if let vc = evaluated.versionCode {
+                context.metadata["android_version_code"] = vc
+                Log("   • Evaluated Gradle versionCode: \(vc.bold)".dim)
+            }
+            if !evaluated.flavors.isEmpty {
+                context.androidFlavors = evaluated.flavors
+                let flavorsList = evaluated.flavors.map(\.name).joined(separator: ", ")
+                context.metadata["android_flavors"] = flavorsList
+                Log("   • Evaluated Gradle flavors: \(flavorsList.bold)".dim)
+            }
+        }
+
+        guard let firebaseAppId = context.firebaseAppId, !firebaseAppId.isEmpty else { return }
+        guard let googleKey = context.googleKey, !googleKey.isEmpty else { return }
+
+        if let service = try? FirebaseService(key: googleKey) {
+            if let buildInfo = try? await GetLatestBuildNumberTask().run(
+                .init(
+                    target: .android(
+                        packageName: context.bundleId,
+                        firebaseAppId: firebaseAppId,
+                        firebaseService: service
+                    ),
+                    distribution: .adhoc
+                )
+            ) {
+                context.metadata["firebase_version"] = buildInfo.version
+                context.metadata["firebase_build_number"] = buildInfo.buildNumber
+                Log("🟢 Retrieved Firebase build info: Version: \(buildInfo.version.bold), Build Number: \(buildInfo.buildNumber.bold)".green)
+            }
+        }
     }
 
     func prebuild(context: inout FlowContext) async throws {
-        Log("🔧 [\(name)] Updating versionCode, versionName, and release notes...".dim)
+        Log("🔧 Resolving latest Firebase versionCode and bumping build...".dim)
+        let baseCodeStr = context.metadata["firebase_build_number"] ?? context.buildNumber
+        if let baseCodeStr, let baseCode = Int(baseCodeStr) {
+            let nextCode = String(baseCode + 1)
+            Log("🔢 Incrementing versionCode: \(baseCodeStr.bold) -> \(nextCode.bold.green)".dim)
+            context.buildNumber = nextCode
+        }
     }
 
     func build(context: inout FlowContext) async throws {
-        Log("🔨 [\(name)] Running Gradle assembleRelease for universal APK...".dim)
+        Log("🔨 Running Gradle assembleRelease to produce universal APK...".dim)
+
+        if context.isDryRun {
+            Log("🟡 Dry-run enabled: skipping Gradle build.".yellow)
+            return
+        }
+
+        let projectDir = AndroidTasks.findAndroidRoot(in: context.projectDirectory)?.path ?? context.projectDirectory.path
+
+        var properties: [String: String] = [:]
+        if let versionCode = context.buildNumber {
+            properties["versionCode"] = versionCode
+        }
+        if let versionName = context.version {
+            properties["versionName"] = versionName
+        }
+
+        let output = try await GradleTask().run(
+            .init(
+                projectDirectory: projectDir,
+                buildType: "release",
+                format: .apk,
+                properties: properties,
+                silent: context.silent
+            )
+        )
+
+        if let apkPath = output.apkPath {
+            let apkUrl = URL(fileURLWithPath: apkPath)
+            context.artifactPaths.append(apkUrl)
+            context.metadata["apk_path"] = apkPath
+            Log("📦 Produced Android APK: \(apkUrl.lastPathComponent)".green.bold)
+        }
     }
 
     func postbuild(context: inout FlowContext) async throws {
-        Log("📦 [\(name)] Verifying APK signature and zipalign...".dim)
+        Log("📦 Verifying generated .apk package integrity...".dim)
+        guard let apkUrl = context.artifactPaths.first(where: { $0.pathExtension.lowercased() == "apk" })
+            ?? context.metadata["apk_path"].map({ URL(fileURLWithPath: $0) }) else {
+            return
+        }
+        if FileManager.default.fileExists(atPath: apkUrl.path) {
+            let attrs = try? FileManager.default.attributesOfItem(atPath: apkUrl.path)
+            let size = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+            let formattedSize = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+            Log("   ✓ Verified APK artifact: \(apkUrl.lastPathComponent) (\(formattedSize))".dim)
+        }
     }
 
     func prerelease(context: inout FlowContext) async throws {
-        Log("📝 [\(name)] Packaging APK artifact and tester changelog...".dim)
+        Log("📝 Preparing tester release notes and distribution groups...".dim)
     }
 
     func release(context: inout FlowContext) async throws {
-        Log("🚀 [\(name)] Distributing APK to distribution channels...".dim)
+        Log("🚀 Distributing APK to testers via Firebase App Distribution...".dim)
+
+        context.metadata["firebase_test_groups"] = "internal"
+        context.changelog = "APPITOOL TEST"
+
+        guard let apkUrl = context.artifactPaths.first(where: { $0.pathExtension.lowercased() == "apk" })
+            ?? context.metadata["apk_path"].map({ URL(fileURLWithPath: $0) }) else {
+            Log("🚧 No .apk package found in context artifacts to upload.".yellow)
+            return
+        }
+
+        guard let firebaseAppId = context.firebaseAppId, !firebaseAppId.isEmpty else {
+            throw FlowRequirementError(presetName: name, missing: ["FIREBASE_ANDROID_APP_ID"])
+        }
+        guard let googleKey = context.googleKey, !googleKey.isEmpty else {
+            throw FlowRequirementError(presetName: name, missing: ["GOOGLE_KEY"])
+        }
+
+        if context.isDryRun {
+            Log("🟡 Dry-run enabled: would upload \(apkUrl.lastPathComponent) to Firebase App Distribution (\(firebaseAppId)).".yellow)
+            return
+        }
+
+        let firebaseService = try FirebaseService(key: googleKey)
+
+        let releaseNotes = context.changelog ?? context.metadata["release_notes"]
+        let testGroups: [String]? = {
+            if let groupsStr = context.metadata["firebase_test_groups"]
+                ?? context.metadata["test_groups"] {
+                return groupsStr.components(separatedBy: ",").map {
+                    $0.trimmingCharacters(in: .whitespaces)
+                }.filter { !$0.isEmpty }
+            }
+            return nil
+        }()
+
+        let testerEmails: [String]? = {
+            if let emailsStr = context.metadata["firebase_tester_emails"]
+                ?? context.metadata["tester_emails"] {
+                return emailsStr.components(separatedBy: ",").map {
+                    $0.trimmingCharacters(in: .whitespaces)
+                }.filter { !$0.isEmpty }
+            }
+            return nil
+        }()
+
+        // Ensure configured test groups exist before upload and resolve their actual aliases
+        var resolvedTestGroups: [String] = []
+        if let testGroups, !testGroups.isEmpty {
+            for group in testGroups {
+                let g = try await firebaseService.createOrGetGroup(
+                    project: firebaseAppId,
+                    groupAlias: group
+                )
+                let alias = g.name?.components(separatedBy: "/").last ?? group
+                resolvedTestGroups.append(alias)
+            }
+        }
+
+        let result = try await UploadToFirebaseTask().run(
+            .init(
+                binaryPath: apkUrl.path,
+                firebaseAppId: firebaseAppId,
+                service: firebaseService,
+                releaseNotes: releaseNotes,
+                testGroups: resolvedTestGroups.isEmpty ? testGroups : resolvedTestGroups,
+                testerEmails: testerEmails
+            )
+        )
+
+        context.metadata["firebase_release_name"] = result.releaseName
+        if let consoleUri = result.firebaseConsoleUri {
+            context.metadata["firebase_console_uri"] = consoleUri
+            Log("🔗 Firebase Console: \(consoleUri)".cyan)
+        }
+        if let downloadUri = result.binaryDownloadUri {
+            context.metadata["firebase_download_uri"] = downloadUri
+        }
+        if let testingUri = result.testingUri {
+            context.metadata["firebase_testing_uri"] = testingUri
+        }
+
+        Log("🟢 Successfully distributed APK to Firebase App Distribution!".green.bold)
     }
 }

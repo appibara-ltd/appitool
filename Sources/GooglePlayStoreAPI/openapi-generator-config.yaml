@@ -8,3 +8,7 @@ filter:
     - /androidpublisher/v3/applications/{packageName}/edits
     - /androidpublisher/v3/applications/{packageName}/edits/{editId}/tracks
     - /androidpublisher/v3/applications/{packageName}/edits/{editId}
+    - /androidpublisher/v3/applications/{packageName}/edits/{editId}/tracks/{track}
+    - /androidpublisher/v3/applications/{packageName}/edits/{editId}:commit
+    - /androidpublisher/v3/applications/{packageName}/edits/{editId}:validate
+

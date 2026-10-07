@@ -20,6 +20,9 @@ struct FlowAndroidCommand: AsyncParsableCommand {
     @OptionGroup var firebaseCredentials: FirebaseCredentialsOptions
     @OptionGroup var notificationOptions: NotificationOptions
 
+    @Flag(name: .long, inversion: .prefixedNo, help: "Suppress xcodebuild standard output and logs.")
+    var silent: Bool = true
+
     func run() async throws {
         _ = try? EnvLoader.loadEnv()
 
@@ -47,7 +50,8 @@ struct FlowAndroidCommand: AsyncParsableCommand {
             slackUrl: notifications.slackUrl,
             kokonoUrl: notifications.kokonoUrl,
             kokonoPublicKey: notifications.kokonoPublicKey,
-            preset: preset
+            preset: preset,
+            silent: silent
         )
 
         let runner = FlowRunner()

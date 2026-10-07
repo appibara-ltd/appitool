@@ -21,6 +21,9 @@ import GooglePlayGamesManagementAPI
 package struct GooglePlayService: Sendable {
     package static let sharedTransport = URLSessionTransport()
 
+    /// The underlying authentication middleware.
+    package let authMiddleware: GooglePlayAuthMiddleware
+
     /// The underlying OpenAPI client for the Google Play Developer Publishing API (androidpublisher v3).
     package let client: GooglePlayStoreAPI.Client
 
@@ -48,6 +51,7 @@ package struct GooglePlayService: Sendable {
         urlSession: URLSession = .shared
     ) throws {
         let authMiddleware = try GooglePlayAuthMiddleware(key: key, scope: scope, urlSession: urlSession)
+        self.authMiddleware = authMiddleware
 
         self.client = GooglePlayStoreAPI.Client(serverURL: try GooglePlayStoreAPI.Servers.Server1.url(), transport: transport, middlewares: [authMiddleware])
         self.reporting = GooglePlayReportingAPI.Client(serverURL: try GooglePlayReportingAPI.Servers.Server1.url(), transport: transport, middlewares: [authMiddleware])
@@ -56,4 +60,18 @@ package struct GooglePlayService: Sendable {
         self.customApps = GooglePlayCustomAppAPI.Client(serverURL: try GooglePlayCustomAppAPI.Servers.Server1.url(), transport: transport, middlewares: [authMiddleware])
         self.gamesManagement = GooglePlayGamesManagementAPI.Client(serverURL: try GooglePlayGamesManagementAPI.Servers.Server1.url(), transport: transport, middlewares: [authMiddleware])
     }
+
+    /// Obtains a valid OAuth 2.0 access token using the underlying GooglePlayAuthMiddleware.
+    package func getAccessToken() async throws -> String {
+        try await authMiddleware.getAccessToken()
+    }
+
+    /// Instantiates `GooglePlayService` using an explicitly provided Google Cloud Service Account key (`googleKey`).
+    package static func makeService(googleKey: String? = nil) throws -> GooglePlayService? {
+        if let googleKey, !googleKey.isEmpty {
+            return try GooglePlayService(key: googleKey)
+        }
+        return nil
+    }
+
 }
