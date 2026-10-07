@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.webp" alt="appitool" width="180" />
+  <img src="banner.webp" alt="appitool" width="100%" />
 </p>
 
 # Appitool
