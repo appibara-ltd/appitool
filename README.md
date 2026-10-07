@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="banner.webp" alt="appitool" width="100%" />
+  <img src="banner.png" alt="appitool" width="100%" />
 </p>
-
-# Appitool
 
 A unified CLI utility and release orchestration engine for Apple App Store Connect and Google Play operations.
 
