@@ -2,7 +2,6 @@ import Foundation
 import PathKit
 import Rainbow
 import Subprocess
-import System
 import XcodeProj
 
 /// A suite of atomic Xcode project operations powered exclusively by `XcodeProj`.
@@ -1631,5 +1630,3 @@ public enum XCodeTasks {
         return (version: nil, buildNumber: nil)
     }
 }
-
-

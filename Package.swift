@@ -34,6 +34,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-certificates.git", .upToNextMajor(from: "1.21.0")),
         .package(url: "https://github.com/tuist/XcodeProj.git", from: "8.25.0"),
         .package(url: "https://github.com/swiftlang/swift-subprocess.git", from: "1.0.0"),
+        .package(url: "https://github.com/apple/swift-system.git", from: "1.8.1")
     ],
     targets: [
         // Apple App Store Connect API (library target with generator plugin)
@@ -184,6 +185,7 @@ let package = Package(
                 .product(name: "Rainbow", package: "Rainbow"),
                 .product(name: "XcodeProj", package: "XcodeProj"),
                 .product(name: "Subprocess", package: "swift-subprocess"),
+                .product(name: "SystemPackage", package: "swift-system")
             ],
             swiftSettings: defaultSwiftSettings,
             linkerSettings: [

@@ -1,7 +1,6 @@
 import Foundation
 import Rainbow
 import Subprocess
-import System
 
 /// A task that handles building, archiving, and packaging iOS applications using `xcodebuild`
 /// providing full functional parity with Fastlane's `build_app` (`gym`) and `@cmd-bin/react-native`.
