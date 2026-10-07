@@ -2,6 +2,10 @@ import AppleServices
 import Foundation
 import Rainbow
 import Subprocess
+import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Result of an upload to App Store Connect (TestFlight / App Store).
 struct UploadToAppStoreResult: Sendable {
