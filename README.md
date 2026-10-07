@@ -1,4 +1,8 @@
-# appitool
+<p align="center">
+  <img src="logo.webp" alt="appitool" width="180" />
+</p>
+
+# Appitool
 
 A unified CLI utility and release orchestration engine for Apple App Store Connect and Google Play operations.
 
