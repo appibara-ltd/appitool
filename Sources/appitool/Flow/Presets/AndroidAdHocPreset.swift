@@ -2,11 +2,11 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-/// Preconfigured preset for building and distributing Android Ad-Hoc / APK releases via Firebase App Distribution.
+/// Preconfigured preset for building and distributing Android Ad-Hoc (APK or AAB) releases via Firebase App Distribution.
 struct AndroidAdHocPreset: FlowPreset {
     let name: String = "Android AdHoc"
     let description: String =
-        "Automated Android release flow configured for direct APK distribution via Firebase App Distribution."
+        "Automated Android release flow configured for direct APK/AAB distribution via Firebase App Distribution."
 
     init() {}
 
@@ -26,11 +26,9 @@ struct AndroidAdHocPreset: FlowPreset {
             context.bundleId ??= identifiers.packageName
             if let versionName = identifiers.versionName {
                 context.version ??= versionName
-                // Log("   • Detected project versionName: \(versionName.bold)".dim)
             }
             if let versionCode = identifiers.versionCode {
                 context.buildNumber ??= versionCode
-                // Log("   • Detected project versionCode: \(versionCode.bold)".dim)
             }
             if let ns = identifiers.namespace {
                 context.metadata["android_namespace"] = ns
@@ -107,7 +105,9 @@ struct AndroidAdHocPreset: FlowPreset {
     }
 
     func build(context: inout FlowContext) async throws {
-        Log("🔨 Running Gradle assembleRelease to produce universal APK...".dim)
+        let format = context.androidFormat ?? .apk
+        let taskName = format == .aab ? "bundleRelease" : "assembleRelease"
+        Log("🔨 Running Gradle \(taskName) to produce \(format.rawValue.uppercased())...".dim)
 
         if context.isDryRun {
             Log("🟡 Dry-run enabled: skipping Gradle build.".yellow)
@@ -128,31 +128,33 @@ struct AndroidAdHocPreset: FlowPreset {
             .init(
                 projectDirectory: projectDir,
                 buildType: "release",
-                format: .apk,
+                format: format,
                 properties: properties,
                 silent: context.silent
             )
         )
 
-        if let apkPath = output.apkPath {
-            let apkUrl = URL(fileURLWithPath: apkPath)
-            context.artifactPaths.append(apkUrl)
-            context.metadata["apk_path"] = apkPath
-            Log("📦 Produced Android APK: \(apkUrl.lastPathComponent)".green.bold)
+        let artifactPath = (format == .aab) ? output.aabPath : output.apkPath
+        if let artifactPath {
+            let artifactUrl = URL(fileURLWithPath: artifactPath)
+            context.artifactPaths.append(artifactUrl)
+            context.metadata["\(format.rawValue)_path"] = artifactPath
+            Log("📦 Produced Android \(format.rawValue.uppercased()): \(artifactUrl.lastPathComponent)".green.bold)
         }
     }
 
     func postbuild(context: inout FlowContext) async throws {
-        Log("📦 Verifying generated .apk package integrity...".dim)
-        guard let apkUrl = context.artifactPaths.first(where: { $0.pathExtension.lowercased() == "apk" })
-            ?? context.metadata["apk_path"].map({ URL(fileURLWithPath: $0) }) else {
+        let format = context.androidFormat ?? .apk
+        Log("📦 Verifying generated .\(format.rawValue) package integrity...".dim)
+        guard let artifactUrl = context.artifactPaths.first(where: { $0.pathExtension.lowercased() == format.rawValue })
+            ?? context.metadata["\(format.rawValue)_path"].map({ URL(fileURLWithPath: $0) }) else {
             return
         }
-        if FileManager.default.fileExists(atPath: apkUrl.path) {
-            let attrs = try? FileManager.default.attributesOfItem(atPath: apkUrl.path)
+        if FileManager.default.fileExists(atPath: artifactUrl.path) {
+            let attrs = try? FileManager.default.attributesOfItem(atPath: artifactUrl.path)
             let size = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
             let formattedSize = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
-            Log("   ✓ Verified APK artifact: \(apkUrl.lastPathComponent) (\(formattedSize))".dim)
+            Log("   ✓ Verified \(format.rawValue.uppercased()) artifact: \(artifactUrl.lastPathComponent) (\(formattedSize))".dim)
         }
     }
 
@@ -161,14 +163,15 @@ struct AndroidAdHocPreset: FlowPreset {
     }
 
     func release(context: inout FlowContext) async throws {
-        Log("🚀 Distributing APK to testers via Firebase App Distribution...".dim)
+        let format = context.androidFormat ?? .apk
+        Log("🚀 Distributing \(format.rawValue.uppercased()) to testers via Firebase App Distribution...".dim)
 
         context.metadata["firebase_test_groups"] = "internal"
         context.changelog = "APPITOOL TEST"
 
-        guard let apkUrl = context.artifactPaths.first(where: { $0.pathExtension.lowercased() == "apk" })
-            ?? context.metadata["apk_path"].map({ URL(fileURLWithPath: $0) }) else {
-            Log("🚧 No .apk package found in context artifacts to upload.".yellow)
+        guard let artifactUrl = context.artifactPaths.first(where: { $0.pathExtension.lowercased() == format.rawValue })
+            ?? context.metadata["\(format.rawValue)_path"].map({ URL(fileURLWithPath: $0) }) else {
+            Log("🚧 No .\(format.rawValue) package found in context artifacts to upload.".yellow)
             return
         }
 
@@ -180,7 +183,7 @@ struct AndroidAdHocPreset: FlowPreset {
         }
 
         if context.isDryRun {
-            Log("🟡 Dry-run enabled: would upload \(apkUrl.lastPathComponent) to Firebase App Distribution (\(firebaseAppId)).".yellow)
+            Log("🟡 Dry-run enabled: would upload \(artifactUrl.lastPathComponent) to Firebase App Distribution (\(firebaseAppId)).".yellow)
             return
         }
 
@@ -222,7 +225,7 @@ struct AndroidAdHocPreset: FlowPreset {
 
         let result = try await UploadToFirebaseTask().run(
             .init(
-                binaryPath: apkUrl.path,
+                binaryPath: artifactUrl.path,
                 firebaseAppId: firebaseAppId,
                 service: firebaseService,
                 releaseNotes: releaseNotes,
@@ -243,6 +246,6 @@ struct AndroidAdHocPreset: FlowPreset {
             context.metadata["firebase_testing_uri"] = testingUri
         }
 
-        Log("🟢 Successfully distributed APK to Firebase App Distribution!".green.bold)
+        Log("🟢 Successfully distributed \(format.rawValue.uppercased()) to Firebase App Distribution!".green.bold)
     }
 }

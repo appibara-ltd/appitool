@@ -54,8 +54,9 @@ struct FlowContext: Sendable {
     var installedCertificates: [String] = []
     var installedProfiles: [String: MatchTask.ProfileInfo] = [:]
 
-    // Android Product Flavors
+    // Android Product Flavors & Packaging Format
     var androidFlavors: [AndroidTasks.AndroidFlavor] = []
+    var androidFormat: GradleTask.BuildFormat? = nil
 
     // Pre-build state
     var version: String?
@@ -109,6 +110,7 @@ struct FlowContext: Sendable {
         kokonoUrl: String? = nil,
         kokonoPublicKey: String? = nil,
         preset: (any FlowPreset)? = nil,
+        androidFormat: GradleTask.BuildFormat? = nil,
         silent: Bool = false,
     ) {
         self.platform = platform
@@ -139,6 +141,7 @@ struct FlowContext: Sendable {
         self.kokonoUrl = kokonoUrl
         self.kokonoPublicKey = kokonoPublicKey
         self.preset = preset
+        self.androidFormat = androidFormat
         self.silent = silent
     }
 }

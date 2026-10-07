@@ -1,3 +1,4 @@
+import ArgumentParser
 import Foundation
 import Rainbow
 import Subprocess
@@ -6,7 +7,7 @@ import Subprocess
 /// producing Android App Bundles (AAB) or APK artifacts.
 public struct GradleTask: Task {
     /// Target artifact packaging format.
-    public enum BuildFormat: String, Sendable, CaseIterable {
+    public enum BuildFormat: String, Sendable, CaseIterable, ExpressibleByArgument {
         case aab
         case apk
     }
