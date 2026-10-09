@@ -38,7 +38,7 @@ jobs:
           tar -czf appitool-darwin-arm64.tar.gz -C "$(dirname "$BIN_PATH")" appitool
 
       - name: Upload macOS Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: appitool-darwin-arm64
           path: appitool-darwin-arm64.tar.gz
@@ -66,7 +66,7 @@ jobs:
           tar -czf appitool-linux-x86_64.tar.gz -C "$(dirname "$BIN_PATH")" appitool
 
       - name: Upload Linux Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: appitool-linux-x86_64
           path: appitool-linux-x86_64.tar.gz
@@ -90,7 +90,7 @@ jobs:
           sha256sum appitool-darwin-arm64.tar.gz appitool-linux-x86_64.tar.gz > checksums.txt
 
       - name: Generate Artifact Attestation
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         continue-on-error: true
         with:
           subject-path: 'appitool-*.tar.gz'
