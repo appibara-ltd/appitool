@@ -98,21 +98,9 @@ struct BuildIOSCommand: AsyncParsableCommand {
             mainTarget = resolvedScheme
         }
 
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
-        let targetRoot = URL(fileURLWithPath: homeDir)
-            .appendingPathComponent(".appitool")
-            .appendingPathComponent("ios")
-            .appendingPathComponent(mainTarget)
-
-        let buildRoot = targetRoot.appendingPathComponent("build")
-        let resolvedDerivedData = targetRoot.appendingPathComponent("derivedData").path
-
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy_MM_dd_HH_mm"
-        let timestamp = formatter.string(from: Date())
-        // All files of this build live in their own timestamped directory.
-        let resolvedOutputDir = buildRoot.appendingPathComponent(timestamp).path
+        let buildRoot = AppitoolPaths.targetBuildRoot(platform: "ios", target: mainTarget)
+        let resolvedDerivedData = AppitoolPaths.iosDerivedDataDirectory(target: mainTarget).path
+        let resolvedOutputDir = AppitoolPaths.buildDirectory(platform: "ios", target: mainTarget).path
         let resolvedOutputName = resolvedScheme
 
         var resolvedArchivePath: String? = nil

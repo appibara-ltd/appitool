@@ -21,57 +21,7 @@ struct AndroidAdHocPreset: FlowPreset {
     func setup(context: inout FlowContext) async throws {
         Log("🔍 Validating Firebase App Distribution and Android project setup...".dim)
 
-        // 1. Initial fast regex inspection
-        if let identifiers = try? AndroidTasks.getAndroidIdentifiers(workspaceRoot: context.projectDirectory) {
-            context.bundleId ??= identifiers.packageName
-            if let versionName = identifiers.versionName {
-                context.version ??= versionName
-            }
-            if let versionCode = identifiers.versionCode {
-                context.buildNumber ??= versionCode
-            }
-            if let ns = identifiers.namespace {
-                context.metadata["android_namespace"] = ns
-            }
-            if let appId = identifiers.applicationId {
-                context.metadata["android_application_id"] = appId
-            }
-            if !identifiers.flavors.isEmpty {
-                context.androidFlavors = identifiers.flavors
-                context.metadata["android_flavors"] = identifiers.flavors.map(\.name).joined(separator: ", ")
-            }
-        }
-
-        // 2. Evaluate dynamically via Gradle for exact runtime values (package, namespace, version, flavors)
-        if let evaluated = try? await AndroidTasks.evaluateAppInfoViaGradle(workspaceRoot: context.projectDirectory, offline: true) {
-            context.bundleId ??= evaluated.packageName ?? evaluated.applicationId
-            context.version ??= evaluated.versionName
-            context.buildNumber ??= evaluated.versionCode
-
-            if let pkg = evaluated.packageName {
-                context.metadata["android_package_name"] = pkg
-            }
-            if let appId = evaluated.applicationId {
-                context.metadata["android_application_id"] = appId
-            }
-            if let ns = evaluated.namespace {
-                context.metadata["android_namespace"] = ns
-            }
-            if let vn = evaluated.versionName {
-                context.metadata["android_version_name"] = vn
-                Log("   • Evaluated Gradle versionName: \(vn.bold)".dim)
-            }
-            if let vc = evaluated.versionCode {
-                context.metadata["android_version_code"] = vc
-                Log("   • Evaluated Gradle versionCode: \(vc.bold)".dim)
-            }
-            if !evaluated.flavors.isEmpty {
-                context.androidFlavors = evaluated.flavors
-                let flavorsList = evaluated.flavors.map(\.name).joined(separator: ", ")
-                context.metadata["android_flavors"] = flavorsList
-                Log("   • Evaluated Gradle flavors: \(flavorsList.bold)".dim)
-            }
-        }
+        try await AndroidPresetHelpers.setupAndroidProject(context: &context)
 
         // 3. Resolve signing keystore via Match if available
         if context.androidSigningConfig == nil,
@@ -148,17 +98,7 @@ struct AndroidAdHocPreset: FlowPreset {
         }
 
         let targetName = context.targetName ?? context.bundleId ?? "AndroidApp"
-        let targetRoot = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".appitool")
-            .appendingPathComponent("android")
-            .appendingPathComponent(targetName)
-        let buildRoot = targetRoot.appendingPathComponent("build")
-
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy_MM_dd_HH_mm"
-        let timestamp = formatter.string(from: Date())
-        let outputDir = buildRoot.appendingPathComponent(timestamp).path
+        let outputDir = AppitoolPaths.buildDirectory(platform: "android", target: targetName).path
         let artifactName = "\(targetName)_release"
 
         let output = try await GradleTask().run(

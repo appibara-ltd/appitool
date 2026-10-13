@@ -143,20 +143,7 @@ struct BuildAndroidCommand: AsyncParsableCommand {
         )
 
         // 5. Resolve opinionated output directory and artifact name
-        let homeDir = fm.homeDirectoryForCurrentUser.path
-        let targetRoot = URL(fileURLWithPath: homeDir)
-            .appendingPathComponent(".appitool")
-            .appendingPathComponent("android")
-            .appendingPathComponent(mainTarget)
-
-        let buildRoot = targetRoot.appendingPathComponent("build")
-
-        let dateFormatter = DateFormatter()
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dateFormatter.dateFormat = "yyyy_MM_dd_HH_mm"
-        let timestamp = dateFormatter.string(from: Date())
-
-        let resolvedOutputDir = buildRoot.appendingPathComponent(timestamp).path
+        let resolvedOutputDir = AppitoolPaths.buildDirectory(platform: "android", target: mainTarget).path
 
         let flavorSuffix = (resolvedFlavor?.isEmpty == false) ? "\(resolvedFlavor!)_" : ""
         let artifactBaseName = "\(mainTarget)_\(flavorSuffix)\(resolvedBuildType.lowercased())"

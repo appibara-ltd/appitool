@@ -34,56 +34,8 @@ struct IOSInternalPreset: FlowPreset {
 
     func setup(context: inout FlowContext) async throws {
         Log("🔍 Validating App Store Connect credentials and AppStore profiles...".dim)
-        if context.workspacePath == nil && context.xcodeProjectPath == nil {
-            let detected = XcodeBuildTask.autoDetect(in: context.projectDirectory)
-            context.workspacePath = detected.workspace
-            context.xcodeProjectPath = detected.project
-        }
 
-        let info = try await XCodeTasks.inspectProject(
-            workspace: context.workspacePath,
-            project: context.xcodeProjectPath,
-            in: context.projectDirectory
-        )
-        Log(
-            "🔍 Inspected project targets: \(info.targets.joined(separator: ", "))".dim)
-
-        let result = try await XCodeTasks.getIosIdentifiers(
-            workspaceRoot: context.projectDirectory,
-            scheme: context.scheme,
-            configuration: context.configuration
-        )
-
-        context.scheme ??= result.scheme
-        context.configuration ??= result.configuration
-        context.targetName ??= result.mainAppTargetName
-        context.bundleId ??= result.bundleId
-
-        // Read project's current version and build number
-        if let projVersionInfo = try? XCodeTasks.getProjectVersion(
-            projectPath: context.xcodeProjectPath,
-            workspacePath: context.workspacePath,
-            targetName: context.targetName,
-            configuration: context.configuration,
-            in: context.projectDirectory
-        ) {
-            context.version = projVersionInfo.version
-            context.buildNumber = projVersionInfo.buildNumber
-        }
-
-        // Collect all target bundle identifiers to sync profiles for
-        var appIdentifiers: [String] = []
-        if let explicit = context.bundleId, !explicit.isEmpty {
-            appIdentifiers.append(explicit)
-        }
-        for target in result.targets {
-            if !target.bundleId.isEmpty && !appIdentifiers.contains(target.bundleId) {
-                appIdentifiers.append(target.bundleId)
-            }
-        }
-        if appIdentifiers.isEmpty, let mainBundleId = result.bundleId, !mainBundleId.isEmpty {
-            appIdentifiers.append(mainBundleId)
-        }
+        let appIdentifiers = try await IOSPresetHelpers.setupIOSProject(context: &context)
 
         guard let gitUrl = context.matchGitUrl, let password = context.matchPassword else {
             return
@@ -265,18 +217,9 @@ struct IOSInternalPreset: FlowPreset {
             return
         }
 
-        let targetRoot = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".appitool")
-            .appendingPathComponent("ios")
-            .appendingPathComponent(context.targetName ?? context.scheme ?? "app")
-        let buildRoot = targetRoot.appendingPathComponent("build")
-        let derivedData = targetRoot.appendingPathComponent("derivedData").path
-
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy_MM_dd_HH_mm"
-        // All files of this build live in their own timestamped directory.
-        let outputDir = buildRoot.appendingPathComponent(formatter.string(from: Date())).path
+        let target = context.targetName ?? context.scheme ?? "app"
+        let outputDir = AppitoolPaths.buildDirectory(platform: "ios", target: target).path
+        let derivedData = AppitoolPaths.iosDerivedDataDirectory(target: target).path
         let outputName = context.scheme ?? "app"
 
         let profiles = context.installedProfiles.mapValues { $0.name }

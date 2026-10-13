@@ -92,6 +92,30 @@ package struct AppStoreService: Sendable {
         return try decoder.decode(T.self, from: data)
     }
 
+    /// Generic pagination helper that accumulates items until `limit` is reached or no next link exists.
+    private func paginate<Item, Page: Decodable>(
+        initialItems: [Item],
+        initialNext: String?,
+        limit: Int?,
+        extract: (Page) -> (items: [Item], next: String?)
+    ) async throws -> [Item] {
+        var allItems = initialItems
+        var nextUrl = initialNext
+
+        while let currentNext = nextUrl {
+            if let limit, allItems.count >= limit { break }
+            let nextPage: Page = try await fetchNextPage(from: currentNext)
+            let (items, next) = extract(nextPage)
+            allItems.append(contentsOf: items)
+            nextUrl = next
+        }
+
+        if let limit, allItems.count > limit {
+            return Array(allItems.prefix(limit))
+        }
+        return allItems
+    }
+
     // MARK: - Certificate Operations
 
     /// Fetches all active certificate IDs from Apple Developer Portal with auto-pagination.
@@ -114,20 +138,13 @@ package struct AppStoreService: Sendable {
             return []
         }
 
-        var allItems = certCollection.data
-        var nextUrl = certCollection.links.next
-
-        while let currentNext = nextUrl {
-            if let limit, allItems.count >= limit { break }
-            let nextPage: Components.Schemas.CertificatesResponse = try await fetchNextPage(from: currentNext)
-            allItems.append(contentsOf: nextPage.data)
-            nextUrl = nextPage.links.next
+        return try await paginate(
+            initialItems: certCollection.data,
+            initialNext: certCollection.links.next,
+            limit: limit
+        ) { (nextPage: Components.Schemas.CertificatesResponse) in
+            (nextPage.data, nextPage.links.next)
         }
-
-        if let limit, allItems.count > limit {
-            return Array(allItems.prefix(limit))
-        }
-        return allItems
     }
 
     /// Submits a CSR and creates a new certificate on Apple Developer Portal.
@@ -186,20 +203,13 @@ package struct AppStoreService: Sendable {
             return []
         }
 
-        var allItems = collection.data
-        var nextUrl = collection.links.next
-
-        while let currentNext = nextUrl {
-            if let limit, allItems.count >= limit { break }
-            let nextPage: Components.Schemas.BundleIdsResponse = try await fetchNextPage(from: currentNext)
-            allItems.append(contentsOf: nextPage.data)
-            nextUrl = nextPage.links.next
+        return try await paginate(
+            initialItems: collection.data,
+            initialNext: collection.links.next,
+            limit: limit
+        ) { (nextPage: Components.Schemas.BundleIdsResponse) in
+            (nextPage.data, nextPage.links.next)
         }
-
-        if let limit, allItems.count > limit {
-            return Array(allItems.prefix(limit))
-        }
-        return allItems
     }
 
     /// Resolves an existing bundle ID or creates a new one on Apple Developer Portal.
@@ -327,20 +337,13 @@ package struct AppStoreService: Sendable {
             return []
         }
 
-        var allItems = collection.data
-        var nextUrl = collection.links.next
-
-        while let currentNext = nextUrl {
-            if let limit, allItems.count >= limit { break }
-            let nextPage: Components.Schemas.AppsResponse = try await fetchNextPage(from: currentNext)
-            allItems.append(contentsOf: nextPage.data)
-            nextUrl = nextPage.links.next
+        return try await paginate(
+            initialItems: collection.data,
+            initialNext: collection.links.next,
+            limit: limit
+        ) { (nextPage: Components.Schemas.AppsResponse) in
+            (nextPage.data, nextPage.links.next)
         }
-
-        if let limit, allItems.count > limit {
-            return Array(allItems.prefix(limit))
-        }
-        return allItems
     }
 
     // MARK: - Device Operations
@@ -363,20 +366,13 @@ package struct AppStoreService: Sendable {
             return []
         }
 
-        var allItems = collection.data
-        var nextUrl = collection.links.next
-
-        while let currentNext = nextUrl {
-            if let limit, allItems.count >= limit { break }
-            let nextPage: Components.Schemas.DevicesResponse = try await fetchNextPage(from: currentNext)
-            allItems.append(contentsOf: nextPage.data)
-            nextUrl = nextPage.links.next
+        return try await paginate(
+            initialItems: collection.data,
+            initialNext: collection.links.next,
+            limit: limit
+        ) { (nextPage: Components.Schemas.DevicesResponse) in
+            (nextPage.data, nextPage.links.next)
         }
-
-        if let limit, allItems.count > limit {
-            return Array(allItems.prefix(limit))
-        }
-        return allItems
     }
 
     /// Fetches devices with string-based platform, status, and name filters.
@@ -514,20 +510,13 @@ package struct AppStoreService: Sendable {
             return []
         }
 
-        var allItems = profCollection.data
-        var nextUrl = profCollection.links.next
-
-        while let currentNext = nextUrl {
-            if let limit, allItems.count >= limit { break }
-            let nextPage: Components.Schemas.ProfilesResponse = try await fetchNextPage(from: currentNext)
-            allItems.append(contentsOf: nextPage.data)
-            nextUrl = nextPage.links.next
+        return try await paginate(
+            initialItems: profCollection.data,
+            initialNext: profCollection.links.next,
+            limit: limit
+        ) { (nextPage: Components.Schemas.ProfilesResponse) in
+            (nextPage.data, nextPage.links.next)
         }
-
-        if let limit, allItems.count > limit {
-            return Array(allItems.prefix(limit))
-        }
-        return allItems
     }
 
     /// Creates a provisioning profile with automatic conflict retry and base64 decoding.

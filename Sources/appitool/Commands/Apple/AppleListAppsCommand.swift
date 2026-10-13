@@ -3,7 +3,7 @@ import Foundation
 import AppleServices
 import Rainbow
 
-struct AppleListAppsCommand: AsyncParsableCommand {
+struct AppleListAppsCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "list-apps",
         abstract: "Lists applications registered in App Store Connect."
@@ -21,13 +21,8 @@ struct AppleListAppsCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Maximum number of items to return (omit to fetch all).")
     var limit: Int?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
-        guard let service = try appleCredentials.makeService() else {
-            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
-            return
-        }
+    func execute() async throws {
+        let service = try appleCredentials.requireService()
 
         Log("🔍 Fetching apps from App Store Connect...".dim)
         let apps = try await service.fetchApps(limit: limit, bundleId: bundleId, name: name)

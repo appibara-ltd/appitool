@@ -31,6 +31,14 @@ struct AppleCredentialsOptions: ParsableArguments, Sendable {
         guard let creds = resolve() else { return nil }
         return try AppStoreService(keyId: creds.keyId, issuerId: creds.issuerId, key: creds.key)
     }
+
+    /// Returns an `AppStoreService` or throws a descriptive `ValidationError`.
+    func requireService() throws -> AppStoreService {
+        guard let service = try makeService() else {
+            throw ValidationError("Missing App Store Connect credentials. Provide flags or set APPLE_KEY, APPLE_KEY_ID, and APPLE_ISSUER_ID in .env.")
+        }
+        return service
+    }
 }
 
 /// Reusable CLI options and environment resolution for Google Play credentials.
@@ -51,6 +59,14 @@ struct GoogleCredentialsOptions: ParsableArguments, Sendable {
     func makeService() throws -> GooglePlayService? {
         guard let key = resolveKey() else { return nil }
         return try GooglePlayService(key: key)
+    }
+
+    /// Returns a `GooglePlayService` or throws a descriptive `ValidationError`.
+    func requireService() throws -> GooglePlayService {
+        guard let service = try makeService() else {
+            throw ValidationError("Missing Google Play Service Account key. Provide --google-key or set GOOGLE_KEY in .env.")
+        }
+        return service
     }
 }
 
@@ -91,6 +107,14 @@ struct FirebaseProjectOptions: ParsableArguments, Sendable {
     func makeService() throws -> FirebaseService? {
         guard let key = resolveKey() else { return nil }
         return try FirebaseService(key: key)
+    }
+
+    /// Returns a `FirebaseService` or throws a descriptive `ValidationError`.
+    func requireService() throws -> FirebaseService {
+        guard let service = try makeService() else {
+            throw ValidationError("Missing Google Service Account key for Firebase. Provide --google-key or set GOOGLE_KEY in .env.")
+        }
+        return service
     }
 }
 
@@ -149,6 +173,11 @@ struct FirebaseCredentialsOptions: ParsableArguments, Sendable {
     /// Resolves credentials from CLI options or environment and creates a `FirebaseService`.
     func makeService() throws -> FirebaseService? {
         try projectOptions.makeService()
+    }
+
+    /// Returns a `FirebaseService` or throws a descriptive `ValidationError`.
+    func requireService() throws -> FirebaseService {
+        try projectOptions.requireService()
     }
 }
 

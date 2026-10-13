@@ -4,7 +4,7 @@ import AppStoreConnectAPI
 import AppleServices
 import Rainbow
 
-struct AppleListCertificatesCommand: AsyncParsableCommand {
+struct AppleListCertificatesCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "list-certificates",
         abstract: "Lists Certificates registered on Apple Developer Portal."
@@ -19,13 +19,8 @@ struct AppleListCertificatesCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Maximum number of items to return (omit to fetch all).")
     var limit: Int?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
-        guard let service = try appleCredentials.makeService() else {
-            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
-            return
-        }
+    func execute() async throws {
+        let service = try appleCredentials.requireService()
 
         let certTypes = type.flatMap { AppleTypeMapper.parseCertificateQueryFilter($0) }
 
