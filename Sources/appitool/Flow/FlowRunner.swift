@@ -51,6 +51,33 @@ struct FlowRunner: Sendable {
             _, custom in custom
         }
 
+        defer {
+            let fm = FileManager.default
+            if let tempUrl = context.androidSigningTempUrl {
+                var isDir: ObjCBool = false
+                if fm.fileExists(atPath: tempUrl.path, isDirectory: &isDir), !isDir.boolValue {
+                    let parent = tempUrl.deletingLastPathComponent()
+                    if parent.lastPathComponent.count == 36 && UUID(uuidString: parent.lastPathComponent) != nil {
+                        try? fm.removeItem(at: parent)
+                    } else {
+                        try? fm.removeItem(at: tempUrl)
+                    }
+                } else {
+                    try? fm.removeItem(at: tempUrl)
+                }
+            }
+
+            if context.platform == .android {
+                let keystoresDir = URL(fileURLWithPath: fm.homeDirectoryForCurrentUser.path)
+                    .appendingPathComponent(".appitool")
+                    .appendingPathComponent("android")
+                    .appendingPathComponent("keystores")
+                if let contents = try? fm.contentsOfDirectory(atPath: keystoresDir.path), contents.isEmpty {
+                    try? fm.removeItem(at: keystoresDir)
+                }
+            }
+        }
+
         do {
             for stage in FlowStage.allCases {
                 try await runStage(stage, context: &context, handler: effectiveHandlers[stage])

@@ -111,13 +111,18 @@ package struct MatchEncryption: Sendable {
     // MARK: - Format Detection
 
     private func isPlainCertificateOrProfile(_ data: Data) -> Bool {
-        // DER ASN.1 SEQUENCE header (0x30 0x82 or 0x30 0x81 or 0x30 0x83)
+        // DER ASN.1 SEQUENCE header (0x30 0x82 or 0x30 0x81 or 0x30 0x83) - covers DER certificates, PKCS#12 (.p12, .keystore)
         if data.count >= 2 && data[0] == 0x30 && (data[1] == 0x82 || data[1] == 0x81 || data[1] == 0x83) {
             return true
         }
-        // PEM or XML header
+        // JKS (Java KeyStore) magic bytes: 0xFE 0xED 0xFE 0xED
+        if data.count >= 4 && data[0] == 0xFE && data[1] == 0xED && data[2] == 0xFE && data[3] == 0xED {
+            return true
+        }
+        // PEM, XML, or JSON header
         if let str = String(data: data.prefix(100), encoding: .utf8) {
-            if str.contains("<?xml") || str.contains("<!DOCTYPE") || str.contains("-----BEGIN") {
+            let trimmed = str.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.contains("<?xml") || trimmed.contains("<!DOCTYPE") || trimmed.contains("-----BEGIN") || trimmed.hasPrefix("{") {
                 return true
             }
         }
@@ -136,7 +141,10 @@ package struct MatchEncryption: Sendable {
         ) else { return [] }
 
         var results: [String] = []
-        let supportedExtensions: Set<String> = ["cer", "p12", "mobileprovision", "provisionprofile"]
+        let supportedExtensions: Set<String> = [
+            "cer", "p12", "mobileprovision", "provisionprofile",
+            "keystore", "jks", "json", "pem"
+        ]
 
         for case let fileUrl as URL in enumerator {
             // Guard against .git directory or hidden file inside the cloned repository

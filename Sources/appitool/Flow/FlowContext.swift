@@ -57,6 +57,8 @@ struct FlowContext: Sendable {
     // Android Product Flavors & Packaging Format
     var androidFlavors: [AndroidTasks.AndroidFlavor] = []
     var androidFormat: GradleTask.BuildFormat? = nil
+    var androidSigningConfig: GradleTask.SigningConfig? = nil
+    var androidSigningTempUrl: URL? = nil
 
     // Pre-build state
     var version: String?

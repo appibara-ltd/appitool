@@ -271,6 +271,9 @@ public enum MatchError: LocalizedError, Sendable {
     case profileParsingFailed(String)
     case missingPassword
     case portalAuthenticationRequired(String)
+    case keystoreNotFound(packageName: String, buildType: String, expectedPath: String)
+    case missingKeystorePath
+    case missingKeystoreCredentials(String)
 
     public var errorDescription: String? {
         switch self {
@@ -300,6 +303,12 @@ public enum MatchError: LocalizedError, Sendable {
             return "Match encryption password is empty. Set MATCH_PASSWORD or pass --password."
         case .portalAuthenticationRequired(let message):
             return "Apple Developer Portal authentication error: \(message)"
+        case .keystoreNotFound(let pkg, let buildType, let path):
+            return "No valid keystore found for '\(pkg)' (\(buildType)) in repository at '\(path)'."
+        case .missingKeystorePath:
+            return "Keystore file path is required to add an Android keystore to Match."
+        case .missingKeystoreCredentials(let message):
+            return "Missing Android keystore credentials: \(message)"
         }
     }
 }

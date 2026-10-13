@@ -55,6 +55,11 @@ struct BuildAndroidCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Custom JVM options passed via GRADLE_OPTS to Gradle launcher.")
     var gradleOpts: String?
 
+    @Flag(name: .long, help: "Fetch signing keystore from Match Git repository.")
+    var match: Bool = false
+
+    @OptionGroup var matchOptions: MatchOptions
+
     func run() async throws {
         _ = try? EnvLoader.loadEnv()
         let env = ProcessInfo.processInfo.environment
@@ -108,12 +113,32 @@ struct BuildAndroidCommand: AsyncParsableCommand {
         var tempKeystoreUrl: URL? = nil
         defer {
             if let tempUrl = tempKeystoreUrl {
-                try? fm.removeItem(at: tempUrl)
+                var isDir: ObjCBool = false
+                if fm.fileExists(atPath: tempUrl.path, isDirectory: &isDir), !isDir.boolValue {
+                    let parent = tempUrl.deletingLastPathComponent()
+                    if parent.lastPathComponent.count == 36 && UUID(uuidString: parent.lastPathComponent) != nil {
+                        try? fm.removeItem(at: parent)
+                    } else {
+                        try? fm.removeItem(at: tempUrl)
+                    }
+                } else {
+                    try? fm.removeItem(at: tempUrl)
+                }
+            }
+
+            let keystoresDir = URL(fileURLWithPath: fm.homeDirectoryForCurrentUser.path)
+                .appendingPathComponent(".appitool")
+                .appendingPathComponent("android")
+                .appendingPathComponent("keystores")
+            if let contents = try? fm.contentsOfDirectory(atPath: keystoresDir.path), contents.isEmpty {
+                try? fm.removeItem(at: keystoresDir)
             }
         }
 
-        let signingConfig: GradleTask.SigningConfig? = try resolveSigningConfig(
+        let signingConfig: GradleTask.SigningConfig? = try await resolveSigningConfig(
             env: env,
+            packageName: resolvedPackageName,
+            buildType: resolvedBuildType,
             tempKeystoreUrl: &tempKeystoreUrl
         )
 
@@ -124,15 +149,17 @@ struct BuildAndroidCommand: AsyncParsableCommand {
             .appendingPathComponent("android")
             .appendingPathComponent(mainTarget)
 
-        let resolvedOutputDir = targetRoot.appendingPathComponent("build").path
+        let buildRoot = targetRoot.appendingPathComponent("build")
 
         let dateFormatter = DateFormatter()
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         dateFormatter.dateFormat = "yyyy_MM_dd_HH_mm"
         let timestamp = dateFormatter.string(from: Date())
 
+        let resolvedOutputDir = buildRoot.appendingPathComponent(timestamp).path
+
         let flavorSuffix = (resolvedFlavor?.isEmpty == false) ? "\(resolvedFlavor!)_" : ""
-        let artifactBaseName = "\(mainTarget)_\(flavorSuffix)\(timestamp)"
+        let artifactBaseName = "\(mainTarget)_\(flavorSuffix)\(resolvedBuildType.lowercased())"
 
         // 6. Execute GradleTask
         let task = GradleTask()
@@ -178,8 +205,10 @@ struct BuildAndroidCommand: AsyncParsableCommand {
 
     private func resolveSigningConfig(
         env: [String: String],
+        packageName: String?,
+        buildType: String,
         tempKeystoreUrl: inout URL?
-    ) throws -> GradleTask.SigningConfig? {
+    ) async throws -> GradleTask.SigningConfig? {
         let fm = FileManager.default
 
         var storeFilePath: String? = nil
@@ -216,6 +245,33 @@ struct BuildAndroidCommand: AsyncParsableCommand {
                 keyAlias: alias,
                 keyPassword: keyPass
             )
+        }
+
+        // Fallback: Resolve via Match if enabled or configured
+        if storeFilePath == nil {
+            let match = matchOptions.resolve()
+            if (self.match || (match.gitUrl != nil && match.password != nil)),
+               let gitUrl = match.gitUrl,
+               let matchPassword = match.password,
+               let targetPackage = packageName {
+                let matchConfig = MatchAndroidConfig(
+                    gitUrl: gitUrl,
+                    gitBranch: match.gitBranch,
+                    gitToken: match.gitToken,
+                    password: matchPassword,
+                    action: .sync,
+                    packageName: targetPackage,
+                    buildType: (buildType.lowercased() == "debug") ? .debug : .release,
+                    alias: alias,
+                    storePassword: storePassword,
+                    keyPassword: keyPass,
+                    silent: silent
+                )
+                if let result = try? await MatchRunner().runAndroid(matchConfig) {
+                    tempKeystoreUrl = result.tempUrl
+                    return result.signingConfig
+                }
+            }
         }
 
         return nil

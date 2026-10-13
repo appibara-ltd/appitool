@@ -24,9 +24,7 @@ public final class GitStorage: Sendable {
 
         let baseDir = URL(fileURLWithPath: FileManager.default.homeDirectoryForCurrentUser.path)
             .appendingPathComponent(".appitool")
-            .appendingPathComponent("ios")
             .appendingPathComponent("match")
-            .appendingPathComponent("workspaces")
             .appendingPathComponent(UUID().uuidString).path
         self.workingDirectory = baseDir
     }
@@ -152,9 +150,15 @@ public final class GitStorage: Sendable {
         }
     }
 
-    /// Safely cleans up the local temporary workspace directory.
+    /// Safely cleans up the local temporary workspace directory and its parent if empty.
     public func cleanup() {
-        try? FileManager.default.removeItem(atPath: workingDirectory)
+        let fm = FileManager.default
+        try? fm.removeItem(atPath: workingDirectory)
+
+        let matchDir = URL(fileURLWithPath: workingDirectory).deletingLastPathComponent()
+        if let contents = try? fm.contentsOfDirectory(atPath: matchDir.path), contents.isEmpty {
+            try? fm.removeItem(at: matchDir)
+        }
     }
 
     // MARK: - Private Helpers

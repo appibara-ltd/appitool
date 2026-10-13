@@ -272,6 +272,7 @@ public struct GradleTask: Task {
             }
 
             try fm.copyItem(atPath: latestArtifact, toPath: destinationPath)
+            try? fm.removeItem(atPath: latestArtifact)
             allCopiedPaths.append(destinationPath)
 
             switch input.format {

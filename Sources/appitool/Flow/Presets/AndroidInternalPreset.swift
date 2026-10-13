@@ -77,6 +77,28 @@ struct AndroidInternalPreset: FlowPreset {
         guard let googleKey = context.googleKey, !googleKey.isEmpty else { return }
         guard let packageName = context.bundleId, !packageName.isEmpty else { return }
 
+        // 3. Resolve signing keystore via Match if available
+        if context.androidSigningConfig == nil,
+           let gitUrl = context.matchGitUrl,
+           let password = context.matchPassword {
+            Log("🔐 Resolving Android release keystore from Match storage...".dim)
+            let matchConfig = MatchAndroidConfig(
+                gitUrl: gitUrl,
+                gitBranch: context.matchGitBranch ?? "master",
+                gitToken: context.matchGitToken,
+                password: password,
+                action: .sync,
+                packageName: packageName,
+                buildType: .release,
+                silent: context.silent
+            )
+            if let result = try? await MatchRunner().runAndroid(matchConfig) {
+                context.androidSigningConfig = result.signingConfig
+                context.androidSigningTempUrl = result.tempUrl
+                Log("   ✓ Resolved signing keystore for '\(packageName)' from Match".green)
+            }
+        }
+
         if let service = try? GooglePlayService(key: googleKey) {
             if let buildInfo = try? await GetLatestBuildNumberTask().run(
                 .init(
@@ -123,11 +145,28 @@ struct AndroidInternalPreset: FlowPreset {
             properties["versionName"] = versionName
         }
 
+        let targetName = context.targetName ?? context.bundleId ?? "AndroidApp"
+        let targetRoot = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".appitool")
+            .appendingPathComponent("android")
+            .appendingPathComponent(targetName)
+        let buildRoot = targetRoot.appendingPathComponent("build")
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy_MM_dd_HH_mm"
+        let timestamp = formatter.string(from: Date())
+        let outputDir = buildRoot.appendingPathComponent(timestamp).path
+        let artifactName = "\(targetName)_release"
+
         let output = try await GradleTask().run(
             .init(
                 projectDirectory: projectDir,
                 buildType: "release",
                 format: .aab,
+                outputDirectory: outputDir,
+                artifactName: artifactName,
+                signing: context.androidSigningConfig,
                 properties: properties,
                 silent: context.silent
             )

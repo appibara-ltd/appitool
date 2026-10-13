@@ -21,6 +21,7 @@ struct FlowAndroidCommand: AsyncParsableCommand {
 
     @OptionGroup var googleCredentials: GoogleCredentialsOptions
     @OptionGroup var firebaseCredentials: FirebaseCredentialsOptions
+    @OptionGroup var matchOptions: MatchOptions
     @OptionGroup var notificationOptions: NotificationOptions
 
     @Flag(name: .long, inversion: .prefixedNo, help: "Suppress xcodebuild standard output and logs.")
@@ -34,6 +35,7 @@ struct FlowAndroidCommand: AsyncParsableCommand {
         let resolvedFirebaseAppId = firebaseCredentials.resolveAppId(for: .android)
         let resolvedGoogleKey = googleCredentials.resolveKey()
         let resolvedFormat = format ?? (distribution == .appstore ? .aab : .apk)
+        let match = matchOptions.resolve()
 
         let preset: (any FlowPreset) = {
             switch distribution {
@@ -49,6 +51,11 @@ struct FlowAndroidCommand: AsyncParsableCommand {
             distribution: distribution,
             isDryRun: dryRun,
             bundleId: resolvedPackageName,
+            matchGitUrl: match.gitUrl,
+            matchGitBranch: match.gitBranch,
+            matchGitToken: match.gitToken,
+            matchPassword: match.password,
+            matchReadonly: match.readonly,
             firebaseAppId: resolvedFirebaseAppId,
             googleKey: resolvedGoogleKey,
             slackUrl: notifications.slackUrl,

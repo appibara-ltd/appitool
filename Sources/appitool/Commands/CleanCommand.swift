@@ -5,8 +5,11 @@ import Rainbow
 struct CleanCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "clean",
-        abstract: "Cleans previously built iOS archives/IPAs under ~/.appitool/ios and optional derived data."
+        abstract: "Cleans previously built archives/IPAs/AABs under ~/.appitool (iOS & Android) and optional derived data."
     )
+
+    @Option(name: .shortAndLong, help: "Platform to clean (ios, android, or all). Defaults to all.")
+    var platform: String = "all"
 
     @Flag(name: .shortAndLong, help: "Also clean Xcode derived data directories under ~/.appitool/ios.")
     var derivedData: Bool = false
@@ -20,6 +23,7 @@ struct CleanCommand: AsyncParsableCommand {
     }
 
     private struct CleanItem {
+        let platform: String
         let url: URL
         let project: String
         let type: ItemType
@@ -30,56 +34,96 @@ struct CleanCommand: AsyncParsableCommand {
         let fm = FileManager.default
         let homeDir = fm.homeDirectoryForCurrentUser
         let iosDir = homeDir.appendingPathComponent(".appitool").appendingPathComponent("ios")
+        let androidDir = homeDir.appendingPathComponent(".appitool").appendingPathComponent("android")
 
-        guard fm.fileExists(atPath: iosDir.path) else {
-            Log("🟢 ~/.appitool/ios directory does not exist. Nothing to clean.".green)
+        let shouldCleanIos = platform.lowercased() == "all" || platform.lowercased() == "ios"
+        let shouldCleanAndroid = platform.lowercased() == "all" || platform.lowercased() == "android"
+
+        let hasIos = fm.fileExists(atPath: iosDir.path)
+        let hasAndroid = fm.fileExists(atPath: androidDir.path)
+
+        guard (shouldCleanIos && hasIos) || (shouldCleanAndroid && hasAndroid) else {
+            Log("🟢 No build directories found under ~/.appitool for platform '\(platform)'. Nothing to clean.".green)
             return
         }
 
         let prefix = dryRun ? "[Dry Run] ".yellow.bold : ""
-        Log("🧹 \(prefix)Scanning ~/.appitool/ios for build artifacts...".bold)
+        Log("🧹 \(prefix)Scanning ~/.appitool for build artifacts...".bold)
 
         var itemsToDelete: [CleanItem] = []
 
-        // Scan iOS hierarchy: ~/.appitool/ios/{{PROJECT_NAME}}/
-        let projectDirs = (try? fm.contentsOfDirectory(at: iosDir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
-        for projUrl in projectDirs {
-            var isDir: ObjCBool = false
-            guard fm.fileExists(atPath: projUrl.path, isDirectory: &isDir), isDir.boolValue else { continue }
-            let projectName = projUrl.lastPathComponent
+        // 1. Scan iOS hierarchy: ~/.appitool/ios/{{PROJECT_NAME}}/
+        if shouldCleanIos && hasIos {
+            let projectDirs = (try? fm.contentsOfDirectory(at: iosDir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+            for projUrl in projectDirs {
+                var isDir: ObjCBool = false
+                guard fm.fileExists(atPath: projUrl.path, isDirectory: &isDir), isDir.boolValue else { continue }
+                let projectName = projUrl.lastPathComponent
 
-            // Check derivedData: ~/.appitool/ios/{{PROJECT_NAME}}/derivedData
-            if derivedData {
-                let derivedDataDir = projUrl.appendingPathComponent("derivedData")
-                if fm.fileExists(atPath: derivedDataDir.path) {
-                    let size = calculateSize(of: derivedDataDir, fm: fm)
-                    itemsToDelete.append(CleanItem(
-                        url: derivedDataDir,
-                        project: projectName,
-                        type: .derivedData,
-                        size: size
-                    ))
+                // Check derivedData
+                if derivedData {
+                    let derivedDataDir = projUrl.appendingPathComponent("derivedData")
+                    if fm.fileExists(atPath: derivedDataDir.path) {
+                        let size = calculateSize(of: derivedDataDir, fm: fm)
+                        itemsToDelete.append(CleanItem(
+                            platform: "iOS",
+                            url: derivedDataDir,
+                            project: projectName,
+                            type: .derivedData,
+                            size: size
+                        ))
+                    }
+                }
+
+                // Check build timestamps
+                let buildDir = projUrl.appendingPathComponent("build")
+                if fm.fileExists(atPath: buildDir.path) {
+                    let buildEntries = (try? fm.contentsOfDirectory(at: buildDir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+                    for entry in buildEntries {
+                        let size = calculateSize(of: entry, fm: fm)
+                        itemsToDelete.append(CleanItem(
+                            platform: "iOS",
+                            url: entry,
+                            project: projectName,
+                            type: .build,
+                            size: size
+                        ))
+                    }
                 }
             }
+        }
 
-            // Check build: ~/.appitool/ios/{{PROJECT_NAME}}/build/{{TIMESTAMP}}
-            let buildDir = projUrl.appendingPathComponent("build")
-            if fm.fileExists(atPath: buildDir.path) {
-                let buildEntries = (try? fm.contentsOfDirectory(at: buildDir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
-                for entry in buildEntries {
-                    let size = calculateSize(of: entry, fm: fm)
-                    itemsToDelete.append(CleanItem(
-                        url: entry,
-                        project: projectName,
-                        type: .build,
-                        size: size
-                    ))
+        // 2. Scan Android hierarchy: ~/.appitool/android/{{PROJECT_NAME}}/
+        if shouldCleanAndroid && hasAndroid {
+            let projectDirs = (try? fm.contentsOfDirectory(at: androidDir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+            for projUrl in projectDirs {
+                var isDir: ObjCBool = false
+                guard fm.fileExists(atPath: projUrl.path, isDirectory: &isDir), isDir.boolValue else { continue }
+                let projectName = projUrl.lastPathComponent
+
+                // Ignore reserved/system folders like "keystores" or "tmp"
+                if projectName == "keystores" || projectName == "tmp" { continue }
+
+                // Check build timestamps
+                let buildDir = projUrl.appendingPathComponent("build")
+                if fm.fileExists(atPath: buildDir.path) {
+                    let buildEntries = (try? fm.contentsOfDirectory(at: buildDir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+                    for entry in buildEntries {
+                        let size = calculateSize(of: entry, fm: fm)
+                        itemsToDelete.append(CleanItem(
+                            platform: "Android",
+                            url: entry,
+                            project: projectName,
+                            type: .build,
+                            size: size
+                        ))
+                    }
                 }
             }
         }
 
         if itemsToDelete.isEmpty {
-            Log("🟢 No build artifacts found to clean. ~/.appitool/ios is clean!".green.bold)
+            Log("🟢 No build artifacts found to clean. ~/.appitool is clean!".green.bold)
             return
         }
 
@@ -91,9 +135,9 @@ struct CleanCommand: AsyncParsableCommand {
             let badge: String
             switch item.type {
             case .build:
-                badge = "[Build]  ".magenta.bold
+                badge = "[\(item.platform)][Build] ".magenta.bold
             case .derivedData:
-                badge = "[Derived]".yellow.bold
+                badge = "[\(item.platform)][Derived]".yellow.bold
             }
             let baseAppitool = homeDir.appendingPathComponent(".appitool").path + "/"
             let relativePath = item.url.path.replacingOccurrences(of: baseAppitool, with: "")
@@ -122,8 +166,13 @@ struct CleanCommand: AsyncParsableCommand {
             }
         }
 
-        // Clean up empty directories under ios hierarchy
-        pruneEmptyDirectories(at: iosDir, fm: fm)
+        // Clean up empty directories under ios and android hierarchies
+        if shouldCleanIos && hasIos {
+            pruneEmptyDirectories(at: iosDir, fm: fm)
+        }
+        if shouldCleanAndroid && hasAndroid {
+            pruneEmptyDirectories(at: androidDir, fm: fm)
+        }
 
         let freedSizeStr = formatBytes(freedBytes)
         if failedCount == 0 {
@@ -140,15 +189,30 @@ struct CleanCommand: AsyncParsableCommand {
             return (try? fm.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
         }
 
+        let resourceKeys: Set<URLResourceKey> = [
+            .isRegularFileKey,
+            .totalFileAllocatedSizeKey,
+            .fileAllocatedSizeKey,
+            .fileSizeKey
+        ]
+
+        // errorHandler returning true prevents early abort on broken symlinks or transient files
         guard let enumerator = fm.enumerator(
             at: url,
-            includingPropertiesForKeys: [.fileSizeKey],
-            options: []
+            includingPropertiesForKeys: Array(resourceKeys),
+            options: [],
+            errorHandler: { _, _ in true }
         ) else { return 0 }
 
         var total: Int64 = 0
-        while let fileURL = enumerator.nextObject() as? URL {
-            if let values = try? fileURL.resourceValues(forKeys: [.fileSizeKey]), let size = values.fileSize {
+        for case let fileURL as URL in enumerator {
+            if let values = try? fileURL.resourceValues(forKeys: resourceKeys),
+               values.isRegularFile == true {
+                let size = values.totalFileAllocatedSize
+                    ?? values.fileAllocatedSize
+                    ?? values.fileSize
+                    ?? ((try? fm.attributesOfItem(atPath: fileURL.path)[.size] as? Int64).map(Int.init))
+                    ?? 0
                 total += Int64(size)
             }
         }

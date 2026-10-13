@@ -2,12 +2,12 @@ import ArgumentParser
 import Foundation
 import Rainbow
 
-/// A command that synchronizes or nukes code signing certificates and provisioning profiles
+/// A command that synchronizes or nukes iOS/Apple code signing certificates and provisioning profiles
 /// using Git storage, providing 100% Fastlane match equivalence.
-struct MatchCommand: AsyncParsableCommand {
+struct MatchIOSCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "match",
-        abstract: "Syncs, nukes, or prunes certificates and provisioning profiles using Git storage (Fastlane match equivalent)."
+        commandName: "ios",
+        abstract: "Syncs, nukes, or prunes Apple certificates and provisioning profiles using Git storage (Fastlane match equivalent)."
     )
 
     @Argument(help: "Provisioning profile distribution type (appstore, development, adhoc, enterprise, developer_id) or action (nuke, prune).")
