@@ -1,2 +1,2 @@
 [tasks.build]
-run = "swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx13.0"
+run = 'swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx13.0 && BIN_PATH="$(swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx13.0 --show-bin-path)/appitool" && strip "$BIN_PATH"'

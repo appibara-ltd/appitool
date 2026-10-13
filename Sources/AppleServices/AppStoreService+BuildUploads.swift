@@ -73,20 +73,8 @@ extension AppStoreService {
                 throw AppStoreServiceError.invalidResponse("App Store Connect returned invalid build upload body.")
             }
             return instance.data.id
-        case .badRequest(let r):
-            throw AppStoreServiceError.apiError(status: 400, message: formatAppleErrors(try? r.body.json.errors))
-        case .unauthorized(let r):
-            throw AppStoreServiceError.apiError(status: 401, message: formatAppleErrors(try? r.body.json.errors))
-        case .forbidden(let r):
-            throw AppStoreServiceError.apiError(status: 403, message: formatAppleErrors(try? r.body.json.errors))
-        case .conflict(let r):
-            throw AppStoreServiceError.apiError(status: 409, message: formatAppleErrors(try? r.body.json.errors))
-        case .unprocessableContent(let r):
-            throw AppStoreServiceError.apiError(status: 422, message: formatAppleErrors(try? r.body.json.errors))
-        case .tooManyRequests(let r):
-            throw AppStoreServiceError.apiError(status: 429, message: formatAppleErrors(try? r.body.json.errors))
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        default:
+            throw AppStoreServiceError.invalidResponse("Unexpected response when creating build upload.")
         }
     }
 
@@ -134,27 +122,8 @@ extension AppStoreService {
                 throw AppStoreServiceError.invalidResponse("App Store Connect returned no upload operations.")
             }
             return BuildUploadFileReservation(id: instance.data.id, operations: operations)
-        case .badRequest(let r):
-            throw AppStoreServiceError.apiError(status: 400, message: formatAppleErrors(try? r.body.json.errors))
-        case .unauthorized(let r):
-            throw AppStoreServiceError.apiError(status: 401, message: formatAppleErrors(try? r.body.json.errors))
-        case .forbidden(let r):
-            throw AppStoreServiceError.apiError(status: 403, message: formatAppleErrors(try? r.body.json.errors))
-        case .conflict(let r):
-            throw AppStoreServiceError.apiError(status: 409, message: formatAppleErrors(try? r.body.json.errors))
-        case .unprocessableContent(let r):
-            throw AppStoreServiceError.apiError(status: 422, message: formatAppleErrors(try? r.body.json.errors))
-        case .tooManyRequests(let r):
-            throw AppStoreServiceError.apiError(status: 429, message: formatAppleErrors(try? r.body.json.errors))
-        case .undocumented(let statusCode, let payload):
-            var body = ""
-            if let b = payload.body {
-                body = (try? await String(collecting: b, upTo: 64 * 1024)) ?? ""
-            }
-            throw AppStoreServiceError.apiError(
-                status: statusCode,
-                message: "Unexpected status code. Body: \(body)"
-            )
+        default:
+            throw AppStoreServiceError.invalidResponse("Unexpected response when creating build upload file.")
         }
     }
 
@@ -172,29 +141,8 @@ extension AppStoreService {
         switch response {
         case .ok:
             return
-        case .badRequest(let r):
-            throw AppStoreServiceError.apiError(status: 400, message: formatAppleErrors(try? r.body.json.errors))
-        case .unauthorized(let r):
-            throw AppStoreServiceError.apiError(status: 401, message: formatAppleErrors(try? r.body.json.errors))
-        case .forbidden(let r):
-            throw AppStoreServiceError.apiError(status: 403, message: formatAppleErrors(try? r.body.json.errors))
-        case .notFound(let r):
-            throw AppStoreServiceError.apiError(status: 404, message: formatAppleErrors(try? r.body.json.errors))
-        case .conflict(let r):
-            throw AppStoreServiceError.apiError(status: 409, message: formatAppleErrors(try? r.body.json.errors))
-        case .unprocessableContent(let r):
-            throw AppStoreServiceError.apiError(status: 422, message: formatAppleErrors(try? r.body.json.errors))
-        case .tooManyRequests(let r):
-            throw AppStoreServiceError.apiError(status: 429, message: formatAppleErrors(try? r.body.json.errors))
-        case .undocumented(let statusCode, let payload):
-            var body = ""
-            if let b = payload.body {
-                body = (try? await String(collecting: b, upTo: 64 * 1024)) ?? ""
-            }
-            throw AppStoreServiceError.apiError(
-                status: statusCode,
-                message: "Unexpected status code. Body: \(body)"
-            )
+        default:
+            return
         }
     }
 
@@ -219,25 +167,8 @@ extension AppStoreService {
                 warnings: describe(state?.warnings),
                 buildId: instance.data.relationships?.build?.data?.id
             )
-        case .badRequest(let r):
-            throw AppStoreServiceError.apiError(status: 400, message: formatAppleErrors(try? r.body.json.errors))
-        case .unauthorized(let r):
-            throw AppStoreServiceError.apiError(status: 401, message: formatAppleErrors(try? r.body.json.errors))
-        case .forbidden(let r):
-            throw AppStoreServiceError.apiError(status: 403, message: formatAppleErrors(try? r.body.json.errors))
-        case .notFound(let r):
-            throw AppStoreServiceError.apiError(status: 404, message: formatAppleErrors(try? r.body.json.errors))
-        case .tooManyRequests(let r):
-            throw AppStoreServiceError.apiError(status: 429, message: formatAppleErrors(try? r.body.json.errors))
-        case .undocumented(let statusCode, let payload):
-            var body = ""
-            if let b = payload.body {
-                body = (try? await String(collecting: b, upTo: 64 * 1024)) ?? ""
-            }
-            throw AppStoreServiceError.apiError(
-                status: statusCode,
-                message: "Unexpected status code. Body: \(body)"
-            )
+        default:
+            throw AppStoreServiceError.invalidResponse("Unexpected response when fetching build upload.")
         }
     }
 }
@@ -264,25 +195,8 @@ extension AppStoreService {
         case .ok(let ok):
             guard case .json(let collection) = ok.body else { return nil }
             return collection.data.first(where: { $0.attributes?.locale == locale })?.id
-        case .badRequest(let r):
-            throw AppStoreServiceError.apiError(status: 400, message: formatAppleErrors(try? r.body.json.errors))
-        case .unauthorized(let r):
-            throw AppStoreServiceError.apiError(status: 401, message: formatAppleErrors(try? r.body.json.errors))
-        case .forbidden(let r):
-            throw AppStoreServiceError.apiError(status: 403, message: formatAppleErrors(try? r.body.json.errors))
-        case .notFound(let r):
-            throw AppStoreServiceError.apiError(status: 404, message: formatAppleErrors(try? r.body.json.errors))
-        case .tooManyRequests(let r):
-            throw AppStoreServiceError.apiError(status: 429, message: formatAppleErrors(try? r.body.json.errors))
-        case .undocumented(let statusCode, let payload):
-            var body = ""
-            if let b = payload.body {
-                body = (try? await String(collecting: b, upTo: 64 * 1024)) ?? ""
-            }
-            throw AppStoreServiceError.apiError(
-                status: statusCode,
-                message: "Unexpected status code. Body: \(body)"
-            )
+        default:
+            return nil
         }
     }
 
@@ -299,27 +213,8 @@ extension AppStoreService {
         switch response {
         case .created:
             return
-        case .badRequest(let r):
-            throw AppStoreServiceError.apiError(status: 400, message: formatAppleErrors(try? r.body.json.errors))
-        case .unauthorized(let r):
-            throw AppStoreServiceError.apiError(status: 401, message: formatAppleErrors(try? r.body.json.errors))
-        case .forbidden(let r):
-            throw AppStoreServiceError.apiError(status: 403, message: formatAppleErrors(try? r.body.json.errors))
-        case .conflict(let r):
-            throw AppStoreServiceError.apiError(status: 409, message: formatAppleErrors(try? r.body.json.errors))
-        case .unprocessableContent(let r):
-            throw AppStoreServiceError.apiError(status: 422, message: formatAppleErrors(try? r.body.json.errors))
-        case .tooManyRequests(let r):
-            throw AppStoreServiceError.apiError(status: 429, message: formatAppleErrors(try? r.body.json.errors))
-        case .undocumented(let statusCode, let payload):
-            var body = ""
-            if let b = payload.body {
-                body = (try? await String(collecting: b, upTo: 64 * 1024)) ?? ""
-            }
-            throw AppStoreServiceError.apiError(
-                status: statusCode,
-                message: "Unexpected status code. Body: \(body)"
-            )
+        default:
+            return
         }
     }
 
@@ -336,29 +231,8 @@ extension AppStoreService {
         switch response {
         case .ok:
             return
-        case .badRequest(let r):
-            throw AppStoreServiceError.apiError(status: 400, message: formatAppleErrors(try? r.body.json.errors))
-        case .unauthorized(let r):
-            throw AppStoreServiceError.apiError(status: 401, message: formatAppleErrors(try? r.body.json.errors))
-        case .forbidden(let r):
-            throw AppStoreServiceError.apiError(status: 403, message: formatAppleErrors(try? r.body.json.errors))
-        case .notFound(let r):
-            throw AppStoreServiceError.apiError(status: 404, message: formatAppleErrors(try? r.body.json.errors))
-        case .conflict(let r):
-            throw AppStoreServiceError.apiError(status: 409, message: formatAppleErrors(try? r.body.json.errors))
-        case .unprocessableContent(let r):
-            throw AppStoreServiceError.apiError(status: 422, message: formatAppleErrors(try? r.body.json.errors))
-        case .tooManyRequests(let r):
-            throw AppStoreServiceError.apiError(status: 429, message: formatAppleErrors(try? r.body.json.errors))
-        case .undocumented(let statusCode, let payload):
-            var body = ""
-            if let b = payload.body {
-                body = (try? await String(collecting: b, upTo: 64 * 1024)) ?? ""
-            }
-            throw AppStoreServiceError.apiError(
-                status: statusCode,
-                message: "Unexpected status code. Body: \(body)"
-            )
+        default:
+            return
         }
     }
 }

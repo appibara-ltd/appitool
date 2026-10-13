@@ -56,7 +56,7 @@ package struct AppStoreService: Sendable {
             serverURL: try Servers.Server1.url(),
             configuration: configuration,
             transport: transport,
-            middlewares: [authMiddleware]
+            middlewares: [authMiddleware, AppStoreErrorMiddleware()]
         )
     }
 
@@ -79,7 +79,7 @@ package struct AppStoreService: Sendable {
 
         guard (200...299).contains(httpResponse.statusCode) else {
             let errorResponse = try? JSONDecoder().decode(Components.Schemas.ErrorResponse.self, from: data)
-            let msg = formatAppleErrors(errorResponse?.errors)
+            let msg = AppStoreService.formatAppleErrors(errorResponse?.errors)
             throw AppStoreServiceError.apiError(status: httpResponse.statusCode, message: msg)
         }
 
@@ -152,26 +152,8 @@ package struct AppStoreService: Sendable {
                 throw AppStoreServiceError.invalidResponse("Apple Developer Portal returned invalid certificate response.")
             }
             return createdInstance.data
-        case .badRequest(let badReq):
-            let msg = formatAppleErrors(try? badReq.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 400, message: msg)
-        case .forbidden(let forbidden):
-            let msg = formatAppleErrors(try? forbidden.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 403, message: msg)
-        case .conflict(let conflict):
-            let msg = formatAppleErrors(try? conflict.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 409, message: msg)
-        case .unprocessableContent(let unproc):
-            let msg = formatAppleErrors(try? unproc.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 422, message: msg)
-        case .unauthorized(let unauth):
-            let msg = formatAppleErrors(try? unauth.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 401, message: msg)
-        case .tooManyRequests(let tmr):
-            let msg = formatAppleErrors(try? tmr.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 429, message: msg)
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        default:
+            throw AppStoreServiceError.invalidResponse("Unexpected response when creating certificate.")
         }
     }
 
@@ -183,20 +165,8 @@ package struct AppStoreService: Sendable {
             return true
         case .notFound:
             return false
-        case .badRequest(let badReq):
-            let msg = formatAppleErrors(try? badReq.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 400, message: msg)
-        case .forbidden(let forbidden):
-            let msg = formatAppleErrors(try? forbidden.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 403, message: msg)
-        case .unauthorized(let unauth):
-            let msg = formatAppleErrors(try? unauth.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 401, message: msg)
-        case .tooManyRequests(let tmr):
-            let msg = formatAppleErrors(try? tmr.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 429, message: msg)
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        default:
+            return false
         }
     }
 
@@ -212,38 +182,24 @@ package struct AppStoreService: Sendable {
             filter_lbrack_identifier_rbrack_: identifier.map { [$0] },
             limit: pageLimit
         ))
-        switch response {
-        case .ok(let okResponse):
-            guard case .json(let collection) = okResponse.body else { return [] }
-            var allItems = collection.data
-            var nextUrl = collection.links.next
-
-            while let currentNext = nextUrl {
-                if let limit, allItems.count >= limit { break }
-                let nextPage: Components.Schemas.BundleIdsResponse = try await fetchNextPage(from: currentNext)
-                allItems.append(contentsOf: nextPage.data)
-                nextUrl = nextPage.links.next
-            }
-
-            if let limit, allItems.count > limit {
-                return Array(allItems.prefix(limit))
-            }
-            return allItems
-        case .badRequest(let badReq):
-            let msg = formatAppleErrors(try? badReq.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 400, message: msg)
-        case .forbidden(let forbidden):
-            let msg = formatAppleErrors(try? forbidden.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 403, message: msg)
-        case .unauthorized(let unauth):
-            let msg = formatAppleErrors(try? unauth.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 401, message: msg)
-        case .tooManyRequests(let tmr):
-            let msg = formatAppleErrors(try? tmr.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 429, message: msg)
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        guard case .ok(let okResponse) = response, case .json(let collection) = okResponse.body else {
+            return []
         }
+
+        var allItems = collection.data
+        var nextUrl = collection.links.next
+
+        while let currentNext = nextUrl {
+            if let limit, allItems.count >= limit { break }
+            let nextPage: Components.Schemas.BundleIdsResponse = try await fetchNextPage(from: currentNext)
+            allItems.append(contentsOf: nextPage.data)
+            nextUrl = nextPage.links.next
+        }
+
+        if let limit, allItems.count > limit {
+            return Array(allItems.prefix(limit))
+        }
+        return allItems
     }
 
     /// Resolves an existing bundle ID or creates a new one on Apple Developer Portal.
@@ -289,26 +245,8 @@ package struct AppStoreService: Sendable {
                 throw AppStoreServiceError.invalidResponse("Apple Developer Portal returned invalid bundle ID response.")
             }
             return instance.data
-        case .badRequest(let badReq):
-            let msg = formatAppleErrors(try? badReq.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 400, message: msg)
-        case .conflict(let conflict):
-            let msg = formatAppleErrors(try? conflict.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 409, message: msg)
-        case .forbidden(let forbidden):
-            let msg = formatAppleErrors(try? forbidden.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 403, message: msg)
-        case .unauthorized(let unauth):
-            let msg = formatAppleErrors(try? unauth.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 401, message: msg)
-        case .tooManyRequests(let tmr):
-            let msg = formatAppleErrors(try? tmr.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 429, message: msg)
-        case .unprocessableContent(let unproc):
-            let msg = formatAppleErrors(try? unproc.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 422, message: msg)
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        default:
+            throw AppStoreServiceError.invalidResponse("Unexpected response when creating bundle ID.")
         }
     }
 
@@ -341,26 +279,8 @@ package struct AppStoreService: Sendable {
         switch response {
         case .created:
             return
-        case .badRequest(let badReq):
-            let msg = formatAppleErrors(try? badReq.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 400, message: msg)
-        case .conflict(let conflict):
-            let msg = formatAppleErrors(try? conflict.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 409, message: msg)
-        case .forbidden(let forbidden):
-            let msg = formatAppleErrors(try? forbidden.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 403, message: msg)
-        case .unauthorized(let unauth):
-            let msg = formatAppleErrors(try? unauth.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 401, message: msg)
-        case .tooManyRequests(let tmr):
-            let msg = formatAppleErrors(try? tmr.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 429, message: msg)
-        case .unprocessableContent(let unproc):
-            let msg = formatAppleErrors(try? unproc.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 422, message: msg)
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        default:
+            return
         }
     }
 
@@ -384,20 +304,8 @@ package struct AppStoreService: Sendable {
             return true
         case .notFound:
             return false
-        case .badRequest(let badReq):
-            let msg = formatAppleErrors(try? badReq.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 400, message: msg)
-        case .forbidden(let forbidden):
-            let msg = formatAppleErrors(try? forbidden.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 403, message: msg)
-        case .unauthorized(let unauth):
-            let msg = formatAppleErrors(try? unauth.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 401, message: msg)
-        case .tooManyRequests(let tmr):
-            let msg = formatAppleErrors(try? tmr.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 429, message: msg)
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        default:
+            return false
         }
     }
 
@@ -415,38 +323,24 @@ package struct AppStoreService: Sendable {
             filter_lbrack_bundleId_rbrack_: bundleId.map { [$0] },
             limit: pageLimit
         ))
-        switch response {
-        case .ok(let okResponse):
-            guard case .json(let collection) = okResponse.body else { return [] }
-            var allItems = collection.data
-            var nextUrl = collection.links.next
-
-            while let currentNext = nextUrl {
-                if let limit, allItems.count >= limit { break }
-                let nextPage: Components.Schemas.AppsResponse = try await fetchNextPage(from: currentNext)
-                allItems.append(contentsOf: nextPage.data)
-                nextUrl = nextPage.links.next
-            }
-
-            if let limit, allItems.count > limit {
-                return Array(allItems.prefix(limit))
-            }
-            return allItems
-        case .badRequest(let badReq):
-            let msg = formatAppleErrors(try? badReq.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 400, message: msg)
-        case .forbidden(let forbidden):
-            let msg = formatAppleErrors(try? forbidden.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 403, message: msg)
-        case .unauthorized(let unauth):
-            let msg = formatAppleErrors(try? unauth.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 401, message: msg)
-        case .tooManyRequests(let tmr):
-            let msg = formatAppleErrors(try? tmr.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 429, message: msg)
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        guard case .ok(let okResponse) = response, case .json(let collection) = okResponse.body else {
+            return []
         }
+
+        var allItems = collection.data
+        var nextUrl = collection.links.next
+
+        while let currentNext = nextUrl {
+            if let limit, allItems.count >= limit { break }
+            let nextPage: Components.Schemas.AppsResponse = try await fetchNextPage(from: currentNext)
+            allItems.append(contentsOf: nextPage.data)
+            nextUrl = nextPage.links.next
+        }
+
+        if let limit, allItems.count > limit {
+            return Array(allItems.prefix(limit))
+        }
+        return allItems
     }
 
     // MARK: - Device Operations
@@ -466,22 +360,7 @@ package struct AppStoreService: Sendable {
             limit: pageLimit
         ))
         guard case .ok(let okResp) = response, case .json(let collection) = okResp.body else {
-            switch response {
-            case .badRequest(let badReq):
-                let msg = formatAppleErrors(try? badReq.body.json.errors)
-                throw AppStoreServiceError.apiError(status: 400, message: msg)
-            case .forbidden(let forbidden):
-                let msg = formatAppleErrors(try? forbidden.body.json.errors)
-                throw AppStoreServiceError.apiError(status: 403, message: msg)
-            case .unauthorized(let unauth):
-                let msg = formatAppleErrors(try? unauth.body.json.errors)
-                throw AppStoreServiceError.apiError(status: 401, message: msg)
-            case .tooManyRequests(let tmr):
-                let msg = formatAppleErrors(try? tmr.body.json.errors)
-                throw AppStoreServiceError.apiError(status: 429, message: msg)
-            default:
-                return []
-            }
+            return []
         }
 
         var allItems = collection.data
@@ -554,26 +433,8 @@ package struct AppStoreService: Sendable {
                 throw AppStoreServiceError.invalidResponse("Invalid response format when creating device.")
             }
             return deviceResp.data
-        case .badRequest(let badReq):
-            let msg = formatAppleErrors(try? badReq.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 400, message: msg)
-        case .forbidden(let forbidden):
-            let msg = formatAppleErrors(try? forbidden.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 403, message: msg)
-        case .unauthorized(let unauth):
-            let msg = formatAppleErrors(try? unauth.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 401, message: msg)
-        case .conflict(let conflict):
-            let msg = formatAppleErrors(try? conflict.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 409, message: msg)
-        case .unprocessableContent(let unproc):
-            let msg = formatAppleErrors(try? unproc.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 422, message: msg)
-        case .tooManyRequests(let tmr):
-            let msg = formatAppleErrors(try? tmr.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 429, message: msg)
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        default:
+            throw AppStoreServiceError.invalidResponse("Unexpected response when creating device.")
         }
     }
 
@@ -600,29 +461,8 @@ package struct AppStoreService: Sendable {
                 throw AppStoreServiceError.invalidResponse("Invalid response format when updating device.")
             }
             return deviceResp.data
-        case .badRequest(let badReq):
-            let msg = formatAppleErrors(try? badReq.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 400, message: msg)
-        case .forbidden(let forbidden):
-            let msg = formatAppleErrors(try? forbidden.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 403, message: msg)
-        case .unauthorized(let unauth):
-            let msg = formatAppleErrors(try? unauth.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 401, message: msg)
-        case .notFound(let notFound):
-            let msg = formatAppleErrors(try? notFound.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 404, message: msg)
-        case .conflict(let conflict):
-            let msg = formatAppleErrors(try? conflict.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 409, message: msg)
-        case .unprocessableContent(let unproc):
-            let msg = formatAppleErrors(try? unproc.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 422, message: msg)
-        case .tooManyRequests(let tmr):
-            let msg = formatAppleErrors(try? tmr.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 429, message: msg)
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        default:
+            throw AppStoreServiceError.invalidResponse("Unexpected response when updating device.")
         }
     }
 
@@ -671,24 +511,7 @@ package struct AppStoreService: Sendable {
             limit: pageLimit
         ))
         guard case .ok(let okProf) = response, case .json(let profCollection) = okProf.body else {
-            switch response {
-            case .badRequest(let badReq):
-                let msg = formatAppleErrors(try? badReq.body.json.errors)
-                throw AppStoreServiceError.apiError(status: 400, message: msg)
-            case .forbidden(let forbidden):
-                let msg = formatAppleErrors(try? forbidden.body.json.errors)
-                throw AppStoreServiceError.apiError(status: 403, message: msg)
-            case .unauthorized(let unauth):
-                let msg = formatAppleErrors(try? unauth.body.json.errors)
-                throw AppStoreServiceError.apiError(status: 401, message: msg)
-            case .tooManyRequests(let tmr):
-                let msg = formatAppleErrors(try? tmr.body.json.errors)
-                throw AppStoreServiceError.apiError(status: 429, message: msg)
-            case .undocumented(let statusCode, _):
-                throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
-            default:
-                return []
-            }
+            return []
         }
 
         var allItems = profCollection.data
@@ -766,26 +589,8 @@ package struct AppStoreService: Sendable {
                 throw AppStoreServiceError.invalidResponse("Apple Developer Portal returned invalid profile content.")
             }
             return (instance.data.id, finalName, uuid, profileData)
-        case .badRequest(let badReq):
-            let msg = formatAppleErrors(try? badReq.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 400, message: msg)
-        case .forbidden(let forbidden):
-            let msg = formatAppleErrors(try? forbidden.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 403, message: msg)
-        case .conflict(let conflict):
-            let msg = formatAppleErrors(try? conflict.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 409, message: msg)
-        case .unprocessableContent(let unproc):
-            let msg = formatAppleErrors(try? unproc.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 422, message: msg)
-        case .unauthorized(let unauth):
-            let msg = formatAppleErrors(try? unauth.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 401, message: msg)
-        case .tooManyRequests(let tmr):
-            let msg = formatAppleErrors(try? tmr.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 429, message: msg)
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        default:
+            throw AppStoreServiceError.invalidResponse("Unexpected response when creating profile.")
         }
     }
 
@@ -797,20 +602,8 @@ package struct AppStoreService: Sendable {
             return true
         case .notFound:
             return false
-        case .badRequest(let badReq):
-            let msg = formatAppleErrors(try? badReq.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 400, message: msg)
-        case .forbidden(let forbidden):
-            let msg = formatAppleErrors(try? forbidden.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 403, message: msg)
-        case .unauthorized(let unauth):
-            let msg = formatAppleErrors(try? unauth.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 401, message: msg)
-        case .tooManyRequests(let tmr):
-            let msg = formatAppleErrors(try? tmr.body.json.errors)
-            throw AppStoreServiceError.apiError(status: 429, message: msg)
-        case .undocumented(let statusCode, _):
-            throw AppStoreServiceError.apiError(status: statusCode, message: "Unexpected status code")
+        default:
+            return false
         }
     }
 
@@ -851,7 +644,7 @@ package struct AppStoreService: Sendable {
     // MARK: - Error Formatting
 
     /// Formats errors from Apple Developer Portal API into a readable string.
-    package func formatAppleErrors(_ errors: [Components.Schemas.ErrorResponse.errorsPayloadPayload]?) -> String {
+    package static func formatAppleErrors(_ errors: [Components.Schemas.ErrorResponse.errorsPayloadPayload]?) -> String {
         guard let errors, !errors.isEmpty else { return "No detailed error provided by Apple" }
         return errors.map { "\($0.title) (\($0.code)): \($0.detail)" }.joined(separator: " | ")
     }

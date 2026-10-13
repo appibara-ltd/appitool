@@ -165,4 +165,34 @@ struct AppStoreServiceTests {
             Issue.record("Expected .ok response with empty apps list, got \(response)")
         }
     }
+
+    @Test("Client request through AppStoreService throws apiError on 400 response via AppStoreErrorMiddleware")
+    func clientRequestThrowsOnHttpError() async throws {
+        let key = generateTestKey()
+        let errorJSON = """
+        {
+            "errors": [
+                {
+                    "id": "ERR_1",
+                    "status": "400",
+                    "code": "ENTITY_ERROR",
+                    "title": "Bad Request",
+                    "detail": "Invalid parameter provided"
+                }
+            ]
+        }
+        """.data(using: .utf8)!
+
+        let mockTransport = MockTransport(statusCode: .badRequest, responseBody: errorJSON)
+        let service = try AppStoreService(
+            keyId: "TEST_KID_API",
+            issuerId: "TEST_ISS_API",
+            key: key.pemRepresentation,
+            transport: mockTransport
+        )
+
+        await #expect(throws: AppStoreServiceError.self) {
+            _ = try await service.client.apps_getCollection(.init())
+        }
+    }
 }
