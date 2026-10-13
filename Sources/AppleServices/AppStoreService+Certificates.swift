@@ -130,26 +130,32 @@ extension AppStoreService {
         // 2. Submit CSR to Apple Developer Portal
         let certificate = try await createCertificate(csrContent: csrResult.csrPEM, certificateType: certificateType)
 
-        guard let base64Cert = certificate.attributes?.certificateContent,
-              let cerData = Data(base64Encoded: base64Cert, options: [.ignoreUnknownCharacters]) else {
-            throw AppStoreServiceError.invalidResponse("Apple Developer Portal returned invalid certificate content.")
+        do {
+            guard let base64Cert = certificate.attributes?.certificateContent,
+                  let cerData = Data(base64Encoded: base64Cert, options: [.ignoreUnknownCharacters]) else {
+                throw AppStoreServiceError.invalidResponse("Apple Developer Portal returned invalid certificate content.")
+            }
+
+            // 3. Package .cer and private key into .p12 data
+            let p12Data = try P12Exporter.export(
+                cerData: cerData,
+                privateKeyPEM: csrResult.privateKeyPEM,
+                password: p12Password
+            )
+
+            return SigningCertificateData(
+                certificate: certificate,
+                typeLabel: label,
+                commonName: certificate.attributes?.name ?? cn,
+                cerData: cerData,
+                privateKeyPEM: csrResult.privateKeyPEM,
+                p12Data: p12Data
+            )
+        } catch {
+            // Rollback: Revoke the newly created certificate from Apple Developer Portal so it does not become orphaned
+            _ = try? await deleteCertificate(id: certificate.id)
+            throw error
         }
-
-        // 3. Package .cer and private key into .p12 data
-        let p12Data = try P12Exporter.export(
-            cerData: cerData,
-            privateKeyPEM: csrResult.privateKeyPEM,
-            password: p12Password
-        )
-
-        return SigningCertificateData(
-            certificate: certificate,
-            typeLabel: label,
-            commonName: certificate.attributes?.name ?? cn,
-            cerData: cerData,
-            privateKeyPEM: csrResult.privateKeyPEM,
-            p12Data: p12Data
-        )
     }
 
     /// Generates a local RSA key and CSR, submits to Apple Developer Portal, and saves certificate and key files.
@@ -173,63 +179,69 @@ extension AppStoreService {
             p12Password: resolvedP12Password
         )
 
-        let sanitizedName = certData.commonName
-            .replacingOccurrences(of: " ", with: "_")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: ":", with: "_")
+        do {
+            let sanitizedName = certData.commonName
+                .replacingOccurrences(of: " ", with: "_")
+                .replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: ":", with: "_")
 
-        let resolvedOutput: String
-        if let userOutput = outputDirectory {
-            resolvedOutput = userOutput
-        } else {
-            let home = FileManager.default.homeDirectoryForCurrentUser.path
-            resolvedOutput = "\(home)/.appitool/certs/\(type.lowercased())/"
-        }
-        let outputDir = URL(fileURLWithPath: resolvedOutput)
-        let cerFile = outputDir.appendingPathComponent("\(sanitizedName).cer")
-        let keyFile = outputDir.appendingPathComponent("\(sanitizedName).private_key.pem")
-        var p12File: URL? = nil
-
-        // 2. Optionally import into Keychain directly from memory
-        var keychainImportSucceeded = false
-        if saveToKeychain {
-            let keychainManager = KeychainManager(keychainName: keychainName, keychainPassword: "")
-            try await keychainManager.prepareKeychainIfNeeded()
-            let importedInfo = try await keychainManager.importP12Data(
-                p12Data: certData.p12Data,
-                password: resolvedP12Password,
-                cerData: certData.cerData,
-                certId: certData.certificate.id
-            )
-            keychainImportSucceeded = importedInfo.isKeychainImported
-        }
-
-        // 3. Write files to disk ONLY if Keychain import was not performed / failed (e.g. non-macOS),
-        // OR if the user explicitly requested output files via outputDirectory or exportP12.
-        let shouldWriteDiskFiles = !keychainImportSucceeded || exportP12 || outputDirectory != nil
-        if shouldWriteDiskFiles {
-            try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
-            try certData.cerData.write(to: cerFile)
-            try Data(certData.privateKeyPEM.utf8).write(to: keyFile)
-
-            if shouldExportP12 {
-                let dest = outputDir.appendingPathComponent("\(sanitizedName).p12")
-                try certData.p12Data.write(to: dest)
-                p12File = dest
+            let resolvedOutput: String
+            if let userOutput = outputDirectory {
+                resolvedOutput = userOutput
+            } else {
+                let home = FileManager.default.homeDirectoryForCurrentUser.path
+                resolvedOutput = "\(home)/.appitool/certs/\(type.lowercased())/"
             }
-        }
+            let outputDir = URL(fileURLWithPath: resolvedOutput)
+            let cerFile = outputDir.appendingPathComponent("\(sanitizedName).cer")
+            let keyFile = outputDir.appendingPathComponent("\(sanitizedName).private_key.pem")
+            var p12File: URL? = nil
 
-        return CreateCertificateResult(
-            certificate: certData.certificate,
-            typeLabel: certData.typeLabel,
-            commonName: certData.commonName,
-            cerFile: cerFile,
-            keyFile: keyFile,
-            p12File: p12File,
-            p12Password: resolvedP12Password,
-            keychainImported: keychainImportSucceeded,
-            keychainName: keychainImportSucceeded ? keychainName : nil
-        )
+            // 2. Optionally import into Keychain directly from memory
+            var keychainImportSucceeded = false
+            if saveToKeychain {
+                let keychainManager = KeychainManager(keychainName: keychainName, keychainPassword: "")
+                try await keychainManager.prepareKeychainIfNeeded()
+                let importedInfo = try await keychainManager.importP12Data(
+                    p12Data: certData.p12Data,
+                    password: resolvedP12Password,
+                    cerData: certData.cerData,
+                    certId: certData.certificate.id
+                )
+                keychainImportSucceeded = importedInfo.isKeychainImported
+            }
+
+            // 3. Write files to disk ONLY if Keychain import was not performed / failed (e.g. non-macOS),
+            // OR if the user explicitly requested output files via outputDirectory or exportP12.
+            let shouldWriteDiskFiles = !keychainImportSucceeded || exportP12 || outputDirectory != nil
+            if shouldWriteDiskFiles {
+                try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
+                try certData.cerData.write(to: cerFile)
+                try Data(certData.privateKeyPEM.utf8).write(to: keyFile)
+
+                if shouldExportP12 {
+                    let dest = outputDir.appendingPathComponent("\(sanitizedName).p12")
+                    try certData.p12Data.write(to: dest)
+                    p12File = dest
+                }
+            }
+
+            return CreateCertificateResult(
+                certificate: certData.certificate,
+                typeLabel: certData.typeLabel,
+                commonName: certData.commonName,
+                cerFile: cerFile,
+                keyFile: keyFile,
+                p12File: p12File,
+                p12Password: resolvedP12Password,
+                keychainImported: keychainImportSucceeded,
+                keychainName: keychainImportSucceeded ? keychainName : nil
+            )
+        } catch {
+            // Rollback: Revoke the newly created certificate from Apple Developer Portal if local Keychain/disk operations fail
+            _ = try? await deleteCertificate(id: certData.certificate.id)
+            throw error
+        }
     }
 
     /// Deletes (revokes) a signing certificate matching portal ID, serial number, or name.
