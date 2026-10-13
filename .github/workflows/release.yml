@@ -22,10 +22,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Setup Swift 6.4.1
+      - name: Setup Swift 6.4.0
         uses: swift-actions/setup-swift@v3
         with:
-          swift-version: "6.4.1"
+          swift-version: "6.4.0"
 
       - name: Build and Package (Apple Silicon arm64)
         run: |
@@ -51,10 +51,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Setup Swift 6.4.1
+      - name: Setup Swift 6.4.0
         uses: swift-actions/setup-swift@v3
         with:
-          swift-version: "6.4.1"
+          swift-version: "6.4.0"
 
       - name: Build and Package (Linux x86_64)
         run: |
