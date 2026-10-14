@@ -253,8 +253,8 @@ struct MatchOptions: ParsableArguments, Sendable {
         let resolvedGitBranch = gitBranch ?? env["MATCH_GIT_BRANCH"] ?? "master"
         let resolvedGitToken = gitToken ?? env["MATCH_GIT_TOKEN"] ?? env["GITHUB_TOKEN"]
         let resolvedPassword = password ?? env["MATCH_PASSWORD"]
-        let resolvedKeychainName = keychainName ?? env["MATCH_KEYCHAIN_NAME"]
-        let resolvedKeychainPassword = keychainPassword ?? env["MATCH_KEYCHAIN_PASSWORD"]
+        let resolvedKeychainName = keychainName ?? env["MATCH_KEYCHAIN_NAME"] ?? "appitool"
+        let resolvedKeychainPassword = keychainPassword ?? env["MATCH_KEYCHAIN_PASSWORD"] ?? "appipass"
         let resolvedTeamId = teamId ?? env["APPLE_TEAM_ID"]
         let isReadonly = readonly || (env["MATCH_READONLY"] != "false")
         return (
@@ -262,8 +262,8 @@ struct MatchOptions: ParsableArguments, Sendable {
             gitBranch: resolvedGitBranch,
             gitToken: resolvedGitToken?.isEmpty == false ? resolvedGitToken : nil,
             password: resolvedPassword?.isEmpty == false ? resolvedPassword : nil,
-            keychainName: resolvedKeychainName?.isEmpty == false ? resolvedKeychainName : nil,
-            keychainPassword: resolvedKeychainPassword?.isEmpty == false ? resolvedKeychainPassword : nil,
+            keychainName: resolvedKeychainName.isEmpty ? "appitool" : resolvedKeychainName,
+            keychainPassword: resolvedKeychainPassword.isEmpty ? "appipass" : resolvedKeychainPassword,
             teamId: resolvedTeamId?.isEmpty == false ? resolvedTeamId : nil,
             readonly: isReadonly
         )

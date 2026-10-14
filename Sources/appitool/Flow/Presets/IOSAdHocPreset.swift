@@ -1,3 +1,4 @@
+import AppleServices
 import Foundation
 import GoogleServices
 import Rainbow
@@ -208,6 +209,13 @@ struct IOSAdHocPreset: FlowPreset {
         let outputName = context.scheme ?? "app"
 
         let profiles = context.installedProfiles.mapValues { $0.name }
+
+        #if os(macOS)
+        let kcName = context.matchKeychainName ?? "appitool"
+        let kcPass = context.matchKeychainPassword ?? "appipass"
+        let kcManager = AppleServices.KeychainManager(keychainName: kcName, keychainPassword: kcPass)
+        try? await kcManager.prepareKeychainIfNeeded()
+        #endif
 
         let output = try await XcodeBuildTask().run(
             .init(

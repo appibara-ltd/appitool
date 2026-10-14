@@ -167,7 +167,8 @@ extension AppStoreService {
         exportP12: Bool = false,
         p12Password: String? = nil,
         saveToKeychain: Bool = false,
-        keychainName: String = "appitool"
+        keychainName: String = "appitool",
+        keychainPassword: String = "appipass"
     ) async throws -> CreateCertificateResult {
         let shouldExportP12 = exportP12 || p12Password != nil
         let resolvedP12Password = p12Password ?? "appipass"
@@ -200,7 +201,7 @@ extension AppStoreService {
             // 2. Optionally import into Keychain directly from memory
             var keychainImportSucceeded = false
             if saveToKeychain {
-                let keychainManager = KeychainManager(keychainName: keychainName, keychainPassword: "")
+                let keychainManager = KeychainManager(keychainName: keychainName, keychainPassword: keychainPassword)
                 try await keychainManager.prepareKeychainIfNeeded()
                 let importedInfo = try await keychainManager.importP12Data(
                     p12Data: certData.p12Data,

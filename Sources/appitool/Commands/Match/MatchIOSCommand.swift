@@ -189,8 +189,8 @@ struct MatchIOSCommand: AsyncParsableCommand {
         let resolvedTeamName = teamName
 
         // 13. Resolve Keychain
-        let resolvedKeychainName = keychainName ?? env["MATCH_KEYCHAIN_NAME"]
-        let resolvedKeychainPassword = keychainPassword ?? env["MATCH_KEYCHAIN_PASSWORD"]
+        let resolvedKeychainName = keychainName ?? env["MATCH_KEYCHAIN_NAME"] ?? "appitool"
+        let resolvedKeychainPassword = keychainPassword ?? env["MATCH_KEYCHAIN_PASSWORD"] ?? "appipass"
 
         let config = MatchConfig(
             gitUrl: resolvedGitUrl,
