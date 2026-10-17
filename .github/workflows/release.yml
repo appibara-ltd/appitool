@@ -64,8 +64,8 @@ jobs:
         run: |
           swift package resolve
           chmod -R u+w .build/checkouts/PathKit .build/checkouts/XcodeProj
-          sed -i 's/Glibc/Musl/g' .build/checkouts/PathKit/Sources/PathKit.swift
-          sed -i 's/Glibc/Musl/g' .build/checkouts/XcodeProj/Sources/XcodeProj/Extensions/Path+Extras.swift
+          sed -i 's/Glibc/Musl/g; s/GLOB_BRACE/0/g' .build/checkouts/PathKit/Sources/PathKit.swift
+          sed -i 's/Glibc/Musl/g; s/GLOB_BRACE/0/g' .build/checkouts/XcodeProj/Sources/XcodeProj/Extensions/Path+Extras.swift
           sed -i '1i import Musl' .build/checkouts/XcodeProj/Sources/XcodeProj/Extensions/Path+Extras.swift
 
           swift build -c release --swift-sdk x86_64-swift-linux-musl
