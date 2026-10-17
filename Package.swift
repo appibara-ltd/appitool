@@ -194,7 +194,11 @@ let package = Package(
                     "-Xlinker", "-exported_symbol",
                     "-Xlinker", "_main",
                     "-Xlinker", "-x",
-                ], .when(configuration: .release)),
+                ], .when(platforms: [.macOS], configuration: .release)),
+                .unsafeFlags([
+                    "-Xlinker", "--gc-sections",
+                    "-Xlinker", "-s",
+                ], .when(platforms: [.linux], configuration: .release)),
             ]
         ),
 

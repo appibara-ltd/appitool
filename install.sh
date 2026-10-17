@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Appitool Installer for macOS (Apple Silicon arm64)
+# Appitool Installer for macOS (Apple Silicon arm64) and Linux (x86_64)
 # Usage: curl -fsSL https://raw.githubusercontent.com/appibara-ltd/appitool/main/install.sh | bash
 
 REPO="appibara-ltd/appitool"
@@ -12,13 +12,21 @@ ARCH="$(uname -m)"
 echo "🌊 Installing appitool..."
 
 # 1. OS & Architecture Check
-if [ "$OS" != "Darwin" ]; then
-    echo "🔴 Error: Only macOS (Darwin) is currently supported." >&2
-    exit 1
-fi
-
-if [ "$ARCH" != "arm64" ]; then
-    echo "🔴 Error: Only Apple Silicon (arm64) is currently supported." >&2
+ARTIFACT_NAME=""
+if [ "$OS" = "Darwin" ]; then
+    if [ "$ARCH" != "arm64" ]; then
+        echo "🔴 Error: Only Apple Silicon (arm64) is supported on macOS." >&2
+        exit 1
+    fi
+    ARTIFACT_NAME="appitool-darwin-arm64.tar.gz"
+elif [ "$OS" = "Linux" ]; then
+    if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "amd64" ]; then
+        echo "🔴 Error: Only x86_64 is supported on Linux." >&2
+        exit 1
+    fi
+    ARTIFACT_NAME="appitool-linux-x86_64.tar.gz"
+else
+    echo "🔴 Error: Unsupported operating system: $OS (only macOS and Linux are supported)." >&2
     exit 1
 fi
 
@@ -48,30 +56,34 @@ if [ -z "$RELEASE_JSON" ] || echo "$RELEASE_JSON" | grep -q '"message": *"Not Fo
 fi
 
 TAG_NAME="$(echo "$RELEASE_JSON" | awk -F'"' '/"tag_name":/ { print $4; exit }')"
-TARBALL_URL="$(echo "$RELEASE_JSON" | awk -F'"' '/"name": *"appitool-darwin-arm64\.tar\.gz"/ { found=1 } found && /"browser_download_url":/ { print $4; exit }')"
+TARBALL_URL="$(echo "$RELEASE_JSON" | awk -v art="$ARTIFACT_NAME" -F'"' '$0 ~ "\"name\": *\"" art "\"" { found=1 } found && /"browser_download_url":/ { print $4; exit }')"
 CHECKSUMS_URL="$(echo "$RELEASE_JSON" | awk -F'"' '/"name": *"checksums\.txt"/ { found=1 } found && /"browser_download_url":/ { print $4; exit }')"
 
-TARBALL_API_URL="$(echo "$RELEASE_JSON" | awk -F'"' '/"url":/ { last_url=$4 } /"name": *"appitool-darwin-arm64\.tar\.gz"/ { print last_url; exit }')"
+TARBALL_API_URL="$(echo "$RELEASE_JSON" | awk -v art="$ARTIFACT_NAME" -F'"' '/"url":/ { last_url=$4 } $0 ~ "\"name\": *\"" art "\"" { print last_url; exit }')"
 CHECKSUMS_API_URL="$(echo "$RELEASE_JSON" | awk -F'"' '/"url":/ { last_url=$4 } /"name": *"checksums\.txt"/ { print last_url; exit }')"
 
 if [ -z "$TARBALL_URL" ] || [ -z "$CHECKSUMS_URL" ]; then
-    echo "🔴 Error: Could not locate release artifacts for arm64 macOS (${TAG_NAME:-unknown})." >&2
+    echo "🔴 Error: Could not locate release artifact ${ARTIFACT_NAME} (${TAG_NAME:-unknown})." >&2
     exit 1
 fi
 
-echo "   🔄 Downloading appitool ${TAG_NAME}..."
+echo "   🔄 Downloading appitool ${TAG_NAME} (${ARTIFACT_NAME})..."
 if [ -n "$TOKEN" ] && [ -n "$TARBALL_API_URL" ]; then
-    curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/octet-stream" "$TARBALL_API_URL" -o "$TMP_DIR/appitool-darwin-arm64.tar.gz"
+    curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/octet-stream" "$TARBALL_API_URL" -o "$TMP_DIR/$ARTIFACT_NAME"
     curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/octet-stream" "$CHECKSUMS_API_URL" -o "$TMP_DIR/checksums.txt"
 else
-    curl -fsSL "$TARBALL_URL" -o "$TMP_DIR/appitool-darwin-arm64.tar.gz"
+    curl -fsSL "$TARBALL_URL" -o "$TMP_DIR/$ARTIFACT_NAME"
     curl -fsSL "$CHECKSUMS_URL" -o "$TMP_DIR/checksums.txt"
 fi
 
 # 3. Verify SHA256 Checksum
 echo "   🔄 Verifying checksum..."
-EXPECTED_SHA="$(grep 'appitool-darwin-arm64\.tar\.gz' "$TMP_DIR/checksums.txt" | awk '{print $1}')"
-ACTUAL_SHA="$(shasum -a 256 "$TMP_DIR/appitool-darwin-arm64.tar.gz" | awk '{print $1}')"
+EXPECTED_SHA="$(grep "$ARTIFACT_NAME" "$TMP_DIR/checksums.txt" | awk '{print $1}')"
+if command -v shasum >/dev/null 2>&1; then
+    ACTUAL_SHA="$(shasum -a 256 "$TMP_DIR/$ARTIFACT_NAME" | awk '{print $1}')"
+else
+    ACTUAL_SHA="$(sha256sum "$TMP_DIR/$ARTIFACT_NAME" | awk '{print $1}')"
+fi
 
 if [ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]; then
     echo "🔴 Error: Checksum verification failed!" >&2
@@ -91,7 +103,7 @@ else
 fi
 
 echo "   🔄 Installing binary to ${INSTALL_DIR}/appitool..."
-tar -xzf "$TMP_DIR/appitool-darwin-arm64.tar.gz" -C "$TMP_DIR"
+tar -xzf "$TMP_DIR/$ARTIFACT_NAME" -C "$TMP_DIR"
 cp -f "$TMP_DIR/appitool" "$INSTALL_DIR/appitool"
 chmod +x "$INSTALL_DIR/appitool"
 
