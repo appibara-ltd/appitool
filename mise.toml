@@ -23,4 +23,12 @@ echo "Bumped version ($usage_part): $CURRENT -> $NEXT"
 
 [tasks.release]
 description = "Push current branch and create/push version git tag"
-run = 'VERSION=$(sed -n "s/.*version: \"\([^\"]*\)\".*/\1/p" Sources/appitool/appitool.swift) && git push && git tag "v$VERSION" && git push origin "v$VERSION"'
+quiet = true
+run = '''
+VERSION=$(sed -n 's/.*version: "\([^"]*\)".*/\1/p' Sources/appitool/appitool.swift)
+git push
+git tag "v$VERSION"
+git push origin "v$VERSION"
+echo "Released v$VERSION"
+'''
+
