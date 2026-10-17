@@ -173,15 +173,11 @@ extension MatchRunner {
             )
         }
 
-        // Copy keystore to a stable temporary location because storage.cleanup() removes the working directory
-        let tempDir = URL(fileURLWithPath: fm.homeDirectoryForCurrentUser.path)
-            .appendingPathComponent(".appitool")
-            .appendingPathComponent("android")
-            .appendingPathComponent("keystores")
-            .appendingPathComponent(UUID().uuidString)
-        try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        // Copy keystore to ~/.appitool/android/keystores/<packageName>.keystore because storage.cleanup() removes the working directory
+        let keystoresDir = AppitoolPaths.androidKeystoresDirectory
+        try fm.createDirectory(at: keystoresDir, withIntermediateDirectories: true)
 
-        let destKeystoreUrl = tempDir.appendingPathComponent(matchedKeystoreUrl.lastPathComponent)
+        let destKeystoreUrl = AppitoolPaths.androidKeystoreFile(packageName: config.packageName)
         if fm.fileExists(atPath: destKeystoreUrl.path) {
             try? fm.removeItem(at: destKeystoreUrl)
         }
@@ -196,7 +192,7 @@ extension MatchRunner {
             alias: finalAlias,
             storePassword: finalStorePassword,
             keyPassword: finalKeyPassword,
-            tempUrl: tempDir
+            tempUrl: destKeystoreUrl
         )
     }
 }

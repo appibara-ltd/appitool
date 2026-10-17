@@ -54,4 +54,19 @@ package enum AppitoolPaths {
             .appendingPathComponent(target)
             .appendingPathComponent("derivedData")
     }
+
+    /// Resolves the directory for Android keystores:
+    /// `~/.appitool/android/keystores/`
+    package static var androidKeystoresDirectory: URL {
+        platformDirectory("android")
+            .appendingPathComponent("keystores")
+    }
+
+    /// Resolves the file path for an Android keystore by package name:
+    /// `~/.appitool/android/keystores/<packageName>.keystore`
+    package static func androidKeystoreFile(packageName: String) -> URL {
+        androidKeystoresDirectory
+            .appendingPathComponent("\(packageName).keystore")
+    }
 }
+

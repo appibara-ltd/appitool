@@ -113,23 +113,14 @@ struct BuildAndroidCommand: AsyncParsableCommand {
         var tempKeystoreUrl: URL? = nil
         defer {
             if let tempUrl = tempKeystoreUrl {
-                var isDir: ObjCBool = false
-                if fm.fileExists(atPath: tempUrl.path, isDirectory: &isDir), !isDir.boolValue {
-                    let parent = tempUrl.deletingLastPathComponent()
-                    if parent.lastPathComponent.count == 36 && UUID(uuidString: parent.lastPathComponent) != nil {
-                        try? fm.removeItem(at: parent)
-                    } else {
-                        try? fm.removeItem(at: tempUrl)
-                    }
-                } else {
-                    try? fm.removeItem(at: tempUrl)
+                try? fm.removeItem(at: tempUrl)
+                let parentDir = tempUrl.deletingLastPathComponent()
+                if let contents = try? fm.contentsOfDirectory(atPath: parentDir.path), contents.isEmpty {
+                    try? fm.removeItem(at: parentDir)
                 }
             }
 
-            let keystoresDir = URL(fileURLWithPath: fm.homeDirectoryForCurrentUser.path)
-                .appendingPathComponent(".appitool")
-                .appendingPathComponent("android")
-                .appendingPathComponent("keystores")
+            let keystoresDir = AppitoolPaths.androidKeystoresDirectory
             if let contents = try? fm.contentsOfDirectory(atPath: keystoresDir.path), contents.isEmpty {
                 try? fm.removeItem(at: keystoresDir)
             }
@@ -200,18 +191,22 @@ struct BuildAndroidCommand: AsyncParsableCommand {
 
         var storeFilePath: String? = nil
 
-        // If base64-encoded keystore is provided, write it to a temporary file
+        // If base64-encoded keystore is provided, write it to ~/.appitool/android/keystores/<packageName>.keystore or tmp
         if let base64 = keystoreBase64 ?? env["ANDROID_KEYSTORE"], !base64.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             if let data = Data(base64Encoded: base64.trimmingCharacters(in: .whitespacesAndNewlines), options: .ignoreUnknownCharacters) {
-                let tempDir = URL(fileURLWithPath: fm.homeDirectoryForCurrentUser.path)
-                    .appendingPathComponent(".appitool")
-                    .appendingPathComponent("android")
-                    .appendingPathComponent("tmp")
-                try? fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
-                let tempFile = tempDir.appendingPathComponent("keystore_\(UUID().uuidString).keystore")
-                try data.write(to: tempFile)
-                tempKeystoreUrl = tempFile
-                storeFilePath = tempFile.path
+                let targetFile: URL
+                if let pkg = packageName, !pkg.isEmpty {
+                    let keystoresDir = AppitoolPaths.androidKeystoresDirectory
+                    try? fm.createDirectory(at: keystoresDir, withIntermediateDirectories: true)
+                    targetFile = AppitoolPaths.androidKeystoreFile(packageName: pkg)
+                } else {
+                    let tempDir = AppitoolPaths.platformDirectory("android").appendingPathComponent("tmp")
+                    try? fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                    targetFile = tempDir.appendingPathComponent("keystore_\(UUID().uuidString).keystore")
+                }
+                try data.write(to: targetFile, options: .atomic)
+                tempKeystoreUrl = targetFile
+                storeFilePath = targetFile.path
             }
         }
 
