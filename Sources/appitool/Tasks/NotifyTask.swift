@@ -372,7 +372,7 @@ struct NotifyTask: Task {
         request.httpMethod = "POST"
         request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("appitool/\(appitool.configuration.version) CFNetwork/1568.200.51 Darwin/24.1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("appitool/\(appitool.configuration.version)", forHTTPHeaderField: "User-Agent")
         request.httpBody = jsonData
 
         let (data, response) = try await URLSession.shared.data(for: request)
