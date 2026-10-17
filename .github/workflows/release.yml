@@ -56,10 +56,14 @@ jobs:
         with:
           swift-version: "6.4.0"
 
+      - name: Install Static Linux SDK
+        run: |
+          swift sdk install https://download.swift.org/swift-6.4.0-release/static-sdk/swift-6.4.0-RELEASE/swift-6.4.0-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz --checksum 47d2fd89eebfdf9eb4d536b6710414297f755c17926cdebc4742c08982b40a9e
+
       - name: Build and Package (Linux x86_64)
         run: |
-          swift build -c release
-          BIN_PATH="$(swift build -c release --show-bin-path)/appitool"
+          swift build -c release --swift-sdk x86_64-swift-linux-musl
+          BIN_PATH="$(swift build -c release --swift-sdk x86_64-swift-linux-musl --show-bin-path)/appitool"
           strip -s "$BIN_PATH"
 
           # Create tar.gz archive
@@ -95,13 +99,6 @@ jobs:
         with:
           subject-path: 'appitool-*.tar.gz'
 
-      - name: Install appitool
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          bash ./install.sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -113,6 +110,13 @@ jobs:
             --title "${{ github.ref_name }}" \
             --generate-notes
 
+      - name: Install appitool
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash ./install.sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Send KokoNo Release Notification
         env:
           KOKONO_URL: ${{ secrets.KOKONO_URL }}
@@ -123,6 +127,7 @@ jobs:
             exit 0
           fi
           appitool kokono -t "appitool" -m "🚀 appitool ${{ github.ref_name }} has been released!"
+
 
 
 

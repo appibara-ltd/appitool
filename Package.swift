@@ -187,9 +187,7 @@ let package = Package(
                 .product(name: "Subprocess", package: "swift-subprocess"),
                 .product(name: "SystemPackage", package: "swift-system")
             ],
-            swiftSettings: defaultSwiftSettings + [
-                .unsafeFlags(["-static-stdlib", "-use-ld=lld"], .when(platforms: [.linux], configuration: .release)),
-            ],
+            swiftSettings: defaultSwiftSettings,
             linkerSettings: [
                 .unsafeFlags([
                     "-Xlinker", "-dead_strip",
