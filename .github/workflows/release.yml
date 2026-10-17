@@ -82,9 +82,47 @@ jobs:
           path: appitool-linux-x86_64.tar.gz
           retention-days: 1
 
+  build-linux-arm64:
+    name: Build Linux (arm64)
+    runs-on: ubuntu-26.04-arm
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Setup Swift 6.4.0
+        uses: swift-actions/setup-swift@v3
+        with:
+          swift-version: "6.4.0"
+
+      - name: Install Static Linux SDK
+        run: |
+          swift sdk install https://download.swift.org/swift-6.4.0-release/static-sdk/swift-6.4.0-RELEASE/swift-6.4.0-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz --checksum 47d2fd89eebfdf9eb4d536b6710414297f755c17926cdebc4742c08982b40a9e
+
+      - name: Build and Package (Linux arm64)
+        run: |
+          swift package resolve
+          chmod -R u+w .build/checkouts/PathKit .build/checkouts/XcodeProj
+          sed -i 's/Glibc/Musl/g; s/GLOB_BRACE/0/g' .build/checkouts/PathKit/Sources/PathKit.swift
+          sed -i 's/Glibc/Musl/g; s/GLOB_BRACE/0/g' .build/checkouts/XcodeProj/Sources/XcodeProj/Extensions/Path+Extras.swift
+          sed -i '1i import Musl' .build/checkouts/XcodeProj/Sources/XcodeProj/Extensions/Path+Extras.swift
+
+          swift build -c release --swift-sdk aarch64-swift-linux-musl
+          BIN_PATH="$(swift build -c release --swift-sdk aarch64-swift-linux-musl --show-bin-path)/appitool"
+          strip -s "$BIN_PATH"
+
+          # Create tar.gz archive
+          tar -czf appitool-linux-arm64.tar.gz -C "$(dirname "$BIN_PATH")" appitool
+
+      - name: Upload Linux ARM64 Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: appitool-linux-arm64
+          path: appitool-linux-arm64.tar.gz
+          retention-days: 1
+
   publish-release:
     name: Publish GitHub Release
-    needs: [build-macos, build-linux]
+    needs: [build-macos, build-linux, build-linux-arm64]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -97,7 +135,7 @@ jobs:
 
       - name: Generate Checksums
         run: |
-          sha256sum appitool-darwin-arm64.tar.gz appitool-linux-x86_64.tar.gz > checksums.txt
+          sha256sum appitool-darwin-arm64.tar.gz appitool-linux-x86_64.tar.gz appitool-linux-arm64.tar.gz > checksums.txt
 
       - name: Generate Artifact Attestation
         uses: actions/attest-build-provenance@v4
@@ -112,6 +150,7 @@ jobs:
           gh release create "${{ github.ref_name }}" \
             appitool-darwin-arm64.tar.gz \
             appitool-linux-x86_64.tar.gz \
+            appitool-linux-arm64.tar.gz \
             checksums.txt \
             --title "${{ github.ref_name }}" \
             --generate-notes

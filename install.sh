@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Appitool Installer for macOS (Apple Silicon arm64) and Linux (x86_64)
+# Appitool Installer for macOS (Apple Silicon arm64) and Linux (x86_64, arm64)
 # Usage: curl -fsSL https://raw.githubusercontent.com/appibara-ltd/appitool/main/install.sh | bash
 
 REPO="appibara-ltd/appitool"
@@ -20,11 +20,14 @@ if [ "$OS" = "Darwin" ]; then
     fi
     ARTIFACT_NAME="appitool-darwin-arm64.tar.gz"
 elif [ "$OS" = "Linux" ]; then
-    if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "amd64" ]; then
-        echo "🔴 Error: Only x86_64 is supported on Linux." >&2
+    if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
+        ARTIFACT_NAME="appitool-linux-x86_64.tar.gz"
+    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+        ARTIFACT_NAME="appitool-linux-arm64.tar.gz"
+    else
+        echo "🔴 Error: Unsupported architecture on Linux: $ARCH (only x86_64 and arm64/aarch64 are supported)." >&2
         exit 1
     fi
-    ARTIFACT_NAME="appitool-linux-x86_64.tar.gz"
 else
     echo "🔴 Error: Unsupported operating system: $OS (only macOS and Linux are supported)." >&2
     exit 1
