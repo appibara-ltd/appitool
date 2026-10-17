@@ -1,6 +1,26 @@
 [tasks.build]
-run = 'swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx13.0 && BIN_PATH="$(swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx13.0 --show-bin-path)/appitool" && strip "$BIN_PATH"'
+description = "Build release binary for arm64 macOS and strip symbols"
+run = 'swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx13.0 && BIN_PATH="$(swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx13.0 --show-bin-path)/appitool" && strip -rSTx "$BIN_PATH"'
+
+[tasks.bump]
+description = "Bump CLI version (patch, min, maj)"
+quiet = true
+usage = 'arg "[part]" default="patch" help="Version part to bump (patch, min, maj)"'
+run = '''
+FILE="Sources/appitool/appitool.swift"
+CURRENT=$(sed -n 's/.*version: "\([^"]*\)".*/\1/p' "$FILE")
+IFS='.' read -r MAJ MIN PATCH <<< "$CURRENT"
+case "${usage_part:-patch}" in
+  maj|major) MAJ=$((MAJ + 1)); MIN=0; PATCH=0 ;;
+  min|minor) MIN=$((MIN + 1)); PATCH=0 ;;
+  patch)     PATCH=$((PATCH + 1)) ;;
+  *) echo "Usage: mise run bump [maj|min|patch]" && exit 1 ;;
+esac
+NEXT="$MAJ.$MIN.$PATCH"
+sed -i '' "s/version: \"$CURRENT\"/version: \"$NEXT\"/" "$FILE"
+echo "Bumped version ($usage_part): $CURRENT -> $NEXT"
+'''
 
 [tasks.release]
+description = "Push current branch and create/push version git tag"
 run = 'VERSION=$(sed -n "s/.*version: \"\([^\"]*\)\".*/\1/p" Sources/appitool/appitool.swift) && git push && git tag "v$VERSION" && git push origin "v$VERSION"'
-

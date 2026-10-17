@@ -31,7 +31,7 @@ jobs:
         run: |
           swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx13.0
           BIN_PATH="$(swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx13.0 --show-bin-path)/appitool"
-          strip "$BIN_PATH"
+          strip -rSTx "$BIN_PATH"
           codesign --force --sign - "$BIN_PATH"
 
           # Create tar.gz archive
@@ -60,7 +60,7 @@ jobs:
         run: |
           swift build -c release
           BIN_PATH="$(swift build -c release --show-bin-path)/appitool"
-          strip "$BIN_PATH"
+          strip -rSTx "$BIN_PATH"
 
           # Create tar.gz archive
           tar -czf appitool-linux-x86_64.tar.gz -C "$(dirname "$BIN_PATH")" appitool

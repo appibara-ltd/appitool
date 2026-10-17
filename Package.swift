@@ -10,7 +10,7 @@ let defaultSwiftSettings: [SwiftSetting] = [
 
 let apiSwiftSettings: [SwiftSetting] = [
     .enableUpcomingFeature("ApproachableConcurrency"),
-    .unsafeFlags(["-O", "-gnone"], .when(configuration: .release)),
+    .unsafeFlags(["-Osize", "-gnone"], .when(configuration: .release)),
 ]
 
 let package = Package(
@@ -190,8 +190,10 @@ let package = Package(
             swiftSettings: defaultSwiftSettings,
             linkerSettings: [
                 .unsafeFlags([
+                    "-Xlinker", "-dead_strip",
+                    "-Xlinker", "-exported_symbol",
+                    "-Xlinker", "_main",
                     "-Xlinker", "-x",
-                    "-Xlinker", "-S",
                 ], .when(configuration: .release)),
             ]
         ),
