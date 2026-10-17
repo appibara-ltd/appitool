@@ -114,11 +114,15 @@ jobs:
             --generate-notes
 
       - name: Send KokoNo Release Notification
-        if: ${{ secrets.KOKONO_URL != '' }}
         env:
           KOKONO_URL: ${{ secrets.KOKONO_URL }}
           KOKONO_E2E_PUBLIC_KEY: ${{ secrets.KOKONO_E2E_PUBLIC_KEY }}
         run: |
+          if [ -z "$KOKONO_URL" ]; then
+            echo "KOKONO_URL is not set, skipping notification."
+            exit 0
+          fi
           appitool kokono -t "appitool" -m "🚀 appitool ${{ github.ref_name }} has been released!"
+
 
 
