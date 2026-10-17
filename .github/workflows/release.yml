@@ -62,6 +62,12 @@ jobs:
 
       - name: Build and Package (Linux x86_64)
         run: |
+          swift package resolve
+          chmod -R u+w .build/checkouts/PathKit .build/checkouts/XcodeProj
+          sed -i 's/Glibc/Musl/g' .build/checkouts/PathKit/Sources/PathKit.swift
+          sed -i 's/Glibc/Musl/g' .build/checkouts/XcodeProj/Sources/XcodeProj/Extensions/Path+Extras.swift
+          sed -i '1i import Musl' .build/checkouts/XcodeProj/Sources/XcodeProj/Extensions/Path+Extras.swift
+
           swift build -c release --swift-sdk x86_64-swift-linux-musl
           BIN_PATH="$(swift build -c release --swift-sdk x86_64-swift-linux-musl --show-bin-path)/appitool"
           strip -s "$BIN_PATH"
