@@ -58,7 +58,10 @@ jobs:
 
       - name: Install Static Linux SDK
         run: |
-          swift sdk install https://download.swift.org/swift-6.4.0-release/static-sdk/swift-6.4.0-RELEASE/swift-6.4.0-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz --checksum 47d2fd89eebfdf9eb4d536b6710414297f755c17926cdebc4742c08982b40a9e
+          curl -fsSL https://download.swift.org/swift-6.4.0-release/static-sdk/swift-6.4.0-RELEASE/swift-6.4.0-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz -o static-linux-sdk.artifactbundle.tar.gz
+          echo "47d2fd89eebfdf9eb4d536b6710414297f755c17926cdebc4742c08982b40a9e  static-linux-sdk.artifactbundle.tar.gz" | sha256sum -c -
+          swift sdk install static-linux-sdk.artifactbundle.tar.gz
+          rm -f static-linux-sdk.artifactbundle.tar.gz
 
       - name: Build and Package (Linux x86_64)
         run: |
@@ -96,7 +99,10 @@ jobs:
 
       - name: Install Static Linux SDK
         run: |
-          swift sdk install https://download.swift.org/swift-6.4.0-release/static-sdk/swift-6.4.0-RELEASE/swift-6.4.0-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz --checksum 47d2fd89eebfdf9eb4d536b6710414297f755c17926cdebc4742c08982b40a9e
+          curl -fsSL https://download.swift.org/swift-6.4.0-release/static-sdk/swift-6.4.0-RELEASE/swift-6.4.0-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz -o static-linux-sdk.artifactbundle.tar.gz
+          echo "47d2fd89eebfdf9eb4d536b6710414297f755c17926cdebc4742c08982b40a9e  static-linux-sdk.artifactbundle.tar.gz" | sha256sum -c -
+          swift sdk install static-linux-sdk.artifactbundle.tar.gz
+          rm -f static-linux-sdk.artifactbundle.tar.gz
 
       - name: Build and Package (Linux arm64)
         run: |

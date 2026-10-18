@@ -10,6 +10,7 @@ struct FirebaseCommand: AsyncParsableCommand {
             FirebaseListGroupsCommand.self,
             FirebaseListUsersCommand.self,
             FirebaseDeleteUserCommand.self,
+            FirebaseExportUsersCommand.self,
             FirebaseCreateGroupCommand.self,
             FirebaseCreateReleaseCommand.self,
             FirebaseUpdateReleaseCommand.self,
