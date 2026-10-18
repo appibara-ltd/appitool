@@ -35,7 +35,7 @@ jobs:
           codesign --force --sign - "$BIN_PATH"
 
           # Create tar.gz archive
-          tar -czf appitool-darwin-arm64.tar.gz -C "$(dirname "$BIN_PATH")" appitool
+          GZIP=-9 tar -czf appitool-darwin-arm64.tar.gz -C "$(dirname "$BIN_PATH")" appitool
 
       - name: Upload macOS Artifact
         uses: actions/upload-artifact@v7
@@ -73,7 +73,7 @@ jobs:
           strip -s "$BIN_PATH"
 
           # Create tar.gz archive
-          tar -czf appitool-linux-x86_64.tar.gz -C "$(dirname "$BIN_PATH")" appitool
+          GZIP=-9 tar -czf appitool-linux-x86_64.tar.gz -C "$(dirname "$BIN_PATH")" appitool
 
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v7
@@ -111,7 +111,7 @@ jobs:
           strip -s "$BIN_PATH"
 
           # Create tar.gz archive
-          tar -czf appitool-linux-arm64.tar.gz -C "$(dirname "$BIN_PATH")" appitool
+          GZIP=-9 tar -czf appitool-linux-arm64.tar.gz -C "$(dirname "$BIN_PATH")" appitool
 
       - name: Upload Linux ARM64 Artifact
         uses: actions/upload-artifact@v7
