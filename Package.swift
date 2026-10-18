@@ -6,13 +6,11 @@ import PackageDescription
 let defaultSwiftSettings: [SwiftSetting] = [
     .enableUpcomingFeature("ApproachableConcurrency"),
     .unsafeFlags(["-Osize", "-gnone"], .when(configuration: .release)),
-    .unsafeFlags(["-Xfrontend", "-function-sections", "-Xfrontend", "-data-sections"], .when(platforms: [.linux], configuration: .release)),
 ]
 
 let apiSwiftSettings: [SwiftSetting] = [
     .enableUpcomingFeature("ApproachableConcurrency"),
     .unsafeFlags(["-Osize", "-gnone"], .when(configuration: .release)),
-    .unsafeFlags(["-Xfrontend", "-function-sections", "-Xfrontend", "-data-sections"], .when(platforms: [.linux], configuration: .release)),
 ]
 
 let package = Package(
