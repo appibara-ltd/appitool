@@ -741,5 +741,216 @@ package struct FirebaseService: Sendable {
 
         return try JSONDecoder().decode(FirebaseAppDistributionGroup.self, from: data)
     }
+
+    // MARK: - Firebase Authentication (Identity Toolkit API)
+
+    /// Returns the `project_id` embedded in the underlying Google Service Account key, if available.
+    package var serviceAccountProjectId: String? {
+        (authMiddleware as? GooglePlayAuthMiddleware)?.projectId
+    }
+
+    /// Lists Firebase Authentication users in batches via Google Identity Toolkit v1 API.
+    ///
+    /// - Parameters:
+    ///   - project: Firebase project ID or project number.
+    ///   - maxResults: Maximum number of users to fetch per page (1-1000; defaults to 500).
+    ///   - pageToken: Optional pagination token (`nextPageToken`).
+    /// - Returns: A tuple containing the array of `FirebaseAuthUser` and optional `nextPageToken`.
+    package func listAuthUsers(
+        project: String,
+        maxResults: Int = 500,
+        pageToken: String? = nil
+    ) async throws -> (users: [FirebaseAuthUser], nextPageToken: String?) {
+        let clampedMax = max(1, min(maxResults, 1000))
+        var urlComponents = URLComponents(string: "https://identitytoolkit.googleapis.com/v1/projects/\(project)/accounts:batchGet")!
+        var queryItems: [URLQueryItem] = [
+            URLQueryItem(name: "maxResults", value: String(clampedMax))
+        ]
+        if let pageToken, !pageToken.isEmpty {
+            queryItems.append(URLQueryItem(name: "nextPageToken", value: pageToken))
+        }
+        urlComponents.queryItems = queryItems
+
+        guard let url = urlComponents.url else {
+            throw NSError(
+                domain: "FirebaseService",
+                code: 22,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid Identity Toolkit batchGet URL."]
+            )
+        }
+
+        let token = try await getAccessToken()
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(
+                domain: "FirebaseService",
+                code: 23,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid server response received while listing Firebase Auth users."]
+            )
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMsg = String(data: data, encoding: .utf8) ?? "HTTP \(httpResponse.statusCode)"
+            throw NSError(
+                domain: "FirebaseService",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to list Firebase Auth users (HTTP \(httpResponse.statusCode)): \(errorMsg)"]
+            )
+        }
+
+        struct BatchGetResponse: Codable {
+            let users: [FirebaseAuthUser]?
+            let nextPageToken: String?
+        }
+
+        let decoded = try JSONDecoder().decode(BatchGetResponse.self, from: data)
+        return (decoded.users ?? [], decoded.nextPageToken)
+    }
+
+    /// Looks up specific Firebase Authentication users by exact email or UID (`localId`).
+    ///
+    /// - Parameters:
+    ///   - project: Firebase project ID or project number.
+    ///   - emails: Optional array of email addresses to look up.
+    ///   - uids: Optional array of UIDs (`localId`) to look up.
+    /// - Returns: Array of matching `FirebaseAuthUser` records.
+    package func lookupAuthUsers(
+        project: String,
+        emails: [String]? = nil,
+        uids: [String]? = nil
+    ) async throws -> [FirebaseAuthUser] {
+        guard let url = URL(string: "https://identitytoolkit.googleapis.com/v1/projects/\(project)/accounts:lookup") else {
+            throw NSError(
+                domain: "FirebaseService",
+                code: 24,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid Identity Toolkit lookup URL."]
+            )
+        }
+
+        var bodyDict: [String: Any] = [:]
+        if let emails, !emails.isEmpty {
+            bodyDict["email"] = emails
+        }
+        if let uids, !uids.isEmpty {
+            bodyDict["localId"] = uids
+        }
+
+        let token = try await getAccessToken()
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(
+                domain: "FirebaseService",
+                code: 25,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid server response received while looking up Firebase Auth users."]
+            )
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMsg = String(data: data, encoding: .utf8) ?? "HTTP \(httpResponse.statusCode)"
+            throw NSError(
+                domain: "FirebaseService",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to look up Firebase Auth users (HTTP \(httpResponse.statusCode)): \(errorMsg)"]
+            )
+        }
+
+        struct LookupResponse: Codable {
+            let users: [FirebaseAuthUser]?
+        }
+
+        let decoded = try JSONDecoder().decode(LookupResponse.self, from: data)
+        return decoded.users ?? []
+    }
+
+    /// Deletes a single Firebase Authentication user by UID (`localId`).
+    ///
+    /// - Parameters:
+    ///   - project: Firebase project ID or project number.
+    ///   - uid: The `localId` (UID) of the user to delete.
+    package func deleteAuthUser(
+        project: String,
+        uid: String
+    ) async throws {
+        guard let url = URL(string: "https://identitytoolkit.googleapis.com/v1/projects/\(project)/accounts:delete") else {
+            throw NSError(
+                domain: "FirebaseService",
+                code: 26,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid Identity Toolkit delete URL."]
+            )
+        }
+
+        let bodyDict: [String: Any] = [
+            "localId": uid
+        ]
+
+        let token = try await getAccessToken()
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(
+                domain: "FirebaseService",
+                code: 27,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid server response received while deleting Firebase Auth user."]
+            )
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMsg = String(data: data, encoding: .utf8) ?? "HTTP \(httpResponse.statusCode)"
+            throw NSError(
+                domain: "FirebaseService",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to delete Firebase Auth user (HTTP \(httpResponse.statusCode)): \(errorMsg)"]
+            )
+        }
+    }
 }
+
+/// Model representing a user in Firebase Authentication (Identity Toolkit).
+package struct FirebaseAuthUser: Codable, Sendable {
+    package let localId: String
+    package let email: String?
+    package let emailVerified: Bool?
+    package let displayName: String?
+    package let phoneNumber: String?
+    package let photoUrl: String?
+    package let disabled: Bool?
+    package let createdAt: String?
+    package let lastLoginAt: String?
+    package let providerUserInfo: [ProviderUserInfo]?
+
+    package struct ProviderUserInfo: Codable, Sendable {
+        package let providerId: String?
+        package let displayName: String?
+        package let email: String?
+        package let federatedId: String?
+        package let rawId: String?
+    }
+
+    /// Returns `true` if the user is an anonymous Firebase Auth user (no email, phone number, or linked identity providers).
+    package var isAnonymous: Bool {
+        let hasEmail = (email?.isEmpty == false)
+        let hasPhone = (phoneNumber?.isEmpty == false)
+        let hasProviders = (providerUserInfo?.isEmpty == false)
+        return !hasEmail && !hasPhone && !hasProviders
+    }
+}
+
 

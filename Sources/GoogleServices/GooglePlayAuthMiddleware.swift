@@ -95,6 +95,9 @@ package struct GooglePlayAuthMiddleware: ClientMiddleware, Sendable {
 
     private let tokenProvider: @Sendable () async throws -> String
 
+    /// The Google Cloud / Firebase `project_id` parsed from the Service Account JSON, if available.
+    package let projectId: String?
+
     // MARK: - Initializer
 
     /// Initializes middleware using a Service Account key (file path, raw JSON, or Base64-encoded JSON).
@@ -104,6 +107,7 @@ package struct GooglePlayAuthMiddleware: ClientMiddleware, Sendable {
         urlSession: URLSession = .shared
     ) throws {
         let serviceAccount = try Self.parseServiceAccount(from: key)
+        self.projectId = serviceAccount.projectId
         let rsaKey = try _RSA.Signing.PrivateKey(pemRepresentation: serviceAccount.privateKey)
         let tokenURI = serviceAccount.tokenUri ?? Self.defaultTokenURI
         let cache = GoogleTokenCache()
