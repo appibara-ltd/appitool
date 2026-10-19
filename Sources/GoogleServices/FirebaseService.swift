@@ -921,6 +921,79 @@ package struct FirebaseService: Sendable {
             )
         }
     }
+
+    /// Deletes multiple Firebase Authentication users in batch by UIDs (`localId`).
+    ///
+    /// - Parameters:
+    ///   - project: Firebase project ID or project number.
+    ///   - uids: Array of `localId` (UID) strings to delete (up to 1000 per call).
+    ///   - force: Whether to force-delete accounts even if not disabled (defaults to `true`).
+    /// - Returns: An array of error messages for any accounts that failed to delete.
+    package func deleteAuthUsers(
+        project: String,
+        uids: [String],
+        force: Bool = true
+    ) async throws -> [String] {
+        guard !uids.isEmpty else { return [] }
+        guard let url = URL(string: "https://identitytoolkit.googleapis.com/v1/projects/\(project)/accounts:batchDelete") else {
+            throw NSError(
+                domain: "FirebaseService",
+                code: 28,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid Identity Toolkit batchDelete URL."]
+            )
+        }
+
+        let bodyDict: [String: Any] = [
+            "localIds": uids,
+            "force": force
+        ]
+
+        let token = try await getAccessToken()
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(
+                domain: "FirebaseService",
+                code: 29,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid server response received while batch deleting Firebase Auth users."]
+            )
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMsg = String(data: data, encoding: .utf8) ?? "HTTP \(httpResponse.statusCode)"
+            throw NSError(
+                domain: "FirebaseService",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to batch delete Firebase Auth users (HTTP \(httpResponse.statusCode)): \(errorMsg)"]
+            )
+        }
+
+        struct BatchDeleteResponse: Codable {
+            struct ErrorInfo: Codable {
+                let index: Int?
+                let message: String?
+            }
+            let errors: [ErrorInfo]?
+        }
+
+        if let decoded = try? JSONDecoder().decode(BatchDeleteResponse.self, from: data),
+           let errors = decoded.errors, !errors.isEmpty {
+            return errors.compactMap { err in
+                if let idx = err.index, idx < uids.count {
+                    return "UID \(uids[idx]): \(err.message ?? "Unknown error")"
+                }
+                return err.message
+            }
+        }
+
+        return []
+    }
 }
 
 /// Model representing a user in Firebase Authentication (Identity Toolkit).

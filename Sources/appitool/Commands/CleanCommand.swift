@@ -14,6 +14,9 @@ struct CleanCommand: AsyncParsableCommand {
     @Flag(name: .shortAndLong, help: "Also clean Xcode derived data directories under ~/.appitool/ios.")
     var derivedData: Bool = false
 
+    @Flag(name: [.customShort("D"), .long, .customLong("only-derived-data")], help: "Only clean Xcode derived data directories without deleting build archives.")
+    var derivedDataOnly: Bool = false
+
     @Flag(name: .long, help: "Preview items to be cleaned without deleting them.")
     var dryRun: Bool = false
 
@@ -37,18 +40,20 @@ struct CleanCommand: AsyncParsableCommand {
         let androidDir = homeDir.appendingPathComponent(".appitool").appendingPathComponent("android")
 
         let shouldCleanIos = platform.lowercased() == "all" || platform.lowercased() == "ios"
-        let shouldCleanAndroid = platform.lowercased() == "all" || platform.lowercased() == "android"
+        let shouldCleanAndroid = !derivedDataOnly && (platform.lowercased() == "all" || platform.lowercased() == "android")
 
         let hasIos = fm.fileExists(atPath: iosDir.path)
         let hasAndroid = fm.fileExists(atPath: androidDir.path)
 
         guard (shouldCleanIos && hasIos) || (shouldCleanAndroid && hasAndroid) else {
-            Log("🟢 No build directories found under ~/.appitool for platform '\(platform)'. Nothing to clean.".green)
+            let target = derivedDataOnly ? "Xcode derived data" : "build directories"
+            Log("🟢 No \(target) found under ~/.appitool for platform '\(platform)'. Nothing to clean.".green)
             return
         }
 
         let prefix = dryRun ? "[Dry Run] ".yellow.bold : ""
-        Log("🧹 \(prefix)Scanning ~/.appitool for build artifacts...".bold)
+        let targetDesc = derivedDataOnly ? "Xcode derived data" : "build artifacts"
+        Log("🧹 \(prefix)Scanning ~/.appitool for \(targetDesc)...".bold)
 
         var itemsToDelete: [CleanItem] = []
 
@@ -61,7 +66,7 @@ struct CleanCommand: AsyncParsableCommand {
                 let projectName = projUrl.lastPathComponent
 
                 // Check derivedData
-                if derivedData {
+                if derivedData || derivedDataOnly {
                     let derivedDataDir = projUrl.appendingPathComponent("derivedData")
                     if fm.fileExists(atPath: derivedDataDir.path) {
                         let size = calculateSize(of: derivedDataDir, fm: fm)
@@ -76,18 +81,20 @@ struct CleanCommand: AsyncParsableCommand {
                 }
 
                 // Check build timestamps
-                let buildDir = projUrl.appendingPathComponent("build")
-                if fm.fileExists(atPath: buildDir.path) {
-                    let buildEntries = (try? fm.contentsOfDirectory(at: buildDir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
-                    for entry in buildEntries {
-                        let size = calculateSize(of: entry, fm: fm)
-                        itemsToDelete.append(CleanItem(
-                            platform: "iOS",
-                            url: entry,
-                            project: projectName,
-                            type: .build,
-                            size: size
-                        ))
+                if !derivedDataOnly {
+                    let buildDir = projUrl.appendingPathComponent("build")
+                    if fm.fileExists(atPath: buildDir.path) {
+                        let buildEntries = (try? fm.contentsOfDirectory(at: buildDir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+                        for entry in buildEntries {
+                            let size = calculateSize(of: entry, fm: fm)
+                            itemsToDelete.append(CleanItem(
+                                platform: "iOS",
+                                url: entry,
+                                project: projectName,
+                                type: .build,
+                                size: size
+                            ))
+                        }
                     }
                 }
             }
@@ -123,7 +130,10 @@ struct CleanCommand: AsyncParsableCommand {
         }
 
         if itemsToDelete.isEmpty {
-            Log("🟢 No build artifacts found to clean. ~/.appitool is clean!".green.bold)
+            let emptyMsg = derivedDataOnly
+                ? "🟢 No Xcode derived data found to clean. ~/.appitool is clean!".green.bold
+                : "🟢 No build artifacts found to clean. ~/.appitool is clean!".green.bold
+            Log(emptyMsg)
             return
         }
 
