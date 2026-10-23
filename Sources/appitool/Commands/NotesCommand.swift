@@ -1,0 +1,42 @@
+import ArgumentParser
+import Foundation
+import Rainbow
+
+struct NotesCommand: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "notes",
+        abstract: "Generates formatted release notes from git commits between two tags or revisions."
+    )
+
+    @Option(name: .shortAndLong, help: "Starting tag or revision (e.g., v1.0.0).")
+    var from: String?
+
+    @Option(name: .shortAndLong, help: "Ending tag or revision (defaults to HEAD if --from is given).")
+    var to: String?
+
+    @Option(name: .shortAndLong, help: "Path to write the generated markdown file.")
+    var output: String?
+
+    func run() async throws {
+        let task = GenerateReleaseNotesTask()
+        let markdown = try await task.run(
+            .init(
+                from: from,
+                to: to,
+                outputPath: output
+            )
+        )
+
+        if markdown.isEmpty {
+            Log("ℹ️ No commits found for the specified range.".yellow)
+            return
+        }
+
+        if let output {
+            let fullPath = output.hasPrefix("/") ? output : URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(output).path
+            Log("📝 Release notes saved to: \(fullPath)".green.bold)
+        } else {
+            Log(markdown)
+        }
+    }
+}
