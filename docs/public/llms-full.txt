@@ -1,0 +1,1648 @@
+# appitool — Complete CLI Documentation
+
+> Unified CLI utility (v0.9.0) for Apple App Store Connect and Google Play operations.
+> Generated automatically from VitePress Markdown documentation.
+
+---
+
+<!-- source: guide/getting-started.md -->
+
+# Getting Started
+
+`appitool` (`v0.9.0`) is a unified Swift CLI utility and release orchestration engine for Apple App Store Connect, Apple Developer Portal, Google Play Console, Firebase App Distribution, Firebase Authentication, and Git-backed code signing.
+
+## Requirements
+
+- **Prebuilt binary (`install.sh` / `self-update`)**:
+  - **macOS**: Apple Silicon (`arm64`), macOS 13+
+  - **Linux**: `x86_64` (`amd64`) or `arm64` (`aarch64`)
+- **Platform build tooling** (only required when compiling mobile apps via `build` or `flow`):
+  - **iOS**: macOS with Xcode command-line tools (`xcodebuild`, `xcrun`) and optionally `xcbeautify` (default formatter)
+  - **Android**: Java JDK and project `./gradlew` wrapper
+- **Building from source**: Swift `6.4+`
+
+---
+
+## Installation
+
+### One-Line Quick Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/appibara-ltd/appitool/main/install.sh | bash
+```
+
+The installer:
+1. Detects your OS and CPU architecture (`darwin-arm64`, `linux-x86_64`, or `linux-arm64`).
+2. Downloads the release tarball and `checksums.txt` from `appibara-ltd/appitool`.
+3. Verifies the SHA256 checksum.
+4. Installs the binary to `/usr/local/bin/appitool` (if writable) or `~/.local/bin/appitool` (automatically updating `~/.zshrc`, `~/.bash_profile`, `~/.bashrc`, or `~/.config/fish/config.fish`).
+
+### Installing from a Private Repository
+
+If the repository is private, pass a GitHub Personal Access Token via `GITHUB_TOKEN` (or `GH_TOKEN`):
+
+```bash
+curl -fsSL -H "Authorization: Bearer $(gh auth token)" \
+  https://raw.githubusercontent.com/appibara-ltd/appitool/main/install.sh | GITHUB_TOKEN=$(gh auth token) bash
+```
+
+### Build from Source
+
+```bash
+git clone https://github.com/appibara-ltd/appitool.git
+cd appitool
+
+# Build optimized release binary with minimal binary size
+swift build -c release
+strip .build/release/appitool
+
+# Optional: Link to PATH
+ln -sf "$(pwd)/.build/release/appitool" /usr/local/bin/appitool
+```
+
+You can also run directly via Swift Package Manager during development:
+
+```bash
+swift run appitool -h
+```
+
+---
+
+## Upgrading
+
+`appitool` includes a built-in self-updater with SHA256 verification:
+
+```bash
+# Check if a newer release is available
+appitool self-update --check
+
+# Upgrade in place
+appitool self-update
+
+# Force re-installation even if already on the latest version
+appitool self-update --force
+```
+
+See [`appitool self-update`](/commands/self-update) for details.
+
+---
+
+## Quick Start
+
+### 1. Create a `.env` File
+
+Copy `.env.example` into your project root and configure your credentials:
+
+```bash
+cp .env.example .env
+```
+
+### 2. Inspect Local Project Identifiers
+
+Discover iOS bundle identifiers (across targets/configurations) and Android `applicationId`, `namespace`, and product flavors in the current repository:
+
+```bash
+appitool list-identifiers
+```
+
+### 3. Verify Remote Store Connectivity
+
+Validate your credentials and check the latest build numbers on App Store Connect, Google Play Console, or Firebase App Distribution:
+
+```bash
+# Check App Store Connect / TestFlight latest build
+appitool check ios -d appstore
+
+# Check Google Play Console latest build
+appitool check android -d appstore
+
+# Check Firebase App Distribution latest build
+appitool check ios -d adhoc
+appitool check android -d adhoc
+```
+
+### 4. Run a Dry-Run Release Flow
+
+Validate all requirements, project detection, Match sync (in read-only mode), and build-number calculation without modifying project files or uploading binaries:
+
+```bash
+appitool flow ios -d appstore --dry-run
+appitool flow android -d adhoc --dry-run
+```
+
+---
+
+<!-- source: guide/configuration.md -->
+
+# Configuration & `.env`
+
+`appitool` uses a strict, deterministic configuration model. Commands resolve CLI options with environment variable fallbacks, while internal tasks, services, and flow presets receive resolved values explicitly.
+
+## Resolution Priority
+
+Options and credentials are resolved in the following priority order (highest to lowest):
+
+1. **Explicit CLI Flags** (e.g., `-b com.example.app`, `--apple-key-id ...`)
+2. **Process Environment Variables** (already exported in your shell or CI runner)
+3. **`.env` File** (automatically loaded from the current working directory if present; existing environment variables are **not** overwritten)
+
+---
+
+## `.env` Parser (`EnvLoader`)
+
+The built-in `EnvLoader` parses `.env` files without external dependencies and supports:
+
+- **Comments**: Full-line `#` comments and trailing inline comments preceded by a space (`KEY=value # comment`).
+- **`export ` prefix**: Standard shell syntax like `export APPLE_KEY_ID=2X9R4HXF34`.
+- **Single and double quotes**: Single quotes (`'...'`) preserve literal values; double quotes (`"..."`) unescape `\n`, `\r`, `\t`, `\"`, and `\\`.
+- **Multiline quoted values**: Multiline PEM keys or JSON payloads enclosed in quotes.
+- **`=` preservation**: Base64 padding (`=`) and URL query strings (`?token=...`) are preserved intact.
+- **Tilde (`~`) expansion**: Paths starting with `~/` expand to the current user's home directory where path resolution is supported.
+
+---
+
+## Environment Variables Reference
+
+### Apple App Store Connect & Developer Portal
+
+| Variable | Description | Example / Default |
+|:---|:---|:---|
+| `APPLE_KEY_ID` | App Store Connect API Key ID | `2X9R4HXF34` |
+| `APPLE_ISSUER_ID` | App Store Connect API Issuer UUID | `57246542-96fe-1a63-e053-0824d011072a` |
+| `APPLE_KEY` | Path to `.p8` file, raw PEM string, or Base64-encoded `.p8` | `./AuthKey_2X9R4HXF34.p8` |
+| `APPLE_BUNDLE_ID` | Default iOS bundle identifier | `com.example.app` |
+| `APPLE_TEAM_ID` | Apple Developer Team ID (10-character alphanumeric) | `ABCDE12345` |
+
+### iOS `xcodebuild` Configuration
+
+| Variable | Description | Default / Behavior |
+|:---|:---|:---|
+| `XCODE_WORKSPACE` | Path to `.xcworkspace` | Auto-discovered in `.` or `ios/` |
+| `XCODE_PROJECT` | Path to `.xcodeproj` | Auto-discovered in `.` or `ios/` |
+| `XCODE_SCHEME` | Xcode scheme name to build | Auto-inferred via `xcodebuild -list -json` |
+| `XCODE_CONFIGURATION` | Build configuration (`Release` or `Debug`) | `Release` |
+| `XCODEBUILD_FORMATTER` | Pipe formatter for `xcodebuild` output | `xcbeautify --renderer github-actions` |
+
+### Google Play Developer API
+
+| Variable | Description | Example / Default |
+|:---|:---|:---|
+| `GOOGLE_KEY` | Path to Service Account JSON, raw JSON string, or Base64 JSON | `./service-account.json` |
+| `GOOGLE_PACKAGE_NAME` | Target Android application package name | `com.example.app` |
+
+### Android Gradle & Keystore Signing
+
+| Variable | Description | Default / Behavior |
+|:---|:---|:---|
+| `ANDROID_PROJECT_DIR` | Android root directory containing `gradlew` | `./android` if present, else `.` |
+| `ANDROID_FLAVOR` | Gradle product flavor (e.g., `production`, `staging`) | None |
+| `ANDROID_CONFIGURATION` | Build type (`Release` or `Debug`) | `Release` |
+| `ANDROID_KEYSTORE_PATH` | Path to local `.keystore` / `.jks` file | None |
+| `ANDROID_KEYSTORE` | Base64-encoded keystore content (decoded to temporary keystore) | None |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore store password | None |
+| `ANDROID_KEY_ALIAS` | Key alias inside keystore | None |
+| `ANDROID_KEY_PASSWORD` | Key password | None |
+
+### Firebase (App Distribution & Auth)
+
+| Variable | Description | Notes |
+|:---|:---|:---|
+| `FIREBASE_IOS_APP_ID` | Firebase App ID for iOS (`1:<project>:ios:<hash>`) | Used by `check ios`, `flow ios -d adhoc`, and `firebase` commands |
+| `FIREBASE_ANDROID_APP_ID` | Firebase App ID for Android (`1:<project>:android:<hash>`) | Used by `check android`, `flow android -d adhoc`, and `firebase` commands |
+| `FIREBASE_PROJECT_ID` | Firebase / Google Cloud project ID or project number | Falls back to `GOOGLE_PROJECT_ID` or project number parsed from `FIREBASE_*_APP_ID` |
+| `GOOGLE_PROJECT_ID` | Fallback Google Cloud project ID when `FIREBASE_PROJECT_ID` is unset | Used by `FirebaseProjectOptions` |
+
+### Match Code Signing (`appitool match` & `flow`)
+
+| Variable | Description | Default / Behavior |
+|:---|:---|:---|
+| `MATCH_GIT_URL` | Git repository URL for certificates/profiles/keystores | Required for Match |
+| `MATCH_GIT_BRANCH` | Git branch name | `master` |
+| `MATCH_GIT_TOKEN` | HTTPS Git Personal Access Token | Falls back to `GITHUB_TOKEN` |
+| `MATCH_PASSWORD` | Passphrase for AES-256 encryption/decryption | Required for Match |
+| `MATCH_KEYCHAIN_NAME` | Custom macOS keychain name or path | `appitool` |
+| `MATCH_KEYCHAIN_PASSWORD` | Password used to create/unlock custom keychain | `appipass` |
+| `MATCH_READONLY` | In `flow` commands (`MatchOptions`), read-only unless set to `"false"` | `true` (unless `"false"`) |
+| `MATCH_TYPE` | Listed in `match ios --type` help text as fallback reference | `appstore` (effective CLI default) |
+
+### Webhook Notifications
+
+| Variable | Description | Notes |
+|:---|:---|:---|
+| `SLACK_URL` | Slack incoming webhook URL | Used by `flow` for success/failure attachments |
+| `KOKONO_URL` | KokoNo webhook URL (`https://kokono.me/notify?token=<token>`) | Used by `kokono` and `flow` |
+| `KOKONO_E2E_PUBLIC_KEY` | Base64 X25519 recipient public key for KokoNo E2E encryption | Optional |
+
+### GitHub Self-Update
+
+| Variable | Description | Notes |
+|:---|:---|:---|
+| `GITHUB_TOKEN` | GitHub PAT for private release downloads & Match fallback | Falls back to `GH_TOKEN` in `self-update` |
+| `GH_TOKEN` | Secondary fallback token in `self-update` | Checked if `GITHUB_TOKEN` is unset |
+
+---
+
+## Local Storage Architecture (`~/.appitool`)
+
+`appitool` centralizes build artifacts, Xcode DerivedData, temporary keystores, and exported certificates under `~/.appitool` (`AppitoolPaths`):
+
+```text
+~/.appitool/
+├── ios/
+│   └── <TargetName>/
+│       ├── build/
+│       │   └── <yyyy_MM_dd_HH_mm>/
+│       │       ├── <Scheme>.xcarchive
+│       │       ├── <Scheme>.ipa
+│       │       └── <Scheme>.app.dSYM.zip
+│       └── derivedData/
+├── android/
+│   ├── <TargetName>/
+│   │   └── build/
+│   │       └── <yyyy_MM_dd_HH_mm>/
+│   │           ├── <Target>_release.aab
+│   │           └── <Target>_release.apk
+│   ├── keystores/
+│   │   └── <packageName>.keystore
+│   └── tmp/
+├── certs/
+│   └── <type>/
+└── match/
+    └── <UUID>/                  # Temporary Git clone working directory (auto-cleaned)
+```
+
+Use [`appitool clean`](/commands/clean) to inspect sizes and prune old build artifacts and iOS `derivedData` directories safely.
+
+---
+
+<!-- source: guide/flow-architecture.md -->
+
+# Flow Architecture
+
+`appitool flow` is an opinionated release orchestration engine inspired by Fastlane lanes. Every flow execution transitions sequentially through a standardized 7-stage lifecycle backed by a shared `FlowContext` and a strict error boundary in `FlowRunner`.
+
+## The 7-Stage Pipeline
+
+```text
+┌─────────┐   ┌──────────┐   ┌─────────┐   ┌───────────┐   ┌────────────┐   ┌───────────┐   ┌─────────────┐
+│  setup  │──▶│ prebuild │──▶│  build  │──▶│ postbuild │──▶│ prerelease │──▶│  release  │──▶│ postrelease │
+└─────────┘   └──────────┘   └─────────┘   └───────────┘   └────────────┘   └───────────┘   └─────────────┘
+```
+
+| # | Stage (`FlowStage`) | Emoji | Display Name | Core Responsibilities |
+|:---:|:---|:---:|:---|:---|
+| 1 | `setup` | 🔍 | Setup & Environment | Inspect project (`Xcode` / `Gradle`), resolve bundle ID / package name, sync Match certs/profiles or keystore, fetch latest remote build number. |
+| 2 | `prebuild` | 🔧 | Pre-Build & Versioning | Compute next build number / `versionCode` (`remote + 1`), apply manual code signing settings to Xcode targets, bump iOS build number. |
+| 3 | `build` | 🔨 | Build Compilation | Run `xcodebuild` (`.xcarchive` + `.ipa` + dSYM) or `./gradlew` (`bundleRelease` / `assembleRelease`) and record artifact paths in `FlowContext`. |
+| 4 | `postbuild` | 📦 | Post-Build | Validate generated artifacts and log package integrity / file sizes. |
+| 5 | `prerelease` | 📝 | Pre-Release | Prepare release packaging, changelogs, or tester group configurations. |
+| 6 | `release` | 🚀 | Release & Store Upload | Upload binary to App Store Connect / TestFlight, Google Play Console `internal` track, or Firebase App Distribution. |
+| 7 | `postrelease` | 📣 | Post-Release & Notifications | Dispatch completion notifications to configured Slack and KokoNo webhooks (skipped in `--dry-run` mode). |
+
+---
+
+## Built-in Flow Presets
+
+Choosing a platform (`ios` / `android`) and distribution (`appstore`, `adhoc`, `development`) automatically selects a `FlowPreset`:
+
+| Command Invocation | Preset | Target Destination |
+|:---|:---|:---|
+| `flow ios -d appstore` | `IOSInternalPreset` (`iOS Internal`) | App Store Connect / TestFlight |
+| `flow ios -d adhoc` or `-d development` | `IOSAdHocPreset` (`iOS AdHoc`) | Firebase App Distribution (`internal` group) |
+| `flow android -d appstore` | `AndroidInternalPreset` (`Android Internal`) | Google Play Console (`internal` track) |
+| `flow android -d adhoc` or `-d development` | `AndroidAdHocPreset` (`Android AdHoc`) | Firebase App Distribution (`internal` group) |
+
+### 1. `IOSInternalPreset` (`flow ios -d appstore`)
+
+- **Required Configuration (`requirements`)**:
+  - `APPLE_KEY_ID`
+  - `APPLE_ISSUER_ID`
+  - `APPLE_KEY`
+  - `MATCH_GIT_URL`
+  - `MATCH_PASSWORD`
+- **Stage Execution**:
+  - `setup`: Detects `.xcworkspace`/`.xcodeproj`, scheme, configuration, main target, bundle ID, and project version. Runs `MatchTask` with `type: .appstore` (forced `readonly` when `--dry-run` is set). Queries App Store Connect (`GetLatestBuildNumberTask`) for the latest TestFlight build number.
+  - `prebuild`: Extracts signing identity (`iPhone Distribution` or `Apple Distribution`) and Team ID from installed certificates. Configures manual code signing per target via `XCodeTasks.configureManualSigning` and increments build number (`appstore_build_number + 1`) in Xcode project (skipped in `--dry-run`).
+  - `build`: Prepares macOS keychain (`KeychainManager`), compiles `.xcarchive` and exports `.ipa` with `.appStore` export method and manual signing via `XcodeBuildTask` (skipped in `--dry-run`).
+  - `release`: Uploads `.ipa` via `UploadToAppStoreTask` (`waitForProcessing: false`).
+  - **Note on `postrelease`**: `IOSInternalPreset` defines `stageHandlers` covering stages `setup` through `release` (6 stages).
+
+### 2. `IOSAdHocPreset` (`flow ios -d adhoc` / `development`)
+
+- **Required Configuration (`requirements`)**:
+  - `MATCH_GIT_URL`
+  - `MATCH_PASSWORD`
+  - `FIREBASE_IOS_APP_ID`
+  - `GOOGLE_KEY`
+- **Stage Execution**:
+  - `setup`: Inspects iOS project, runs `MatchTask` with `type: .adhoc`, and queries Firebase App Distribution (`GetLatestBuildNumberTask`) for the latest build number.
+  - `prebuild`: Configures manual signing on Xcode targets and increments build number (`firebase_build_number + 1`) unless `--dry-run`.
+  - `build`: Prepares keychain and builds `.ipa` with `.adHoc` export method.
+  - `release`: Ensures tester group `internal` exists on Firebase (`createOrGetGroup`), sets `changelog = "APPITOOL TEST"`, and uploads the `.ipa` via `UploadToFirebaseTask`.
+  - `postrelease`: Dispatches success notification to configured Slack and KokoNo webhooks (skipped in `--dry-run`).
+
+### 3. `AndroidInternalPreset` (`flow android -d appstore`)
+
+- **Required Configuration (`requirements`)**:
+  - `GOOGLE_KEY`
+- **Stage Execution**:
+  - `setup`: Extracts `packageName`, `applicationId`, `namespace`, `versionName`, `versionCode`, and flavors via regex (`AndroidTasks.getAndroidIdentifiers`) and Gradle evaluation (`evaluateAppInfoViaGradle`). If `MATCH_GIT_URL` and `MATCH_PASSWORD` are configured, resolves the release keystore via `MatchRunner().runAndroid`. Queries Google Play Console (`internal` track) for the latest `versionCode`.
+  - `prebuild`: Computes `nextCode = baseCode + 1` in `context.buildNumber`.
+  - `build`: Executes Gradle `bundleRelease` producing an `.aab` with `-PversionCode` and `-PversionName` plus Match signing config if present.
+  - `postbuild`: Verifies `.aab` existence and logs file size.
+  - `release`: Uploads `.aab` to Google Play Console `internal` track with `releaseStatus: .completed` via `UploadToGooglePlayConsoleTask`.
+  - `postrelease`: Dispatches success notification to Slack and KokoNo webhooks.
+
+### 4. `AndroidAdHocPreset` (`flow android -d adhoc` / `development`)
+
+- **Required Configuration (`requirements`)**:
+  - `FIREBASE_ANDROID_APP_ID`
+  - `GOOGLE_KEY`
+- **Stage Execution**:
+  - `setup`: Inspects Android project, optionally resolves release keystore from Match, and retrieves latest Firebase App Distribution build info.
+  - `prebuild`: Increments `versionCode` by `+1`.
+  - `build`: Runs Gradle `assembleRelease` (default `.apk` for `adhoc`/`development`) or `bundleRelease` (if `-f aab` is specified).
+  - `postbuild`: Verifies artifact file integrity and logs size.
+  - `release`: Ensures `internal` tester group exists, sets `changelog = "APPITOOL TEST"`, and uploads binary via `UploadToFirebaseTask`.
+  - `postrelease`: Dispatches success notification to Slack and KokoNo webhooks.
+
+---
+
+## Global Error Boundary & Cleanup
+
+`FlowRunner` wraps all stage execution inside a unified error boundary:
+
+- **Pre-flight Validation**: `preset.requirements(context:)` runs before any stage executes, throwing `FlowRequirementError` with the full list of missing configuration keys.
+- **Temporary Keystore Cleanup**: In `defer`, any temporary keystore decrypted by Match for Android (`context.androidSigningTempUrl`) and empty `~/.appitool/android/keystores` directories are deleted automatically.
+- **Failure Handling**: If any stage throws:
+  1. Pipeline execution halts immediately.
+  2. `FlowRunner` prints a highlighted banner showing the failing stage (`context.currentStage`) and error reason.
+  3. `NotifyTask().notifyAllConfigured(status: .failure, ...)` dispatches failure alerts to Slack and KokoNo containing `Platform`, `Distribution`, `Failing Stage`, `Elapsed Time`, and `Bundle ID` / `Package Name` (skipped when `--dry-run` is active).
+- **Success Summary**: Upon completing all configured stages, `FlowRunner` prints total elapsed time and per-stage durations.
+
+---
+
+<!-- source: guide/code-signing-match.md -->
+
+# Code Signing & Match
+
+`appitool match` implements Git-backed encrypted storage for Apple signing assets and Android keystores, providing binary and encryption parity with **Fastlane Match**.
+
+## How Match Works
+
+1. **Clone Git Storage (`GitStorage`)**: Clones the target Git repository branch (shallow clone when in `readonly` / `sync` mode) into a temporary directory under `~/.appitool/match/<UUID>` and cleans it up in `defer`. If the requested branch does not yet exist on the remote, `appitool` creates an isolated orphan branch (matching Fastlane Match behavior).
+2. **Decrypt Assets (`MatchEncryption`)**: Decrypts certificates, provisioning profiles, and Android keystores in-place using `MATCH_PASSWORD`.
+3. **Sync / Prune / Nuke / Add**:
+   - **iOS**: Validates certificates and profiles against Apple Developer Portal (when App Store Connect API credentials are supplied), creates missing/expired assets when writable, imports `.p12` certificates into a dedicated macOS Keychain, and installs `.mobileprovision` / `.provisionprofile` files for Xcode.
+   - **Android**: Resolves `<packageName>.keystore` (or `.jks` / `.p12`) and `<packageName>.json` credential metadata, or encrypts and pushes a new keystore when adding.
+4. **Re-encrypt & Push**: Encrypts modified assets using Match V2 (`AES-256-GCM`) and commits/pushes changes back to the remote Git repository.
+
+---
+
+## Encryption Compatibility (V1 & V2)
+
+`MatchEncryption` supports both Fastlane Match encryption formats:
+
+| Format | Header Prefix | Algorithm | Key Derivation | Behavior |
+|:---|:---|:---|:---|:---|
+| **V2 (Default for writes)** | `match_encrypted_v2__` | `AES-256-GCM` (Base64-encoded, 64-char lines) | PBKDF2-HMAC-SHA256 (10,000 iterations, 8-byte random salt, 24-byte AAD) | Used for all newly encrypted files |
+| **V1 (Legacy read support)** | `Salted__` | `AES-256-CBC` (Base64-encoded) | OpenSSL `EVP_BytesToKey` (MD5, SHA-256) or PBKDF2-HMAC-SHA256 fallback | Supported seamlessly during decryption |
+
+---
+
+## Git Repository Structure
+
+```text
+<match-git-repo>/
+├── certs/
+│   ├── development/
+│   │   ├── <CERT_ID>.cer
+│   │   └── <CERT_ID>.p12
+│   ├── distribution/          # Used by both 'appstore' and 'adhoc'
+│   │   ├── <CERT_ID>.cer
+│   │   └── <CERT_ID>.p12
+│   ├── enterprise/
+│   └── developer_id/
+├── profiles/
+│   ├── development/
+│   │   └── Development_<bundleId>[_tvos|_catalyst].mobileprovision
+│   ├── adhoc/
+│   │   └── AdHoc_<bundleId>[_tvos|_catalyst].mobileprovision
+│   ├── appstore/
+│   │   └── AppStore_<bundleId>[_tvos|_catalyst].mobileprovision
+│   ├── enterprise/
+│   │   └── InHouse_<bundleId>.mobileprovision
+│   └── developer_id/
+│       └── DeveloperID_<bundleId>.provisionprofile
+└── android/
+    ├── release/
+    │   ├── <packageName>.keystore
+    │   └── <packageName>.json
+    └── debug/
+        ├── <packageName>.keystore
+        └── <packageName>.json
+```
+
+### Wildcard Profile Matching (iOS)
+
+When searching for a profile matching `<bundleId>`, `MatchRunner` looks for:
+1. Exact match (`<Prefix>_<bundleId><suffix>.<ext>`)
+2. Partial wildcard matches (`com.example.*`, selecting the longest/most specific prefix)
+3. Global wildcard match (`*`)
+
+---
+
+## macOS Keychain & Xcode Installation
+
+- **Keychain Isolation (`KeychainManager`)**:
+  - Defaults to `appitool` (`~/Library/Keychains/appitool.keychain-db`) with password `appipass`, customizable via `MATCH_KEYCHAIN_NAME` and `MATCH_KEYCHAIN_PASSWORD` (or `--keychain-name` / `--keychain-password`).
+  - Automatically creates the keychain if missing, unlocks it, clears auto-lock timeouts (`set-keychain-settings`), and adds it to the user's keychain search list.
+- **Provisioning Profile Path (`ProfileInstaller`)**:
+  - Installs profiles into `~/Library/Developer/Xcode/UserData/Provisioning Profiles/<UUID>.mobileprovision` (or `.provisionprofile` for macOS/Catalyst).
+- **Fastlane-Compatible Metadata**:
+  - Generates `MatchResult.envVariables` entries (`sigh_<bundleId>_<type>`, `_uuid`, `_profile-path`, `_profile-name`, `_team-id`).
+
+---
+
+## Read-Only Mode Semantics
+
+Notice the difference between standalone `appitool match ios` and `appitool flow`:
+
+- **`appitool match ios`**: `--readonly` defaults to `false` (can create certificates/profiles on Apple Developer Portal if credentials are provided). Pass `-r, --readonly` for CI read-only sync.
+- **`appitool flow ios` / `flow android`**: `MatchOptions` defaults `readonly` to `true` unless `MATCH_READONLY=false` is explicitly set in the environment (and `--dry-run` always forces `readonly: true`).
+
+---
+
+<!-- source: commands/overview.md -->
+
+# Command Overview
+
+`appitool` (`v0.9.0`) is built with Swift ArgumentParser. Run `appitool --help` (or `-h`) or `appitool <command> --help` at any level to inspect live options, or `appitool --version` to print the installed version.
+
+## Complete Command Tree
+
+| Command | Subcommands | Description |
+|:---|:---|:---|
+| [`flow`](/commands/flow) | `ios`, `android` | Runs the automated 7-stage release orchestration pipeline. |
+| [`build`](/commands/build) | `ios`, `android` | Compiles and packages iOS (`.xcarchive`/`.ipa`) and Android (`.aab`/`.apk`) artifacts directly. |
+| [`check`](/commands/check) | `ios`, `android` | Queries remote store/distribution metadata and latest build numbers. |
+| [`match`](/commands/match) | `ios` *(default)*, `android` | Syncs, prunes, nukes, or adds Git-encrypted certificates, profiles, and keystores. |
+| [`apple`](/commands/apple) | 16 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, and devices. |
+| [`firebase`](/commands/firebase) | 8 subcommands | Manages Firebase App Distribution releases/groups and Firebase Auth users. |
+| [`list-identifiers`](/commands/list-identifiers) | — | Inspects local iOS bundle IDs and Android `applicationId`/`namespace`/flavors (supports `--json`). |
+| [`clean`](/commands/clean) | — | Cleans cached build outputs and Xcode DerivedData under `~/.appitool`. |
+| [`notes`](/commands/notes) | — | Generates categorized Markdown release notes from Git conventional commits. |
+| [`kokono`](/commands/kokono) | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |
+| [`self-update`](/commands/self-update) | — | Checks GitHub Releases and updates the `appitool` binary with SHA256 verification. |
+| [`status`](/commands/status) | — | Displays the tool name, purpose, and active version. |
+
+---
+
+## Distribution Modes (`BuildCommand.Distribution`)
+
+Commands that accept `-d, --distribution` (`flow`, `build`, `check`) accept the following distribution values (case-insensitive):
+
+| Value | Accepted Aliases | Typical Target |
+|:---|:---|:---|
+| `appstore` | `appstore`, `app-store` | Apple App Store / TestFlight or Google Play Console |
+| `adhoc` | `adhoc`, `ad-hoc` | Firebase App Distribution (Ad-Hoc IPA / APK) |
+| `development` | `development`, `dev` | Local development builds |
+
+---
+
+## Shared Option Groups
+
+Several commands reuse standardized `OptionGroup` structs defined in `CredentialsOptions.swift`. Every option falls back to `.env` / environment variables when omitted.
+
+### `AppleCredentialsOptions`
+
+Used by `flow ios`, `build ios`, `check ios`, `match ios`, and all `apple` subcommands.
+
+| Flag | `.env` Fallback | Description |
+|:---|:---|:---|
+| `--apple-key-id <id>` | `APPLE_KEY_ID` | App Store Connect API Key ID |
+| `--apple-issuer-id <uuid>` | `APPLE_ISSUER_ID` | App Store Connect API Issuer ID |
+| `--apple-key <key>` | `APPLE_KEY` | `.p8` file path, raw PEM content, or Base64 string |
+
+### `GoogleCredentialsOptions`
+
+Used by `flow android` and `check android`.
+
+| Flag | `.env` Fallback | Description |
+|:---|:---|:---|
+| `--google-key <key>` | `GOOGLE_KEY` | Service Account JSON path, raw JSON string, or Base64 string |
+
+### `FirebaseProjectOptions`
+
+Used by `firebase list-groups`, `create-group`, `list-users`, `delete-user`, and `export-users`.
+
+| Flag | `.env` Fallback | Description |
+|:---|:---|:---|
+| `-g, --google-key <key>` | `GOOGLE_KEY` | Google Service Account key |
+| `-p, --project <id>` | `FIREBASE_PROJECT_ID`, `GOOGLE_PROJECT_ID`, or parsed from `FIREBASE_*_APP_ID` | Firebase / Google Cloud project ID or project number |
+
+### `FirebaseCredentialsOptions`
+
+Includes `FirebaseProjectOptions` and adds app-level flags. Used by `flow ios`, `flow android`, `firebase list-releases`, `create-release`, and `update-release`.
+
+| Flag | `.env` Fallback | Description |
+|:---|:---|:---|
+| `--firebase-app-id <id>` | `FIREBASE_IOS_APP_ID` / `FIREBASE_ANDROID_APP_ID` | Target Firebase App ID |
+| `--platform <platform>` | — | Target platform for App ID resolution (`ios` or `android`) |
+| `-g, --google-key <key>` | `GOOGLE_KEY` | Inherited from `FirebaseProjectOptions` |
+| `-p, --project <id>` | `FIREBASE_PROJECT_ID` | Inherited from `FirebaseProjectOptions` |
+
+### `MatchOptions`
+
+Used by `flow ios`, `flow android`, and `build android`.
+
+| Flag | `.env` Fallback / Default | Description |
+|:---|:---|:---|
+| `--git-url`, `--match-git-url <url>` | `MATCH_GIT_URL` | Match Git repository URL |
+| `--git-branch`, `--match-git-branch <branch>` | `MATCH_GIT_BRANCH` (default: `master`) | Git branch name |
+| `--git-token`, `--match-git-token <token>` | `MATCH_GIT_TOKEN`, `GITHUB_TOKEN` | Git Personal Access Token |
+| `--password`, `--match-password <pass>` | `MATCH_PASSWORD` | AES decryption/encryption passphrase |
+| `--keychain-name <name>` | `MATCH_KEYCHAIN_NAME` (default: `appitool`) | Custom macOS keychain name or path |
+| `--keychain-password <pass>` | `MATCH_KEYCHAIN_PASSWORD` (default: `appipass`) | Keychain unlock password |
+| `--team-id <id>` | `APPLE_TEAM_ID` | Apple Developer Team ID |
+| `--readonly` | `MATCH_READONLY != "false"` (defaults to `true` in `flow`) | Read-only mode (do not create new certs/profiles) |
+
+### `NotificationOptions`
+
+Used by `flow ios` and `flow android`.
+
+| Flag | `.env` Fallback | Description |
+|:---|:---|:---|
+| `--slack-url <url>` | `SLACK_URL` | Slack incoming webhook URL |
+| `--kokono-url <url>` | `KOKONO_URL` | KokoNo notification webhook URL |
+| `--kokono-public-key <key>` | `KOKONO_E2E_PUBLIC_KEY` (ignored if `--kokono-url` flag is explicitly passed) | KokoNo E2E encryption public key |
+
+---
+
+<!-- source: commands/flow.md -->
+
+# `appitool flow`
+
+Executes the automated 7-stage release orchestration pipeline (`setup` → `prebuild` → `build` → `postbuild` → `prerelease` → `release` → `postrelease`) with centralized error handling and webhook alerts.
+
+## Synopsis
+
+```bash
+appitool flow ios [options]
+appitool flow android [options]
+```
+
+See [Flow Architecture](/guide/flow-architecture) for full stage-by-stage details and preset behaviors.
+
+---
+
+## `appitool flow ios`
+
+Executes the automated release flow for iOS.
+
+- When `-d appstore` (default) is used, runs **`IOSInternalPreset`** (App Store Connect / TestFlight upload).
+- When `-d adhoc` or `-d development` is used, runs **`IOSAdHocPreset`** (Firebase App Distribution upload to `internal` tester group).
+
+### Options
+
+| Option / Flag | Default / `.env` Fallback | Description |
+|:---|:---|:---|
+| `-d, --distribution <method>` | `appstore` | Distribution method: `adhoc`, `development`, or `appstore`. |
+| `--dry-run` | `false` | Simulate pipeline execution without modifying Xcode projects, running builds, or uploading binaries. Forces Match `readonly` and skips notifications. |
+| `-b, --bundle-id <id>` | `APPLE_BUNDLE_ID` | Target iOS bundle identifier. Auto-detected from Xcode project if omitted. |
+| `-s, --scheme <scheme>` | `XCODE_SCHEME` | Xcode scheme to build. Auto-inferred if omitted. |
+| `-c, --configuration <config>` | `XCODE_CONFIGURATION` | Build configuration (`Debug`, `Release`). |
+| `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or stream (`--no-silent`) `xcodebuild` and Match stdout logs. |
+
+Plus shared option groups:
+- [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`)
+- [`FirebaseCredentialsOptions`](/commands/overview#firebasecredentialsoptions) (`--firebase-app-id`, `--platform`, `-g, --google-key`, `-p, --project`)
+- [`MatchOptions`](/commands/overview#matchoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`, `--keychain-name`, `--keychain-password`, `--team-id`, `--readonly`)
+- [`NotificationOptions`](/commands/overview#notificationoptions) (`--slack-url`, `--kokono-url`, `--kokono-public-key`)
+
+### Examples
+
+```bash
+# Release to TestFlight / App Store Connect
+appitool flow ios -d appstore -b com.example.app
+
+# Distribute Ad-Hoc IPA via Firebase App Distribution with live build logs
+appitool flow ios -d adhoc --no-silent
+
+# Validate configuration and dry-run build increment
+appitool flow ios -d appstore --dry-run
+```
+
+---
+
+## `appitool flow android`
+
+Executes the automated release flow for Android.
+
+- When `-d appstore` (default) is used, runs **`AndroidInternalPreset`** (Google Play Console `internal` track).
+- When `-d adhoc` or `-d development` is used, runs **`AndroidAdHocPreset`** (Firebase App Distribution upload to `internal` tester group).
+
+### Options
+
+| Option / Flag | Default / `.env` Fallback | Description |
+|:---|:---|:---|
+| `-d, --distribution <method>` | `appstore` | Distribution method: `adhoc`, `development`, or `appstore`. |
+| `--dry-run` | `false` | Validate configuration, resolve Match keystore, inspect remote `versionCode`, and simulate upload without building or mutating state. |
+| `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` | Target Android package name. Auto-detected from Gradle if omitted. |
+| `-f, --format <format>` | `aab` for `appstore`; `apk` for `adhoc`/`development` | Packaging format (`aab` or `apk`). |
+| `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or show (`--no-silent`) Gradle and Match output. |
+
+Plus shared option groups:
+- [`GoogleCredentialsOptions`](/commands/overview#googlecredentialsoptions) (`--google-key`)
+- [`FirebaseCredentialsOptions`](/commands/overview#firebasecredentialsoptions) (`--firebase-app-id`, `--platform`, `-g, --google-key`, `-p, --project`)
+- [`MatchOptions`](/commands/overview#matchoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`, `--readonly`, etc.)
+- [`NotificationOptions`](/commands/overview#notificationoptions) (`--slack-url`, `--kokono-url`, `--kokono-public-key`)
+
+### Examples
+
+```bash
+# Build AAB and upload to Google Play Console internal track
+appitool flow android -d appstore -p com.example.app
+
+# Build APK and distribute to Firebase App Distribution
+appitool flow android -d adhoc --no-silent
+
+# Dry-run Android Ad-Hoc flow
+appitool flow android -d adhoc --dry-run
+```
+
+---
+
+<!-- source: commands/build.md -->
+
+# `appitool build`
+
+Compiles and packages platform binaries directly without running the full 7-stage `flow` pipeline.
+
+## Synopsis
+
+```bash
+appitool build ios [options]
+appitool build android [options]
+```
+
+---
+
+## `appitool build ios`
+
+Builds and packages an iOS application using `xcodebuild` (comparable to Fastlane `build_app` / `gym`).
+
+Artifacts are written under `~/.appitool/ios/<MainTarget>/build/<yyyy_MM_dd_HH_mm>/` with DerivedData isolated in `~/.appitool/ios/<MainTarget>/derivedData/`.
+
+### Options
+
+| Option / Flag | Default / `.env` Fallback | Description |
+|:---|:---|:---|
+| `-d, --distribution <method>` | `appstore` | Distribution method: `adhoc`, `development`, or `appstore`. Mapped to `app-store-connect`, `release-testing`, or `debugging` export methods. |
+| `-b, --bundle-id <id>` | `APPLE_BUNDLE_ID` | Target iOS bundle identifier. |
+| `-w, --workspace <path>` | `XCODE_WORKSPACE` or auto-detected | Path to `.xcworkspace`. |
+| `-p, --project <path>` | `XCODE_PROJECT` or auto-detected | Path to `.xcodeproj`. |
+| `-s, --scheme <name>` | `XCODE_SCHEME` or inferred | Xcode scheme to build (inferred via `xcodebuild -list -json`). |
+| `-c, --configuration <name>` | `XCODE_CONFIGURATION` or `Release` | Build configuration (`Debug`, `Release`). |
+| `-t, --team-id <id>` | `APPLE_TEAM_ID` | Apple Developer Team ID. |
+| `--codesigning-identity <id>` | — | Code signing identity override (e.g., `"Apple Distribution"`, `"Apple Development"`). |
+| `--clean` | `false` | Clean build folder before building. |
+| `--skip-build-archive` | `false` | Skip compiling `.xcarchive` and export an IPA from the latest `.xcarchive` found under `~/.appitool/ios/<MainTarget>/build/`. |
+| `--skip-package-ipa` | `false` | Only compile `.xcarchive` and skip IPA packaging. |
+| `--allow-provisioning-updates` | `false` | Allow `xcodebuild` to communicate with Apple Developer Portal for provisioning updates (passes `-authenticationKeyPath`, `-authenticationKeyID`, `-authenticationKeyIssuerID` automatically if `APPLE_KEY` is a file path). |
+| `--manage-build-number` | `false` | Allow App Store Connect to automatically manage/increment version and build numbers during export. |
+| `--silent` | `false` | Suppress `xcodebuild` stdout logs. |
+| `--xcodebuild-formatter <cmd>` | `XCODEBUILD_FORMATTER` or `xcbeautify --renderer github-actions` | Formatter command piped from `xcodebuild` output. |
+
+Plus [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`).
+
+### Examples
+
+```bash
+# Build App Store IPA (auto-discover workspace & scheme)
+appitool build ios -d appstore
+
+# Build Ad-Hoc IPA with automatic provisioning updates and clean build
+appitool build ios -d adhoc --clean --allow-provisioning-updates
+
+# Re-export IPA from the most recent existing .xcarchive
+appitool build ios -d adhoc --skip-build-archive
+```
+
+---
+
+## `appitool build android`
+
+Builds an Android App Bundle (`.aab`) or APK (`.apk`) using Gradle (`./gradlew`).
+
+Artifacts are written under `~/.appitool/android/<Target>/build/<yyyy_MM_dd_HH_mm>/` named `<Target>_<flavor_><buildType>.<aab|apk>`.
+
+### Signing Resolution Order
+
+`build android` resolves signing credentials in the following order:
+1. Base64 keystore via `--keystore-base64` / `ANDROID_KEYSTORE` (decoded temporarily into `~/.appitool/android/keystores/<packageName>.keystore` and removed automatically after build).
+2. Local keystore file via `--keystore-path` / `ANDROID_KEYSTORE_PATH`.
+3. Match Git repository if `--match` is passed (or if `MATCH_GIT_URL` and `MATCH_PASSWORD` are set when no local keystore path was provided).
+
+### Options
+
+| Option / Flag | Default / `.env` Fallback | Description |
+|:---|:---|:---|
+| `-d, --distribution <method>` | `appstore` | Distribution method: `adhoc`, `development`, or `appstore`. |
+| `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` or Gradle-resolved | Target Android package name. |
+| `-f, --flavor <name>` | `ANDROID_FLAVOR` | Gradle product flavor (e.g., `production`, `staging`). |
+| `-c, --configuration <type>` | `ANDROID_CONFIGURATION` or `Release` | Build configuration/type (`Release`, `Debug`). |
+| `--format <format>` | `aab` for `appstore`; `apk` for `adhoc`/`development` | Packaging format (`aab` or `apk`). |
+| `--clean` | `false` | Run Gradle `clean` before building. |
+| `--silent` | `false` | Suppress Gradle stdout logs. |
+| `--project-dir <path>` | `ANDROID_PROJECT_DIR`, `./android`, or `.` | Android root directory containing `gradlew`. |
+| `--keystore-path <path>` | `ANDROID_KEYSTORE_PATH` | Path to local keystore file. |
+| `--keystore-base64 <str>` | `ANDROID_KEYSTORE` | Base64-encoded keystore content. |
+| `--keystore-password <pass>` | `ANDROID_KEYSTORE_PASSWORD` | Keystore store password. |
+| `--key-alias <alias>` | `ANDROID_KEY_ALIAS` | Key alias inside keystore. |
+| `--key-password <pass>` | `ANDROID_KEY_PASSWORD` | Key password. |
+| `--gradle-opts <opts>` | — | Custom JVM options passed via `GRADLE_OPTS` (automatically appends `-Dorg.gradle.daemon=false` if omitted). |
+| `--match` | `false` | Fetch signing keystore from Match Git repository. |
+
+Plus [`MatchOptions`](/commands/overview#matchoptions).
+
+### Examples
+
+```bash
+# Build signed release AAB for Google Play using Match keystore
+appitool build android -d appstore --match
+
+# Build staging flavor APK cleanly with custom JVM heap
+appitool build android -d adhoc -f staging --format apk --clean --gradle-opts "-Xmx4g"
+```
+
+---
+
+<!-- source: commands/check.md -->
+
+# `appitool check`
+
+Verifies store credentials, API connectivity, application registration, and retrieves the latest remote build version and build number.
+
+## Synopsis
+
+```bash
+appitool check ios [options]
+appitool check android [options]
+```
+
+---
+
+## `appitool check ios`
+
+Checks iOS application metadata and latest build information from Firebase App Distribution (`adhoc`, default) or App Store Connect (`appstore`).
+
+### Behavior by Distribution
+
+- **`adhoc` (default)**: Requires `FIREBASE_IOS_APP_ID` (or `--firebase-app-id`) and `GOOGLE_KEY` in `.env` / environment. Fetches Firebase iOS App info (`appId`, `bundleId`, `displayName`, `projectId`, `appStoreId`, `teamId`, `state`) and the latest Firebase release version/build number.
+- **`appstore`**: Requires App Store Connect credentials (`APPLE_KEY`, `APPLE_KEY_ID`, `APPLE_ISSUER_ID`) and a bundle identifier (flag or auto-detected from Xcode project). Retrieves the latest TestFlight/App Store build version and build number.
+- **`development`**: Prints a notice that development distribution has no remote store information.
+
+### Options
+
+| Option / Flag | Default / `.env` Fallback | Description |
+|:---|:---|:---|
+| `-d, --distribution <method>` | `adhoc` | Distribution method: `adhoc`, `development`, or `appstore`. |
+| `-b, --bundle-id <id>` | Auto-detected from Xcode project | Target iOS bundle identifier. |
+| `--firebase-app-id <id>` | `FIREBASE_IOS_APP_ID` | Firebase App ID for iOS (used when `-d adhoc`). |
+
+Plus [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`).
+
+### Examples
+
+```bash
+# Check latest Firebase App Distribution iOS app info & build
+appitool check ios -d adhoc
+
+# Check latest App Store Connect / TestFlight build for bundle ID
+appitool check ios -d appstore -b com.example.app
+```
+
+---
+
+## `appitool check android`
+
+Checks Android application metadata and latest build information from Firebase App Distribution (`adhoc`, default) or Google Play Console (`appstore`).
+
+### Behavior by Distribution
+
+- **`adhoc` (default)**: Requires `FIREBASE_ANDROID_APP_ID` (or `--firebase-app-id`) and `GOOGLE_KEY` in `.env` / environment. Displays Firebase Android App info (`appId`, `packageName`, `displayName`, `projectId`, `state`) and latest build info.
+- **`appstore`**: Requires `GOOGLE_KEY` (or `--google-key`) and a package name (flag or auto-detected from Android project). Queries Google Play Console for the latest version and build number (`versionCode`).
+- **`development`**: Prints a notice that development distribution has no remote store information.
+
+### Options
+
+| Option / Flag | Default / `.env` Fallback | Description |
+|:---|:---|:---|
+| `-d, --distribution <method>` | `adhoc` | Distribution method: `adhoc`, `development`, or `appstore`. |
+| `-p, --package-name <name>` | Auto-detected from Android project | Target Android package name. |
+| `--firebase-app-id <id>` | `FIREBASE_ANDROID_APP_ID` | Firebase App ID for Android (used when `-d adhoc`). |
+
+Plus [`GoogleCredentialsOptions`](/commands/overview#googlecredentialsoptions) (`--google-key`).
+
+### Examples
+
+```bash
+# Check Firebase App Distribution Android app info & latest release
+appitool check android -d adhoc
+
+# Check latest build versionCode on Google Play Console
+appitool check android -d appstore -p com.example.app
+```
+
+---
+
+<!-- source: commands/match.md -->
+
+# `appitool match`
+
+Synchronizes, prunes, nukes, or adds encrypted code signing certificates, provisioning profiles, and Android keystores stored in a Git repository. Fully compatible with Fastlane Match V1 (`AES-256-CBC`) and V2 (`AES-256-GCM`) encryption.
+
+## Synopsis
+
+```bash
+appitool match [ios] [<action-or-type>] [<target-type>] [options]
+appitool match android [options]
+```
+
+> `ios` is the configured `defaultSubcommand`, so `appitool match ...` invokes `appitool match ios ...`.
+
+---
+
+## `appitool match ios`
+
+Syncs, prunes, or nukes Apple certificates and provisioning profiles using Git storage.
+
+### Positional Arguments
+
+| Argument | Valid Values | Description |
+|:---|:---|:---|
+| `actionOrType` | `appstore`, `development`, `adhoc`, `enterprise`, `developer_id`, `nuke`, `prune` | Distribution type to sync, or action (`nuke`, `prune`) to perform. |
+| `targetType` | `appstore`, `development`, `adhoc`, `enterprise`, `developer_id`, `all` | Target distribution type (or `all`) when the first argument is `nuke` or `prune`. |
+
+### Options & Flags
+
+| Option / Flag | Default / `.env` Fallback | Description |
+|:---|:---|:---|
+| `-t, --type <type>` | `appstore` | Distribution type: `appstore`, `development`, `adhoc`, `enterprise`, `developer_id`. |
+| `--git-url <url>` | `MATCH_GIT_URL` | Git repository URL for certificates/profiles storage (`-g, --git-url`). |
+| `--git-branch <branch>` | `MATCH_GIT_BRANCH` or `master` | Git branch name. |
+| `--platform <platform>` | `ios` | Target Apple platform: `ios`, `macos`, `tvos`, `catalyst`. |
+| `--git-token <token>` | `MATCH_GIT_TOKEN` or `GITHUB_TOKEN` | Git Personal Access Token for HTTPS repositories. |
+| `-p, --password <pass>` | `MATCH_PASSWORD` | Passphrase for AES encryption/decryption. |
+| `-a, --app-identifiers <ids>` | Auto-discovered from local Xcode project | Comma-separated bundle identifiers to sync profiles for. |
+| `-r, --readonly` | `false` | Read-only mode; prevents creating new certificates or profiles on Apple Developer Portal. |
+| `--prune` | `false` | Prune revoked/expired certificates and profiles from Git storage. |
+| `-A, --all` | `false` | Operate across all distribution types when pruning. |
+| `--nuke` | `false` | Revoke certificates and delete provisioning profiles on Apple Developer Portal and in Git storage. |
+| `-f, --force` | `false` | Force renewal of provisioning profiles even if still valid. |
+| `--shallow-clone` / `--no-shallow-clone` | `true` for `--readonly`; `false` otherwise | Perform shallow Git clone (`--depth 1`). |
+| `--team-id <id>` | `APPLE_TEAM_ID` | Apple Developer Team ID. |
+| `--team-name <name>` | — | Apple Developer Team Name (used as certificate CN when generating a new certificate). |
+| `--keychain-name <name>` | `MATCH_KEYCHAIN_NAME` or `appitool` | Custom macOS keychain name or path. |
+| `--keychain-password <pass>` | `MATCH_KEYCHAIN_PASSWORD` or `appipass` | Custom keychain password. |
+| `--silent` | `false` | Suppress verbose logging. |
+
+Plus [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`).
+
+### Examples
+
+```bash
+# Sync App Store certificates and profiles (creates missing if writable)
+appitool match ios appstore
+
+# Read-only CI sync for Ad-Hoc profiles across specific bundle IDs
+appitool match ios adhoc --readonly -a "com.example.app,com.example.app.widget"
+
+# Prune invalid/expired assets across all profile types from Git storage
+appitool match ios prune all
+
+# Nuke development certificates and profiles on portal and Git repo
+appitool match ios nuke development
+```
+
+---
+
+## `appitool match android`
+
+Syncs an encrypted Android keystore (`.keystore`, `.jks`, `.p12`) from Git storage or encrypts and adds a local keystore + metadata JSON into Git storage.
+
+### Modes
+
+- **Sync Mode (default)**: Clones and decrypts `android/<configuration>/<packageName>.<keystore|jks|p12>` and `<packageName>.json`, copying the keystore into `~/.appitool/android/keystores/<packageName>.keystore`.
+- **Add Mode (`--add` or `-k, --keystore`)**: Encrypts the local keystore (and optional credential metadata JSON when `--alias`, `--store-password`, and `--key-password` are provided) using Match V2 (`AES-256-GCM`) and pushes it to the Git repository.
+
+### Options & Flags
+
+| Option / Flag | Default / `.env` Fallback | Description |
+|:---|:---|:---|
+| `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` or Gradle-resolved | Target Android application package name. |
+| `-c, --configuration <type>` | `release` | Build type (`release` or `debug`). |
+| `--add <path>` | — | Path to local keystore file to encrypt and add to Match Git storage. |
+| `-k, --keystore <path>` | — | Alias for `--add`. |
+| `-a, --alias <name>` | `ANDROID_KEY_ALIAS` | Key alias inside keystore. |
+| `--store-password <pass>` | `ANDROID_KEYSTORE_PASSWORD` | Keystore password. |
+| `--key-password <pass>` | `ANDROID_KEY_PASSWORD` | Key password. |
+| `--git-url <url>` | `MATCH_GIT_URL` | Git repository URL (`-g, --git-url`). |
+| `--git-branch <branch>` | `MATCH_GIT_BRANCH` or `master` | Git branch name. |
+| `--git-token <token>` | `MATCH_GIT_TOKEN` or `GITHUB_TOKEN` | Git authentication token. |
+| `-P, --password <pass>` | `MATCH_PASSWORD` | Passphrase for AES encryption/decryption. |
+| `--silent` | `false` | Suppress verbose output. |
+
+### Examples
+
+```bash
+# Add and encrypt a local release keystore with credentials metadata
+appitool match android \
+  -p com.example.app \
+  --add ./android/app/release.keystore \
+  -a upload \
+  --store-password "store_secret" \
+  --key-password "key_secret"
+
+# Sync release keystore from Match Git repository
+appitool match android -p com.example.app -c release
+```
+
+---
+
+<!-- source: commands/apple.md -->
+
+# `appitool apple`
+
+Direct management of Apple App Store Connect and Apple Developer Portal resources via the App Store Connect OpenAPI client.
+
+All `apple` subcommands accept [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`), falling back to `APPLE_KEY_ID`, `APPLE_ISSUER_ID`, and `APPLE_KEY` in `.env` / environment variables.
+
+## Synopsis
+
+```bash
+appitool apple <subcommand> [options]
+```
+
+## Subcommands Summary
+
+| Category | Subcommands |
+|:---|:---|
+| **Apps** | `list-apps` |
+| **App / Bundle Identifiers** | `list-identifiers`, `create-identifier`, `delete-identifier`, `list-capabilities` |
+| **Provisioning Profiles** | `list-profiles`, `create-profile`, `delete-profile`, `prune-profiles` |
+| **Certificates** | `list-certificates`, `create-certificate`, `delete-certificate`, `prune-certificates` |
+| **Devices** | `list-devices`, `add-device`, `disable-device` |
+
+---
+
+## Apps
+
+### `appitool apple list-apps`
+
+Lists applications registered in App Store Connect (name, bundle ID, App ID, SKU, primary locale).
+
+| Option | Description |
+|:---|:---|
+| `-b, --bundle-id <id>` | Filter by bundle identifier (e.g. `com.example.app`). |
+| `-n, --name <name>` | Filter by application name. |
+| `-l, --limit <count>` | Maximum number of items to return (omit to fetch all). |
+
+```bash
+appitool apple list-apps
+appitool apple list-apps -b com.example.app
+```
+
+---
+
+## Bundle Identifiers & Capabilities
+
+### `appitool apple list-identifiers`
+
+Lists App/Bundle Identifiers registered on Apple Developer Portal.
+
+| Option | Description |
+|:---|:---|
+| `-i, --identifier <id>` | Filter by bundle identifier. |
+| `-l, --limit <count>` | Maximum number of items to return. |
+
+```bash
+appitool apple list-identifiers
+```
+
+### `appitool apple create-identifier`
+
+Registers a new App/Bundle Identifier with optional capabilities on Apple Developer Portal.
+
+| Option | Default | Description |
+|:---|:---|:---|
+| `-b, --bundle-id <id>` | — | App/Bundle identifier (e.g. `com.example.app`). |
+| `-a, --app-identifier <id>` | — | Alternative flag for bundle identifier. |
+| `-n, --name <name>` | Bundle ID | Description or name of the App Identifier. |
+| `--platform <platform>` | `universal` | Platform: `universal`, `ios`, or `macos`. |
+| `-c, --capabilities <list>` | — | Comma-separated capability keys (e.g. `push-notifications,in-app-purchase`). |
+
+```bash
+appitool apple create-identifier \
+  -b com.example.app \
+  -n "Example App" \
+  -c "push-notifications,sign-in-with-apple,associated-domains"
+```
+
+### `appitool apple delete-identifier`
+
+Deletes an App/Bundle Identifier from Apple Developer Portal. Any provisioning profiles tied to the identifier are invalidated by Apple. Bundle IDs actively linked to an App Store Connect App record cannot be deleted.
+
+| Option | Description |
+|:---|:---|
+| `-a, --app-identifier <id>` | App/Bundle identifier to delete (required). |
+
+```bash
+appitool apple delete-identifier -a com.example.app
+```
+
+### `appitool apple list-capabilities`
+
+- When called **without `-b`**: Lists all 28 supported capability keys and their App Store Connect enum names (no credentials required).
+- When called **with `-b, --bundle-id <id>`**: Queries Apple Developer Portal and lists capabilities enabled for that Bundle ID.
+
+```bash
+# List all supported capability keys
+appitool apple list-capabilities
+
+# Inspect capabilities enabled for an existing App ID
+appitool apple list-capabilities -b com.example.app
+```
+
+#### Supported Capability Keys
+
+| Category | CLI Key (Aliases) | API Enum | Description |
+|:---|:---|:---|:---|
+| **Push & Communication** | `push-notifications` (`push`) | `PUSH_NOTIFICATIONS` | APNs remote push notifications |
+| | `inter-app-audio` | `INTER_APP_AUDIO` | Real-time audio streaming with host apps |
+| | `coremedia-hls-low-latency` | `COREMEDIA_HLS_LOW_LATENCY` | Low-Latency HTTP Live Streaming (HLS) |
+| **Authentication & Security** | `sign-in-with-apple` (`apple-sign-in`, `apple-id-auth`) | `APPLE_ID_AUTH` | Sign in with Apple authentication |
+| | `data-protection` | `DATA_PROTECTION` | Hardware-based file-level encryption |
+| | `autofill-credential-provider` | `AUTOFILL_CREDENTIAL_PROVIDER` | AutoFill password manager extensions |
+| **App Integration & Domains** | `associated-domains` | `ASSOCIATED_DOMAINS` | Universal Links, App Clips, Web Credentials |
+| | `app-groups` | `APP_GROUPS` | Shared container access for App Extensions & Widgets |
+| | `icloud` | `ICLOUD` | CloudKit database and iCloud document storage |
+| | `game-center` | `GAME_CENTER` | Game Center leaderboards, achievements & multiplayer |
+| | `in-app-purchase` (`iap`) | `IN_APP_PURCHASE` | In-App Purchases & StoreKit |
+| **Payments & Wallet** | `apple-pay` | `APPLE_PAY` | Apple Pay in-app payment processing |
+| | `wallet` (`passbook`) | `WALLET` | Passes, tickets, and boarding passes in Apple Wallet |
+| **Hardware & Networking** | `nfc-tag-reading` (`nfc`) | `NFC_TAG_READING` | Near Field Communication (NFC) tag reading |
+| | `access-wifi-information` (`wifi-info`) | `ACCESS_WIFI_INFORMATION` | Access current Wi-Fi network SSID/BSSID |
+| | `hot-spot` | `HOT_SPOT` | Wi-Fi HotSpot network configuration |
+| | `personal-vpn` | `PERSONAL_VPN` | Personal VPN tunnels and connections |
+| | `network-extensions` | `NETWORK_EXTENSIONS` | Custom network tunnels, DNS proxies, content filters |
+| | `network-custom-protocol` | `NETWORK_CUSTOM_PROTOCOL` | Custom network protocol extensions |
+| | `multipath` | `MULTIPATH` | Multipath TCP for concurrent Wi-Fi and Cellular data |
+| | `wireless-accessory-configuration` | `WIRELESS_ACCESSORY_CONFIGURATION` | MFi accessory Wi-Fi configuration |
+| **Health & Home** | `healthkit` | `HEALTHKIT` | HealthKit health and fitness records |
+| | `homekit` | `HOMEKIT` | HomeKit smart home automation & accessories |
+| **Siri & Maps & System** | `sirikit` | `SIRIKIT` | SiriKit voice shortcuts and intents |
+| | `maps` | `MAPS` | MapKit turn-by-turn routing and directions |
+| | `classkit` | `CLASSKIT` | ClassKit student progress & educational activities |
+| | `system-extension-install` | `SYSTEM_EXTENSION_INSTALL` | macOS system extensions & driver extensions |
+| | `user-management` | `USER_MANAGEMENT` | Multi-user management on Shared iPad |
+
+---
+
+## Provisioning Profiles
+
+### `appitool apple list-profiles`
+
+Lists provisioning profiles on Apple Developer Portal (name, Portal ID, UUID, type, state, expiration date).
+
+| Option | Description |
+|:---|:---|
+| `-n, --name <name>` | Filter by provisioning profile name. |
+| `-l, --limit <count>` | Maximum number of items to return. |
+
+### `appitool apple create-profile`
+
+Creates and optionally downloads a provisioning profile on Apple Developer Portal.
+
+| Option | Default | Description |
+|:---|:---|:---|
+| `-b, --bundle-id <id>` | **Required** | Application Bundle Identifier. |
+| `-n, --name <name>` | `match <type> <bundle-id>` | Provisioning profile name. |
+| `-t, --type <type>` | `appstore` | Profile type: `appstore`, `development`, `adhoc`, `enterprise`, `developer_id`. |
+| `--platform <platform>` | `ios` | Target platform: `ios`, `macos`, `tvos`, `catalyst`. |
+| `-c, --certificate-id <id>` | First active matching cert | Certificate Portal ID to embed in the profile. |
+| `-d, --device-ids <ids>` | All enabled matching devices | Comma-separated device Portal IDs for `development`/`adhoc` profiles. |
+| `-o, --output <path>` | — | File path to save the generated `.mobileprovision` / `.provisionprofile`. |
+
+```bash
+appitool apple create-profile -b com.example.app -t adhoc -o ./AdHoc_com.example.app.mobileprovision
+```
+
+### `appitool apple delete-profile`
+
+Deletes a single provisioning profile by name, UUID, or Portal ID.
+
+| Option | Description |
+|:---|:---|
+| `-n, --name <name>` | Provisioning profile name. |
+| `-u, --uuid <uuid>` | Provisioning profile UUID. |
+| `-p, --portal-id <id>` | Provisioning profile Portal ID. |
+
+### `appitool apple prune-profiles`
+
+Deletes all `INVALID` (and optionally expired) provisioning profiles from Apple Developer Portal.
+
+| Flag | Default | Description |
+|:---|:---|:---|
+| `-d, --dry-run` | `false` | Preview candidate profiles without deleting them. |
+| `-i, --include-expired` | `false` | Also prune expired profiles in addition to `INVALID` profiles. |
+
+```bash
+appitool apple prune-profiles --include-expired --dry-run
+```
+
+---
+
+## Signing Certificates
+
+### `appitool apple list-certificates`
+
+Lists certificates registered on Apple Developer Portal with status (`ACTIVE` / `EXPIRED`), type, serial number, and expiration date.
+
+| Option | Description |
+|:---|:---|
+| `-t, --type <filter>` | Filter by certificate type (`distribution`, `development`, `developer-id`, `ios-distribution`, `ios-development`, `mac-distribution`, `mac-development`). |
+| `-l, --limit <count>` | Maximum number of items to return. |
+
+### `appitool apple create-certificate`
+
+Generates an RSA 2048-bit private key and CSR locally, submits it to Apple Developer Portal, and saves the `.cer` and private `.key` (plus optional `.p12` and Keychain import).
+
+> [!WARNING]
+> Keep the generated private key safe—Apple does not store private keys and they cannot be re-downloaded.
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `-t, --type <type>` | `distribution` | Certificate type: `development`, `distribution`, `developer-id`, `ios-development`, `ios-distribution`, `mac-development`, `mac-distribution`, `mac-installer`. |
+| `-n, --name <cn>` | Auto-generated | Common Name (CN) for the CSR subject. |
+| `-o, --output <dir>` | `~/.appitool/certs/{type}/` | Output directory for `.cer`, `.key`, and `.p12`. |
+| `--p12` | `false` | Export a `.p12` (PKCS#12) archive containing certificate and private key. |
+| `--p12-password <pass>` | `appitool` | Password for the exported `.p12` archive. |
+| `--save-to-keychain` | `false` | Import certificate and private key into the `appitool` Keychain and delete `.p12` once verified. |
+
+```bash
+appitool apple create-certificate -t distribution --p12 --save-to-keychain
+```
+
+### `appitool apple delete-certificate`
+
+Revokes/deletes a certificate from Apple Developer Portal by Portal ID, name, or serial number.
+
+| Option | Description |
+|:---|:---|
+| `-p, --portal-id <id>` | Certificate Portal ID. |
+| `-n, --name <name>` | Certificate name. |
+| `-s, --serial-number <serial>` | Certificate serial number. |
+
+### `appitool apple prune-certificates`
+
+Deletes/revokes all expired certificates from Apple Developer Portal.
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `-d, --dry-run` | `false` | Preview expired certificates without revoking them. |
+| `-t, --type <type>` | — | Filter pruning by certificate type (e.g. `distribution`, `development`). |
+
+---
+
+## Devices
+
+### `appitool apple list-devices`
+
+Lists registered devices on Apple Developer Portal.
+
+| Option | Description |
+|:---|:---|
+| `-p, --platform <platform>` | Filter by platform (`ios`, `macos`, `universal`). |
+| `-s, --status <status>` | Filter by status (`enabled`, `disabled`). |
+| `-n, --name <query>` | Case-insensitive substring filter on device name. |
+| `-l, --limit <count>` | Maximum number of items to return. |
+
+### `appitool apple add-device`
+
+Registers a new test device on Apple Developer Portal.
+
+| Option | Default | Description |
+|:---|:---|:---|
+| `-n, --name <name>` | **Required** | Device display name (e.g. `"QA iPhone 16"`). |
+| `-u, --udid <udid>` | **Required** | Device Unique Device Identifier (UDID). |
+| `-p, --platform <platform>` | `ios` | Platform: `ios`, `macos`, `universal`. |
+
+```bash
+appitool apple add-device -n "QA iPhone" -u 00008130-001234567890001E
+```
+
+### `appitool apple disable-device`
+
+Disables a registered device by UDID on Apple Developer Portal so it is excluded from new provisioning profiles.
+
+| Option | Description |
+|:---|:---|
+| `-u, --udid <udid>` | Device UDID to disable (**Required**). |
+
+```bash
+appitool apple disable-device -u 00008130-001234567890001E
+```
+
+---
+
+<!-- source: commands/firebase.md -->
+
+# `appitool firebase`
+
+Manages Firebase App Distribution releases and tester groups, as well as Firebase Authentication user accounts.
+
+## Synopsis
+
+```bash
+appitool firebase <subcommand> [options]
+```
+
+## Subcommands Summary
+
+| Domain | Subcommand | Description |
+|:---|:---|:---|
+| **App Distribution** | `list-releases` | Lists uploaded releases for a Firebase App ID. |
+| | `create-release` | Uploads an `.apk`, `.aab`, or `.ipa` binary, attaches notes, and distributes to groups/testers. |
+| | `update-release` | Updates release notes or distributes an existing release to tester groups/emails. |
+| | `list-groups` | Lists tester groups registered in a Firebase project. |
+| | `create-group` | Creates a new tester group or retrieves an existing one by alias. |
+| **Authentication** | `list-users` | Lists Firebase Auth users with search, anonymous filter, and pagination. |
+| | `delete-user` | Deletes user(s) by UID, email, or bulk-deletes all anonymous users. |
+| | `export-users` | Exports Firebase Auth users to a CSV file. |
+
+---
+
+## App Distribution Commands
+
+All three release subcommands use [`FirebaseCredentialsOptions`](/commands/overview#firebasecredentialsoptions) (`--firebase-app-id`, `--platform`, `-g, --google-key`, `-p, --project`).
+
+### `appitool firebase list-releases`
+
+Lists uploaded releases for a Firebase application (version, build, creation timestamp, release notes, and console URI).
+
+| Option | Default | Description |
+|:---|:---|:---|
+| `-l, --limit <count>` | `25` | Maximum number of releases to return (`1–100`). |
+| `-o, --order-by <expr>` | — | Ordering expression (e.g. `'createTime desc'`). |
+
+```bash
+appitool firebase list-releases --platform ios -l 10
+```
+
+### `appitool firebase create-release`
+
+Uploads an `.apk`, `.aab`, or `.ipa` binary to Firebase App Distribution, waits for processing, optionally attaches release notes, and distributes to tester groups/emails.
+
+| Option | Description |
+|:---|:---|
+| `-b, --binary <path>` | Path to `.apk`, `.aab`, or `.ipa` binary (**Required**). |
+| `-r, --release-notes <text>` | Release notes text for testers. |
+| `--test-groups <aliases>` | Comma-separated tester group aliases (e.g. `'internal,qa'`). |
+| `--tester-emails <emails>` | Comma-separated tester email addresses. |
+
+```bash
+appitool firebase create-release \
+  --platform android \
+  -b ./app-release.apk \
+  -r "QA build #42" \
+  --test-groups "internal,qa"
+```
+
+### `appitool firebase update-release`
+
+Updates an existing Firebase App Distribution release by attaching new release notes and/or distributing to tester groups or emails.
+
+| Option | Description |
+|:---|:---|
+| `--release-id <id>` | Full release resource path (`projects/.../apps/.../releases/<id>`) or short release ID (**Required**; `--firebase-app-id` is required if passing a short ID). |
+| `--release-notes <text>` | New release notes text to attach. |
+| `--test-groups <aliases>` | Comma-separated tester group aliases to distribute to. |
+| `--tester-emails <emails>` | Comma-separated tester emails to distribute to. |
+
+```bash
+appitool firebase update-release \
+  --platform ios \
+  --release-id 1a2b3c4d5e \
+  --release-notes "Updated notes" \
+  --test-groups "internal"
+```
+
+### `appitool firebase list-groups`
+
+Uses [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `-p, --project`).
+
+Lists tester groups registered in a Firebase project with alias, tester count, and release count.
+
+| Option | Default | Description |
+|:---|:---|:---|
+| `-l, --limit <count>` | `25` | Maximum number of groups to return (`1–1000`). |
+
+### `appitool firebase create-group`
+
+Uses [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions).
+
+Creates a new tester group (or returns the existing group if the alias already exists).
+
+| Option | Default | Description |
+|:---|:---|:---|
+| `-a, --alias <alias>` | **Required** | Unique alias/ID for the group (e.g. `internal`, `qa-team`). |
+| `-n, --name <display>` | `<alias>` | Human-readable display name (e.g. `'Internal Testers'`). |
+
+```bash
+appitool firebase create-group -a qa-team -n "QA Team"
+```
+
+---
+
+## Firebase Authentication Commands
+
+All user management subcommands use [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `-p, --project`).
+
+### `appitool firebase list-users`
+
+Lists Firebase Authentication users with optional exact/partial search by email or UID, anonymous filtering, and pagination token support.
+
+| Option | Default | Description |
+|:---|:---|:---|
+| `-l, --limit <count>` | `100` | Maximum number of users to return. |
+| `-s, --search <query>` | — | Search users by email or UID (attempts fast exact lookup on page 1 before paginated scan). |
+| `-a, --anonymous <filter>` | `all` | Filter by anonymous status: `all`, `only`, or `exclude`. |
+| `-t, --page-token <token>` | — | Pagination token printed at the end of the previous page output. |
+
+```bash
+# List up to 50 non-anonymous users
+appitool firebase list-users -l 50 -a exclude
+
+# Search for a user by email
+appitool firebase list-users -s user@example.com
+```
+
+### `appitool firebase delete-user`
+
+Deletes Firebase Authentication user(s) by UID, by email lookup, or deletes all anonymous accounts in batches of 500.
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `-u, --uid <uid>` | — | UID (`localId`) of the user to delete. |
+| `-e, --email <email>` | — | Email address of the user to look up and delete. |
+| `-a, --anonymous` | `false` | Delete all anonymous users in the project (cannot be combined with `-u` or `-e`). |
+| `-d, --dry-run` | `false` | Preview matching user(s) without deleting them. |
+
+```bash
+# Preview bulk anonymous user cleanup
+appitool firebase delete-user --anonymous --dry-run
+
+# Delete a specific user by email
+appitool firebase delete-user -e tester@example.com
+```
+
+### `appitool firebase export-users`
+
+Exports all Firebase Authentication users to a UTF-8 CSV file with columns:
+`uid,email,email_verified,display_name,phone_number,photo_url,is_anonymous,disabled,providers,created_at,last_login_at`.
+
+| Option | Default | Description |
+|:---|:---|:---|
+| `-a, --anonymous <filter>` | `all` | Filter exported users: `all`, `only`, or `exclude`. |
+| `-o, --output <path>` | `firebase_users_<project>.csv` | Output CSV filename or path. |
+
+```bash
+appitool firebase export-users -a exclude -o ./exports/users.csv
+```
+
+---
+
+<!-- source: commands/list-identifiers.md -->
+
+# `appitool list-identifiers`
+
+Inspects local iOS (Xcode) and Android (Gradle) project files in a workspace and prints resolved bundle identifiers, targets, `applicationId`, `namespace`, package name, and product flavors.
+
+## Synopsis
+
+```bash
+appitool list-identifiers [options]
+```
+
+## Options & Flags
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `-p, --platform <platform>` | `all` | Platform to inspect: `all`, `ios`, or `android`. |
+| `-w, --workspace-name <name>` | Auto-detected | Custom Xcode workspace or project name. |
+| `-s, --scheme <scheme>` | Auto-inferred | Xcode scheme name. |
+| `-c, --configuration <config>` | Auto-inferred | Xcode build configuration (e.g., `Debug`, `Release`). |
+| `--project-dir <path>` / `--workspace-root <path>` | Current directory | Path to the project root directory. |
+| `--json` | `false` | Output results as pretty-printed, key-sorted JSON (ideal for CI scripts and AI agents). |
+
+## Examples
+
+```bash
+# Inspect both iOS and Android identifiers in current directory
+appitool list-identifiers
+
+# Inspect only iOS identifiers for Release configuration as JSON
+appitool list-identifiers -p ios -c Release --json
+
+# Inspect a project located in another directory
+appitool list-identifiers --workspace-root ~/projects/my-mobile-app
+```
+
+---
+
+<!-- source: commands/clean.md -->
+
+# `appitool clean`
+
+Scans `~/.appitool/ios` and `~/.appitool/android` and deletes previously built archives (`.xcarchive`, `.ipa`, `.aab`, `.apk`) and optional Xcode DerivedData directories. System folders such as `~/.appitool/android/keystores` and `tmp` are preserved.
+
+## Synopsis
+
+```bash
+appitool clean [options]
+```
+
+## Options & Flags
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `-p, --platform <platform>` | `all` | Platform to clean: `ios`, `android`, or `all`. |
+| `-d, --derived-data` | `false` | Also clean Xcode `derivedData` directories under `~/.appitool/ios/<project>/derivedData`. |
+| `-D, --derived-data-only` / `--only-derived-data` | `false` | Only clean Xcode `derivedData` directories without deleting build archives. |
+| `--dry-run` | `false` | Scan and display items with disk sizes without deleting anything. |
+
+## Examples
+
+```bash
+# Preview all build artifacts and Xcode DerivedData that would be removed
+appitool clean --derived-data --dry-run
+
+# Delete all iOS and Android build artifacts (keeps DerivedData)
+appitool clean
+
+# Delete only Xcode DerivedData directories
+appitool clean -D
+
+# Clean only Android build outputs
+appitool clean -p android
+```
+
+---
+
+<!-- source: commands/notes.md -->
+
+# `appitool notes`
+
+Generates categorized Markdown release notes from Git commit history between two tags or revisions (`git log --no-merges`).
+
+## How Commits Are Categorized
+
+`GenerateReleaseNotesTask` parses Conventional Commit prefixes (`type(scope): description`):
+- `feat` → **`### 🚀 Features`**
+- `fix` → **`### 🐛 Bug Fixes`**
+- All other commit types / non-conventional commits → **`### 🔧 Other Changes`**
+
+Within each category, scoped commits are grouped under `* **<scope>**:`, and commit hashes are automatically formatted as clickable Markdown links when `remote.origin.url` resolves to an HTTP/HTTPS/SSH Git host (e.g. `([#abc1234](https://github.com/org/repo/commit/abc1234))`).
+
+## Synopsis
+
+```bash
+appitool notes [options]
+```
+
+## Options
+
+| Option | Default | Description |
+|:---|:---|:---|
+| `-f, --from <ref>` | — | Starting Git tag or commit reference (exclusive). |
+| `-t, --to <ref>` | `HEAD` (when `--from` is provided) | Ending Git tag or commit reference (inclusive). |
+| `-o, --output <path>` | Print to stdout | File path to write the generated Markdown release notes. |
+
+## Examples
+
+```bash
+# Print release notes from v0.8.0 to HEAD
+appitool notes -f v0.8.0
+
+# Generate notes between two tags and save to CHANGELOG_DRAFT.md
+appitool notes -f v0.8.0 -t v0.9.0 -o CHANGELOG_DRAFT.md
+```
+
+---
+
+<!-- source: commands/kokono.md -->
+
+# `appitool kokono`
+
+Dispatches a push notification to a KokoNo webhook endpoint (`?token=<token>`), with optional end-to-end (E2E) encryption.
+
+## End-to-End Encryption & Keypair Isolation
+
+- When an E2E public key is resolved (Base64-encoded 32-byte Curve25519 / X25519 public key), `NotifyTask` encrypts both `title` and `message` using an ephemeral X25519 key pair + `HKDF-SHA256` (`salt: "kokono-salt-v1"`, `info: "kokono-info-v1"`) + `AES-256-GCM`.
+- Messages longer than 250 characters are truncated with `...`.
+- **Per-URL Keypair Isolation**: If `-u, --url` is explicitly passed on the command line, `appitool kokono` will **not** fall back to `KOKONO_E2E_PUBLIC_KEY` from `.env`—you must also pass `-e, --e2e` explicitly if you want encryption for that custom URL.
+
+## Synopsis
+
+```bash
+appitool kokono -m <message> [options]
+```
+
+## Options
+
+| Option | Default / `.env` Fallback | Description |
+|:---|:---|:---|
+| `-t, --title <title>` | `appitool` | Notification title. |
+| `-m, --message <message>` | **Required** | Notification message body. |
+| `-u, --url <url>` | `KOKONO_URL` | KokoNo notification webhook URL (`https://kokono.me/notify?token=...`). |
+| `-e, --e2e <public-key>` | `KOKONO_E2E_PUBLIC_KEY` (when `-u` is omitted) | Base64 X25519 public key for E2E encryption. |
+
+## Examples
+
+```bash
+# Send plain notification using KOKONO_URL from .env
+appitool kokono -m "Release v0.9.0 deployed to TestFlight."
+
+# Send E2E encrypted notification with explicit title
+appitool kokono -t "CI Alert" -m "Build #128 succeeded." -e "<base64_x25519_public_key>"
+```
+
+---
+
+<!-- source: commands/self-update.md -->
+
+# `appitool self-update`
+
+Checks GitHub Releases (`appibara-ltd/appitool`) for a newer semantic version and upgrades the currently running `appitool` binary in place after verifying its SHA256 checksum against `checksums.txt`.
+
+## How It Works
+
+1. Queries `https://api.github.com/repos/appibara-ltd/appitool/releases/latest`.
+2. Compares the remote tag (`SemanticVersion`) against the running binary's version (`0.9.0`).
+3. Selects the matching archive for the current OS & CPU architecture:
+   - `appitool-darwin-arm64.tar.gz` (or `universal`)
+   - `appitool-linux-x86_64.tar.gz` / `appitool-linux-arm64.tar.gz`
+4. Downloads the archive and `checksums.txt`, verifies the SHA256 digest, extracts `appitool`, and atomically swaps the executable (with rollback on failure).
+
+> [!TIP]
+> If the release repository is private or you hit GitHub API rate limits, export `GITHUB_TOKEN` (or `GH_TOKEN`) or configure `GITHUB_TOKEN` in `.env`.
+
+## Synopsis
+
+```bash
+appitool self-update [options]
+```
+
+## Flags
+
+| Flag | Default | Description |
+|:---|:---|:---|
+| `-c, --check` | `false` | Check whether an update is available without downloading or installing. |
+| `-f, --force` | `false` | Force download and re-installation even if already on the latest version. |
+
+## Examples
+
+```bash
+# Check if a newer release exists
+appitool self-update --check
+
+# Upgrade to the latest release
+appitool self-update
+
+# Force reinstall (use sudo if installed into a root-owned /usr/local/bin)
+sudo appitool self-update --force
+```
+
+---
+
+<!-- source: commands/status.md -->
+
+# `appitool status`
+
+Displays the CLI tool name, purpose, and compiled version (`0.9.0`).
+
+## Synopsis
+
+```bash
+appitool status
+```
+
+## Example Output
+
+```text
+Tool: appitool
+Purpose: A unified CLI utility for Apple App Store Connect and Google Play operations.
+Version: 0.9.0
+```

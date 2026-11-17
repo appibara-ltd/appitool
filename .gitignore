@@ -9,3 +9,11 @@ DerivedData/
 .env
 *.p8
 *.profraw
+
+# Documentation (VitePress)
+docs/node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+docs/public/logo.png
+docs/public/banner.png
+

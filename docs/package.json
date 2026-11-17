@@ -1,0 +1,16 @@
+{
+  "name": "appitool-docs",
+  "version": "0.9.0",
+  "private": true,
+  "type": "module",
+  "description": "VitePress documentation and AI/LLM context site for appitool CLI",
+  "scripts": {
+    "docs:dev": "node scripts/generate-llms.mjs && vitepress dev",
+    "docs:build": "node scripts/generate-llms.mjs && vitepress build",
+    "docs:preview": "vitepress preview",
+    "llms:generate": "node scripts/generate-llms.mjs"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.3"
+  }
+}

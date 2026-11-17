@@ -1,0 +1,33 @@
+# appitool
+
+> A unified CLI utility and release orchestration engine (v0.9.0) for Apple App Store Connect, Developer Portal, Google Play Console, Firebase App Distribution/Auth, and Fastlane-compatible Match code signing.
+
+- Source & Repository: https://github.com/appibara-ltd/appitool
+- Full Consolidated Context: [/llms-full.txt](/llms-full.txt)
+
+## Guide
+
+- [Getting Started](/guide/getting-started): appitool (v0.9.0) is a unified Swift CLI utility and release orchestration engine for Apple App Store Connect, Apple Developer Portal, Google Play Console, Firebase App Distribution, Firebase Authentication, and Git-backed code signing.
+- [Configuration & `.env`](/guide/configuration): appitool uses a strict, deterministic configuration model. Commands resolve CLI options with environment variable fallbacks, while internal tasks, services, and flow presets receive resolved values explicitly.
+- [Flow Architecture](/guide/flow-architecture): appitool flow is an opinionated release orchestration engine inspired by Fastlane lanes. Every flow execution transitions sequentially through a standardized 7-stage lifecycle backed by a shared FlowContext and a strict error boundary in FlowRunner.
+- [Code Signing & Match](/guide/code-signing-match): appitool match implements Git-backed encrypted storage for Apple signing assets and Android keystores, providing binary and encryption parity with **Fastlane Match**.
+
+## Commands
+
+- [Command Overview](/commands/overview): appitool (v0.9.0) is built with Swift ArgumentParser. Run appitool --help (or -h) or appitool <command> --help at any level to inspect live options, or appitool --version to print the installed version.
+- [`appitool flow`](/commands/flow): Executes the automated 7-stage release orchestration pipeline (setup → prebuild → build → postbuild → prerelease → release → postrelease) with centralized error handling and webhook alerts.
+- [`appitool build`](/commands/build): Compiles and packages platform binaries directly without running the full 7-stage flow pipeline.
+- [`appitool check`](/commands/check): Verifies store credentials, API connectivity, application registration, and retrieves the latest remote build version and build number.
+- [`appitool match`](/commands/match): Synchronizes, prunes, nukes, or adds encrypted code signing certificates, provisioning profiles, and Android keystores stored in a Git repository. Fully compatible with Fastlane Match V1 (AES-256-CBC) and V2 (AES-256-GCM) encryption.
+- [`appitool apple`](/commands/apple): Direct management of Apple App Store Connect and Apple Developer Portal resources via the App Store Connect OpenAPI client.
+- [`appitool firebase`](/commands/firebase): Manages Firebase App Distribution releases and tester groups, as well as Firebase Authentication user accounts.
+- [`appitool list-identifiers`](/commands/list-identifiers): Inspects local iOS (Xcode) and Android (Gradle) project files in a workspace and prints resolved bundle identifiers, targets, applicationId, namespace, package name, and product flavors.
+- [`appitool clean`](/commands/clean): Scans ~/.appitool/ios and ~/.appitool/android and deletes previously built archives (.xcarchive, .ipa, .aab, .apk) and optional Xcode DerivedData directories. System folders such as ~/.appitool/android/keystores and tmp are preserved.
+- [`appitool notes`](/commands/notes): Generates categorized Markdown release notes from Git commit history between two tags or revisions (git log --no-merges).
+- [`appitool kokono`](/commands/kokono): Dispatches a push notification to a KokoNo webhook endpoint (?token=<token>), with optional end-to-end (E2E) encryption.
+- [`appitool self-update`](/commands/self-update): Checks GitHub Releases (appibara-ltd/appitool) for a newer semantic version and upgrades the currently running appitool binary in place after verifying its SHA256 checksum against checksums.txt.
+- [`appitool status`](/commands/status): Displays the CLI tool name, purpose, and compiled version (0.9.0).
+
+## AI Context Files
+
+- [Full Documentation Context](/llms-full.txt): Complete single-file Markdown export of all guides and command references.
