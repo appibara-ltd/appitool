@@ -41,9 +41,9 @@ struct CheckAndroidCommand: AsyncParsableCommand {
                 return
             }
 
-            let googleKey = env["GOOGLE_KEY"]
+            let googleKey = googleCredentials.resolveKey()
             guard let service = try FirebaseService.makeService(googleKey: googleKey) else {
-                Log("Error: ".red.bold + "Missing Firebase credentials. Provide GOOGLE_KEY in .env.")
+                Log("Error: ".red.bold + "Missing Firebase credentials. Provide -g, --google-key or configure GOOGLE_KEY in .env.")
                 return
             }
 

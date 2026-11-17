@@ -28,7 +28,7 @@ Syncs, prunes, or nukes Apple certificates and provisioning profiles using Git s
 
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
-| `-t, --type <type>` | `appstore` | Distribution type: `appstore`, `development`, `adhoc`, `enterprise`, `developer_id`. |
+| `-t, --type <type>` | `MATCH_TYPE` or `appstore` | Distribution type: `appstore`, `development`, `adhoc`, `enterprise`, `developer_id`. |
 | `-g, --git-url <url>` | `MATCH_GIT_URL` | Git repository URL for certificates/profiles storage. |
 | `-b, --git-branch <branch>` | `MATCH_GIT_BRANCH` or `master` | Git branch name. |
 | `--platform <platform>` | `ios` | Target Apple platform: `ios`, `macos`, `tvos`, `catalyst`. |

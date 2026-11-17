@@ -89,11 +89,11 @@ struct MatchIOSCommand: AsyncParsableCommand {
         let isActionArg = actionOrType?.lowercased() == "nuke" || actionOrType?.lowercased() == "prune"
         let rawTypeStr: String?
         if isActionArg {
-            rawTypeStr = targetType ?? type
+            rawTypeStr = targetType ?? type ?? env["MATCH_TYPE"]
         } else if let actionOrType {
             rawTypeStr = actionOrType
         } else {
-            rawTypeStr = type
+            rawTypeStr = type ?? env["MATCH_TYPE"]
         }
 
         let isAllTypes = all || rawTypeStr?.lowercased() == "all"

@@ -31,6 +31,7 @@ Executes the automated release flow for iOS.
 | `-c, --configuration <config>` | `XCODE_CONFIGURATION` | Build configuration (`Debug`, `Release`). |
 | `--firebase-app-id <id>` | `FIREBASE_IOS_APP_ID` | Firebase App ID for iOS (used for Ad-Hoc / Firebase distribution). |
 | `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or stream (`--no-silent`) `xcodebuild` and Match stdout logs. |
+| `--wait-processing` / `--no-wait-processing` | `true` (`--wait-processing`) | Wait for App Store Connect build processing to apply TestFlight release notes (use `--no-wait-processing` to return immediately after upload even when release notes were generated). |
 
 Plus shared option groups:
 - [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`)

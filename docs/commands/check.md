@@ -17,7 +17,7 @@ Checks iOS application metadata and latest build information from Firebase App D
 
 ### Behavior by Distribution
 
-- **`adhoc` (default)**: Requires `FIREBASE_IOS_APP_ID` (or `--firebase-app-id`) and `GOOGLE_KEY` in `.env` / environment. Fetches Firebase iOS App info (`appId`, `bundleId`, `displayName`, `projectId`, `appStoreId`, `teamId`, `state`) and the latest Firebase release version/build number.
+- **`adhoc` (default)**: Requires `FIREBASE_IOS_APP_ID` (or `--firebase-app-id`) and `GOOGLE_KEY` (or `-g, --google-key`). Fetches Firebase iOS App info (`appId`, `bundleId`, `displayName`, `projectId`, `appStoreId`, `teamId`, `state`) and the latest Firebase release version/build number.
 - **`appstore`**: Requires App Store Connect credentials (`APPLE_KEY`, `APPLE_KEY_ID`, `APPLE_ISSUER_ID`) and a bundle identifier (flag or auto-detected from Xcode project). Retrieves the latest TestFlight/App Store build version and build number.
 - **`development`**: Prints a notice that development distribution has no remote store information.
 
@@ -29,7 +29,7 @@ Checks iOS application metadata and latest build information from Firebase App D
 | `-b, --bundle-id <id>` | Auto-detected from Xcode project | Target iOS bundle identifier. |
 | `--firebase-app-id <id>` | `FIREBASE_IOS_APP_ID` | Firebase App ID for iOS (used when `-d adhoc`). |
 
-Plus [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`).
+Plus [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`) and [`GoogleCredentialsOptions`](/commands/overview#googlecredentialsoptions) (`-g, --google-key`).
 
 ### Examples
 
@@ -49,8 +49,8 @@ Checks Android application metadata and latest build information from Firebase A
 
 ### Behavior by Distribution
 
-- **`adhoc` (default)**: Requires `FIREBASE_ANDROID_APP_ID` (or `--firebase-app-id`) and `GOOGLE_KEY` in `.env` / environment. Displays Firebase Android App info (`appId`, `packageName`, `displayName`, `projectId`, `state`) and latest build info.
-- **`appstore`**: Requires `GOOGLE_KEY` (or `--google-key`) and a package name (flag or auto-detected from Android project). Queries Google Play Console for the latest version and build number (`versionCode`).
+- **`adhoc` (default)**: Requires `FIREBASE_ANDROID_APP_ID` (or `--firebase-app-id`) and `GOOGLE_KEY` (or `-g, --google-key`). Displays Firebase Android App info (`appId`, `packageName`, `displayName`, `projectId`, `state`) and latest build info.
+- **`appstore`**: Requires `GOOGLE_KEY` (or `-g, --google-key`) and a package name (flag or auto-detected from Android project). Queries Google Play Console for the latest version and build number (`versionCode`).
 - **`development`**: Prints a notice that development distribution has no remote store information.
 
 ### Options

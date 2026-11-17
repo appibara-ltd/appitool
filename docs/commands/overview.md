@@ -49,7 +49,7 @@ Used by `flow ios`, `build ios`, `check ios`, `match ios`, and all `apple` subco
 
 ### `GoogleCredentialsOptions`
 
-Used by `flow ios`, `flow android`, `check android`, and `FirebaseProjectOptions`.
+Used by `flow ios`, `flow android`, `check ios`, `check android`, and `FirebaseProjectOptions`.
 
 | Flag | `.env` Fallback | Description |
 |:---|:---|:---|

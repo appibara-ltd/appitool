@@ -17,13 +17,17 @@ struct NotesCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Path to write the generated markdown file.")
     var output: String?
 
+    @Option(name: [.customShort("p"), .long], help: "Filter auto-detected tags by prefix (e.g., v, ios-v, android-).")
+    var tagPrefix: String?
+
     func run() async throws {
         let task = GenerateReleaseNotesTask()
         let markdown = try await task.run(
             .init(
                 from: from,
                 to: to,
-                outputPath: output
+                outputPath: output,
+                tagPrefix: tagPrefix
             )
         )
 

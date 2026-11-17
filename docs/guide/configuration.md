@@ -87,7 +87,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 | `MATCH_KEYCHAIN_NAME` | Custom macOS keychain name or path | `appitool` |
 | `MATCH_KEYCHAIN_PASSWORD` | Password used to create/unlock custom keychain | `appipass` |
 | `MATCH_READONLY` | In `flow` commands (`MatchOptions`), read-only unless set to `"false"` | `true` (unless `"false"`) |
-| `MATCH_TYPE` | Listed in `match ios --type` help text as fallback reference | `appstore` (effective CLI default) |
+| `MATCH_TYPE` | Default Match profile type for `match ios` when positional type and `-t` are omitted | `appstore` |
 
 ### Webhook Notifications
 

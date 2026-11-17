@@ -10,17 +10,6 @@ struct IOSInternalPreset: FlowPreset {
 
     init() {}
 
-    var stageHandlers: [FlowStage: any FlowStageHandler] {
-        [
-            .setup: AnyFlowStageHandler { try await self.setup(context: &$0) },
-            .prebuild: AnyFlowStageHandler { try await self.prebuild(context: &$0) },
-            .build: AnyFlowStageHandler { try await self.build(context: &$0) },
-            .postbuild: AnyFlowStageHandler { try await self.postbuild(context: &$0) },
-            .prerelease: AnyFlowStageHandler { try await self.prerelease(context: &$0) },
-            .release: AnyFlowStageHandler { try await self.release(context: &$0) },
-        ]
-    }
-
     func requirements(context: FlowContext) throws {
         try validateRequirements(
             [
@@ -257,14 +246,6 @@ struct IOSInternalPreset: FlowPreset {
         }
     }
 
-    func postbuild(context: inout FlowContext) async throws {
-        Log("📦 Verifying .ipa archive for App Store upload compliance...".dim)
-    }
-
-    func prerelease(context: inout FlowContext) async throws {
-        Log("📝 Packaging release artifacts and localized what-to-test notes...".dim)
-    }
-
     func release(context: inout FlowContext) async throws {
         Log("🚀 Uploading build to App Store Connect / TestFlight...".dim)
 
@@ -291,16 +272,29 @@ struct IOSInternalPreset: FlowPreset {
         let service = try AppStoreService(
             keyId: appleKeyId, issuerId: appleIssuerId, key: appleKey)
 
+        let uploadChangelog: String?
+        if context.waitForProcessing {
+            uploadChangelog = context.changelog
+        } else {
+            if context.changelog != nil {
+                Log("🟡 Skipping App Store Connect processing wait (--no-wait-processing); TestFlight release notes will not be applied.".yellow)
+            }
+            uploadChangelog = nil
+        }
+
         // Version and build number are read from the IPA's Info.plist (the values Apple validates).
         let result = try await UploadToAppStoreTask().run(
             .init(
                 ipaPath: ipaUrl.path,
                 service: service,
                 bundleId: context.bundleId,
+                changelog: uploadChangelog,
                 waitForProcessing: false
             )
         )
 
+        context.version = result.version
+        context.buildNumber = result.buildNumber
         context.metadata["appstore_build_upload_id"] = result.buildUploadId
         context.metadata["appstore_uploaded_version"] = result.version
         context.metadata["appstore_uploaded_build_number"] = result.buildNumber

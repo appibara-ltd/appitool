@@ -169,7 +169,10 @@ struct UploadToAppStoreTask: Task {
         )
         Log("   ✓ Upload committed, App Store Connect is processing the build.".green)
 
-        guard input.waitForProcessing else {
+        let trimmedChangelog = input.changelog?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let shouldWait = input.waitForProcessing || (trimmedChangelog?.isEmpty == false)
+
+        guard shouldWait else {
             return UploadToAppStoreResult(
                 buildUploadId: buildUploadId,
                 version: version,
@@ -187,6 +190,18 @@ struct UploadToAppStoreTask: Task {
             pollInterval: input.pollInterval,
             timeout: input.processingTimeout
         )
+
+        // 6. Set TestFlight "What to Test" changelog if provided
+        if let changelog = trimmedChangelog, !changelog.isEmpty, let buildId = status.buildId {
+            Log("📝 Updating TestFlight \"What to Test\" notes (\(input.changelogLocale))...".dim)
+            try await input.service.setWhatsNew(
+                buildId: buildId,
+                whatsNew: changelog,
+                locale: input.changelogLocale
+            )
+            Log("   ✓ TestFlight release notes updated.".green)
+        }
+
         return UploadToAppStoreResult(
             buildUploadId: buildUploadId,
             version: version,

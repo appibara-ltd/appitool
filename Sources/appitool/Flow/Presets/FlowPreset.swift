@@ -25,6 +25,15 @@ struct FlowRequirementError: LocalizedError, Sendable {
     }
 }
 
+/// Error thrown when a required build artifact is missing or empty during verification.
+struct FlowArtifactError: LocalizedError, Sendable {
+    let message: String
+
+    var errorDescription: String? {
+        message
+    }
+}
+
 /// A contract defining the lifecycle functions executed across the 7 stages of a release flow.
 protocol FlowPreset: Sendable {
     var name: String { get }
@@ -79,9 +88,85 @@ extension FlowPreset {
     func setup(context: inout FlowContext) async throws {}
     func prebuild(context: inout FlowContext) async throws {}
     func build(context: inout FlowContext) async throws {}
-    func postbuild(context: inout FlowContext) async throws {}
-    func prerelease(context: inout FlowContext) async throws {}
     func release(context: inout FlowContext) async throws {}
+
+    /// Default post-build handler verifies that the expected platform artifact exists and is non-empty.
+    func postbuild(context: inout FlowContext) async throws {
+        let ext: String
+        switch context.platform {
+        case .ios:
+            ext = "ipa"
+        case .android:
+            let defaultFormat: GradleTask.BuildFormat = (context.distribution == .appstore) ? .aab : .apk
+            ext = (context.androidFormat ?? defaultFormat).rawValue
+        }
+
+        Log("📦 Verifying generated .\(ext) package integrity...".dim)
+
+        if context.isDryRun {
+            Log("🟡 Dry-run enabled: skipping .\(ext) artifact verification.".yellow)
+            return
+        }
+
+        guard let artifactUrl = context.artifactPaths.first(where: { $0.pathExtension.lowercased() == ext })
+            ?? context.metadata["\(ext)_path"].map({ URL(fileURLWithPath: $0) }),
+            FileManager.default.fileExists(atPath: artifactUrl.path) else {
+            throw FlowArtifactError(message: "Expected build artifact (.\(ext)) was not produced or could not be found.")
+        }
+
+        let attrs = try FileManager.default.attributesOfItem(atPath: artifactUrl.path)
+        let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
+        guard size > 0 else {
+            throw FlowArtifactError(message: "Build artifact '\(artifactUrl.lastPathComponent)' is empty (0 bytes).")
+        }
+
+        let formattedSize = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+        Log("   ✓ Verified \(ext.uppercased()) artifact: \(artifactUrl.lastPathComponent) (\(formattedSize))".dim)
+    }
+
+    /// Default pre-release handler generates store-compatible release notes from git commits
+    /// using the platform-specific tag prefix (`🍏_` for iOS, `🤖_` for Android).
+    func prerelease(context: inout FlowContext) async throws {
+        if let existing = context.changelog?.trimmingCharacters(in: .whitespacesAndNewlines), !existing.isEmpty {
+            Log("📝 Using existing release notes (\(existing.count) chars).".dim)
+            return
+        }
+
+        let tagPrefix = context.platform.tagPrefix
+        let excludePatterns: [String] = (context.distribution == .appstore) ? ["*_adhoc", "*_development"] : []
+        let maxLength = (context.platform == .android && context.distribution == .appstore) ? 500 : 4000
+
+        Log("📝 Generating release notes from git (tag prefix: '\(tagPrefix)')...".dim)
+
+        do {
+            let notes = try await GenerateReleaseNotesTask().run(
+                .init(
+                    workingDirectory: context.projectDirectory.path,
+                    autoDetectLatestTag: true,
+                    tagPrefix: tagPrefix,
+                    excludeTagPatterns: excludePatterns,
+                    plainText: true,
+                    maxLength: maxLength
+                )
+            )
+
+            let trimmed = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty {
+                Log("ℹ️ No commits found since last '\(tagPrefix)*' tag; release notes left empty.".yellow)
+            } else {
+                context.changelog = trimmed
+                Log("🟢 Generated release notes (\(trimmed.count) chars).".green)
+                if context.isDryRun {
+                    Log("   Preview:".dim)
+                    for line in trimmed.components(separatedBy: .newlines) {
+                        Log("   \(line)".dim)
+                    }
+                }
+            }
+        } catch {
+            Log("🚧 Could not generate release notes from git: \(error.localizedDescription)".yellow)
+        }
+    }
 
     /// Validates a list of required configuration key-value pairs, printing missing items and throwing if any are missing.
     func validateRequirements(_ items: [(key: String, value: String?, description: String?)], context: FlowContext) throws {
@@ -103,7 +188,7 @@ extension FlowPreset {
         Log("   🟢 [\(name)] Requirements verified (\(items.count) checked).".green)
     }
 
-    /// Default post-release handler sends configured success notifications (Slack, KokoNo).
+    /// Default post-release handler creates/pushes the release Git tag and sends configured notifications (Slack, KokoNo).
     func postrelease(context: inout FlowContext) async throws {
         let totalDuration = Date().timeIntervalSince(context.startTime)
         var metadata: [String: String] = [
@@ -126,8 +211,32 @@ extension FlowPreset {
         let message = "Release completed successfully."
 
         guard !context.isDryRun else {
+            if let tagName = context.releaseTagName {
+                Log("🏷️  [Dry Run] Would create and push git tag: \(tagName)".yellow)
+            }
             Log("🟡 Skipping notifications (dry-run mode).".yellow)
             return
+        }
+
+        if let tagName = context.releaseTagName {
+            do {
+                let tagResult = try await GitTagTask().run(
+                    .init(
+                        tagName: tagName,
+                        message: "Release \(tagName)",
+                        workingDirectory: context.projectDirectory.path
+                    )
+                )
+                context.metadata["git_tag"] = tagResult.tagName
+                metadata["Git Tag"] = tagResult.tagName
+                if tagResult.pushed {
+                    Log("🏷️  Created and pushed git tag: \(tagResult.tagName)".green.bold)
+                }
+            } catch {
+                Log("🚧 Failed to create/push git tag '\(tagName)': \(error.localizedDescription)".yellow)
+            }
+        } else {
+            Log("ℹ️ Skipping git tag creation (version or build number unavailable).".dim)
         }
 
         Log("📣 Dispatching release notifications...".dim)

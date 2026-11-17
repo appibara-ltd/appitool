@@ -21,13 +21,20 @@ appitool notes [options]
 
 | Option | Default | Description |
 |:---|:---|:---|
-| `-f, --from <ref>` | — | Starting Git tag or commit reference (exclusive). |
-| `-t, --to <ref>` | `HEAD` (when `--from` is provided) | Ending Git tag or commit reference (inclusive). |
+| `-f, --from <ref>` | Latest Git tag before `--to` (or last 20 commits if untagged) | Starting Git tag or commit reference (exclusive). |
+| `-t, --to <ref>` | `HEAD` | Ending Git tag or commit reference (inclusive). |
+| `-p, --tag-prefix <prefix>` | — | Filter auto-detected tags by prefix when `--from` is omitted (e.g. `v`, `ios-v`, `android-`). |
 | `-o, --output <path>` | Print to stdout | File path to write the generated Markdown release notes. |
 
 ## Examples
 
 ```bash
+# Auto-detect commits since the latest Git tag (or last 20 commits if untagged)
+appitool notes
+
+# Auto-detect commits since the latest iOS-prefixed tag (e.g. ios-v1.2.0..HEAD)
+appitool notes -p ios-v
+
 # Print release notes from v0.8.0 to HEAD
 appitool notes -f v0.8.0
 

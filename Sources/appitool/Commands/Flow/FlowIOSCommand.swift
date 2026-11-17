@@ -33,6 +33,9 @@ struct FlowIOSCommand: AsyncParsableCommand {
     @Flag(name: .long, inversion: .prefixedNo, help: "Suppress xcodebuild standard output and logs.")
     var silent: Bool = true
 
+    @Flag(name: .long, inversion: .prefixedNo, help: "Wait for App Store Connect build processing to apply TestFlight release notes.")
+    var waitProcessing: Bool = true
+
     func run() async throws {
         _ = try? EnvLoader.loadEnv()
 
@@ -80,6 +83,7 @@ struct FlowIOSCommand: AsyncParsableCommand {
             kokonoPublicKey: notifications.kokonoPublicKey,
             preset: preset,
             silent: silent,
+            waitForProcessing: waitProcessing,
         )
 
         let runner = FlowRunner()

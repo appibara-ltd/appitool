@@ -12,6 +12,13 @@ struct FlowContext: Sendable {
             case .android: return "🤖"
             }
         }
+
+        var tagPrefix: String {
+            switch self {
+            case .ios: return "🍏_"
+            case .android: return "🤖_"
+            }
+        }
     }
 
     let platform: Platform
@@ -70,6 +77,45 @@ struct FlowContext: Sendable {
     // Pre-release state
     var changelog: String?
 
+    /// Standardized release tag name (`🍏_<version>_<buildNumber>[_adhoc]` or `🤖_<version>_<buildNumber>[_adhoc]`).
+    var releaseTagName: String? {
+        let resolvedVersion = [
+            version,
+            metadata["appstore_uploaded_version"],
+            metadata["appstore_version"],
+            metadata["googleplay_version"],
+            metadata["firebase_version"],
+        ]
+        .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .first { !$0.isEmpty }
+
+        let resolvedBuild = [
+            buildNumber,
+            metadata["appstore_uploaded_build_number"],
+            metadata["googleplay_version_code"],
+            metadata["appstore_build_number"],
+            metadata["firebase_build_number"],
+        ]
+        .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .first { !$0.isEmpty }
+
+        guard let resolvedVersion, let resolvedBuild else {
+            return nil
+        }
+
+        let suffix: String
+        switch distribution {
+        case .appstore:
+            suffix = ""
+        case .adhoc:
+            suffix = "_adhoc"
+        case .development:
+            suffix = "_development"
+        }
+
+        return "\(platform.tagPrefix)\(resolvedVersion)_\(resolvedBuild)\(suffix)"
+    }
+
     // Custom metadata dictionary for stages to pass data
     var metadata: [String: String] = [:]
 
@@ -83,6 +129,7 @@ struct FlowContext: Sendable {
 
     // Build configuration
     var silent: Bool = false
+    var waitForProcessing: Bool = true
 
     init(
         platform: Platform,
@@ -114,6 +161,7 @@ struct FlowContext: Sendable {
         preset: (any FlowPreset)? = nil,
         androidFormat: GradleTask.BuildFormat? = nil,
         silent: Bool = false,
+        waitForProcessing: Bool = true,
     ) {
         self.platform = platform
         self.distribution = distribution
@@ -145,5 +193,6 @@ struct FlowContext: Sendable {
         self.preset = preset
         self.androidFormat = androidFormat
         self.silent = silent
+        self.waitForProcessing = waitForProcessing
     }
 }

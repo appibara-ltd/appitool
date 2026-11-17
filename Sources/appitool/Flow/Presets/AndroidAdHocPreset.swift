@@ -123,31 +123,11 @@ struct AndroidAdHocPreset: FlowPreset {
         }
     }
 
-    func postbuild(context: inout FlowContext) async throws {
-        let format = context.androidFormat ?? .apk
-        Log("📦 Verifying generated .\(format.rawValue) package integrity...".dim)
-        guard let artifactUrl = context.artifactPaths.first(where: { $0.pathExtension.lowercased() == format.rawValue })
-            ?? context.metadata["\(format.rawValue)_path"].map({ URL(fileURLWithPath: $0) }) else {
-            return
-        }
-        if FileManager.default.fileExists(atPath: artifactUrl.path) {
-            let attrs = try? FileManager.default.attributesOfItem(atPath: artifactUrl.path)
-            let size = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
-            let formattedSize = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
-            Log("   ✓ Verified \(format.rawValue.uppercased()) artifact: \(artifactUrl.lastPathComponent) (\(formattedSize))".dim)
-        }
-    }
-
-    func prerelease(context: inout FlowContext) async throws {
-        Log("📝 Preparing tester release notes and distribution groups...".dim)
-    }
-
     func release(context: inout FlowContext) async throws {
         let format = context.androidFormat ?? .apk
         Log("🚀 Distributing \(format.rawValue.uppercased()) to testers via Firebase App Distribution...".dim)
 
         context.metadata["firebase_test_groups"] = "internal"
-        context.changelog = "APPITOOL TEST"
 
         guard let artifactUrl = context.artifactPaths.first(where: { $0.pathExtension.lowercased() == format.rawValue })
             ?? context.metadata["\(format.rawValue)_path"].map({ URL(fileURLWithPath: $0) }) else {
@@ -214,6 +194,12 @@ struct AndroidAdHocPreset: FlowPreset {
             )
         )
 
+        if let version = result.displayVersion, !version.isEmpty {
+            context.version ??= version
+        }
+        if let build = result.buildVersion, !build.isEmpty {
+            context.buildNumber ??= build
+        }
         context.metadata["firebase_release_name"] = result.releaseName
         if let consoleUri = result.firebaseConsoleUri {
             context.metadata["firebase_console_uri"] = consoleUri

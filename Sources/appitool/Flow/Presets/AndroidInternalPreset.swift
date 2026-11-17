@@ -118,24 +118,6 @@ struct AndroidInternalPreset: FlowPreset {
         }
     }
 
-    func postbuild(context: inout FlowContext) async throws {
-        Log("📦 Verifying generated .aab bundle integrity...".dim)
-        guard let aabUrl = context.artifactPaths.first(where: { $0.pathExtension.lowercased() == "aab" })
-            ?? context.metadata["aab_path"].map({ URL(fileURLWithPath: $0) }) else {
-            return
-        }
-        if FileManager.default.fileExists(atPath: aabUrl.path) {
-            let attrs = try? FileManager.default.attributesOfItem(atPath: aabUrl.path)
-            let size = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
-            let formattedSize = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
-            Log("   ✓ Verified AAB artifact: \(aabUrl.lastPathComponent) (\(formattedSize))".dim)
-        }
-    }
-
-    func prerelease(context: inout FlowContext) async throws {
-        Log("📝 Preparing internal track release notes...".dim)
-    }
-
     func release(context: inout FlowContext) async throws {
         Log("🚀 Publishing AAB to Google Play Internal track...".dim)
 
@@ -175,6 +157,7 @@ struct AndroidInternalPreset: FlowPreset {
             )
         )
 
+        context.buildNumber = String(result.versionCode)
         context.metadata["googleplay_edit_id"] = result.editId
         context.metadata["googleplay_version_code"] = String(result.versionCode)
         context.metadata["googleplay_track"] = result.track
