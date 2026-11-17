@@ -1,6 +1,6 @@
 # appitool — Complete CLI Documentation
 
-> Unified CLI utility (v0.9.0) for Apple App Store Connect and Google Play operations.
+> Unified CLI utility (v0.9.1) for Apple App Store Connect and Google Play operations.
 > Generated automatically from VitePress Markdown documentation.
 
 ---
@@ -9,7 +9,7 @@
 
 # Getting Started
 
-`appitool` (`v0.9.0`) is a unified Swift CLI utility and release orchestration engine for Apple App Store Connect, Apple Developer Portal, Google Play Console, Firebase App Distribution, Firebase Authentication, and Git-backed code signing.
+`appitool` (`v0.9.1`) is a unified Swift CLI utility and release orchestration engine for Apple App Store Connect, Apple Developer Portal, Google Play Console, Firebase App Distribution, Firebase Authentication, and Git-backed code signing.
 
 ## Requirements
 
@@ -483,7 +483,7 @@ Notice the difference between standalone `appitool match ios` and `appitool flow
 
 # Command Overview
 
-`appitool` (`v0.9.0`) is built with Swift ArgumentParser. Run `appitool --help` (or `-h`) or `appitool <command> --help` at any level to inspect live options, or `appitool --version` to print the installed version.
+`appitool` (`v0.9.1`) is built with Swift ArgumentParser. Run `appitool --help` (or `-h`) or `appitool <command> --help` at any level to inspect live options, or `appitool --version` to print the installed version.
 
 ## Complete Command Tree
 
@@ -1605,7 +1605,7 @@ Checks GitHub Releases (`appibara-ltd/appitool`) for a newer semantic version an
 ## How It Works
 
 1. Queries `https://api.github.com/repos/appibara-ltd/appitool/releases/latest`.
-2. Compares the remote tag (`SemanticVersion`) against the running binary's version (`0.9.0`).
+2. Compares the remote tag (`SemanticVersion`) against the running binary's version (`0.9.1`).
 3. Selects the matching archive for the current OS & CPU architecture:
    - `appitool-darwin-arm64.tar.gz` (or `universal`)
    - `appitool-linux-x86_64.tar.gz` / `appitool-linux-arm64.tar.gz`
@@ -1646,7 +1646,7 @@ sudo appitool self-update --force
 
 # `appitool status`
 
-Displays the CLI tool name, purpose, and compiled version (`0.9.0`).
+Displays the CLI tool name, purpose, and compiled version (`0.9.1`).
 
 ## Synopsis
 
@@ -1659,5 +1659,5 @@ appitool status
 ```text
 Tool: appitool
 Purpose: A unified CLI utility for Apple App Store Connect and Google Play operations.
-Version: 0.9.0
+Version: 0.9.1
 ```
