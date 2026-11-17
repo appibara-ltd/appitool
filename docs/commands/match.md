@@ -29,8 +29,8 @@ Syncs, prunes, or nukes Apple certificates and provisioning profiles using Git s
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
 | `-t, --type <type>` | `appstore` | Distribution type: `appstore`, `development`, `adhoc`, `enterprise`, `developer_id`. |
-| `--git-url <url>` | `MATCH_GIT_URL` | Git repository URL for certificates/profiles storage (`-g, --git-url`). |
-| `--git-branch <branch>` | `MATCH_GIT_BRANCH` or `master` | Git branch name. |
+| `-g, --git-url <url>` | `MATCH_GIT_URL` | Git repository URL for certificates/profiles storage. |
+| `-b, --git-branch <branch>` | `MATCH_GIT_BRANCH` or `master` | Git branch name. |
 | `--platform <platform>` | `ios` | Target Apple platform: `ios`, `macos`, `tvos`, `catalyst`. |
 | `--git-token <token>` | `MATCH_GIT_TOKEN` or `GITHUB_TOKEN` | Git Personal Access Token for HTTPS repositories. |
 | `-p, --password <pass>` | `MATCH_PASSWORD` | Passphrase for AES encryption/decryption. |
@@ -87,8 +87,8 @@ Syncs an encrypted Android keystore (`.keystore`, `.jks`, `.p12`) from Git stora
 | `-a, --alias <name>` | `ANDROID_KEY_ALIAS` | Key alias inside keystore. |
 | `--store-password <pass>` | `ANDROID_KEYSTORE_PASSWORD` | Keystore password. |
 | `--key-password <pass>` | `ANDROID_KEY_PASSWORD` | Key password. |
-| `--git-url <url>` | `MATCH_GIT_URL` | Git repository URL (`-g, --git-url`). |
-| `--git-branch <branch>` | `MATCH_GIT_BRANCH` or `master` | Git branch name. |
+| `-g, --git-url <url>` | `MATCH_GIT_URL` | Git repository URL for keystores storage. |
+| `-b, --git-branch <branch>` | `MATCH_GIT_BRANCH` or `master` | Git branch name. |
 | `--git-token <token>` | `MATCH_GIT_TOKEN` or `GITHUB_TOKEN` | Git authentication token. |
 | `-P, --password <pass>` | `MATCH_PASSWORD` | Passphrase for AES encryption/decryption. |
 | `--silent` | `false` | Suppress verbose output. |

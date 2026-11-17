@@ -49,11 +49,11 @@ Used by `flow ios`, `build ios`, `check ios`, `match ios`, and all `apple` subco
 
 ### `GoogleCredentialsOptions`
 
-Used by `flow android` and `check android`.
+Used by `flow ios`, `flow android`, `check android`, and `FirebaseProjectOptions`.
 
 | Flag | `.env` Fallback | Description |
 |:---|:---|:---|
-| `--google-key <key>` | `GOOGLE_KEY` | Service Account JSON path, raw JSON string, or Base64 string |
+| `-g, --google-key <key>` | `GOOGLE_KEY` | Service Account JSON path, raw JSON string, or Base64 string |
 
 ### `FirebaseProjectOptions`
 
@@ -61,12 +61,12 @@ Used by `firebase list-groups`, `create-group`, `list-users`, `delete-user`, and
 
 | Flag | `.env` Fallback | Description |
 |:---|:---|:---|
-| `-g, --google-key <key>` | `GOOGLE_KEY` | Google Service Account key |
+| `-g, --google-key <key>` | `GOOGLE_KEY` | Inherited from `GoogleCredentialsOptions` |
 | `-p, --project <id>` | `FIREBASE_PROJECT_ID`, `GOOGLE_PROJECT_ID`, or parsed from `FIREBASE_*_APP_ID` | Firebase / Google Cloud project ID or project number |
 
 ### `FirebaseCredentialsOptions`
 
-Includes `FirebaseProjectOptions` and adds app-level flags. Used by `flow ios`, `flow android`, `firebase list-releases`, `create-release`, and `update-release`.
+Includes `FirebaseProjectOptions` and adds app-level flags. Used by `firebase list-releases`, `create-release`, and `update-release`.
 
 | Flag | `.env` Fallback | Description |
 |:---|:---|:---|

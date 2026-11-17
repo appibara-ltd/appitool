@@ -12,16 +12,16 @@ struct FirebaseUpdateReleaseCommand: AsyncParsableCommand {
     @OptionGroup
     var credentials: FirebaseCredentialsOptions
 
-    @Option(name: .long, help: "Full release resource id (release ID).")
+    @Option(name: [.customShort("i"), .long], help: "Full release resource id (release ID).")
     var releaseId: String
 
-    @Option(name: .long, help: "New release notes text to attach to the release.")
+    @Option(name: .shortAndLong, help: "New release notes text to attach to the release.")
     var releaseNotes: String?
 
-    @Option(name: .long, help: "Comma-separated tester group aliases to distribute to.")
+    @Option(name: .shortAndLong, help: "Comma-separated tester group aliases to distribute to.")
     var testGroups: String?
 
-    @Option(name: .long, help: "Comma-separated tester emails to distribute to.")
+    @Option(name: [.customShort("e"), .long], help: "Comma-separated tester emails to distribute to.")
     var testerEmails: String?
 
     func run() async throws {

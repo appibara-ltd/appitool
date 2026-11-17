@@ -22,8 +22,11 @@ struct FlowIOSCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Build configuration (Debug, Release). Defaults to XCODE_CONFIGURATION in .env.")
     var configuration: String?
 
+    @Option(name: .long, help: "Firebase App ID for iOS (defaults to FIREBASE_IOS_APP_ID in .env).")
+    var firebaseAppId: String?
+
     @OptionGroup var appleCredentials: AppleCredentialsOptions
-    @OptionGroup var firebaseCredentials: FirebaseCredentialsOptions
+    @OptionGroup var googleCredentials: GoogleCredentialsOptions
     @OptionGroup var matchOptions: MatchOptions
     @OptionGroup var notificationOptions: NotificationOptions
 
@@ -40,8 +43,8 @@ struct FlowIOSCommand: AsyncParsableCommand {
         let appleCreds = appleCredentials.resolve()
         let match = matchOptions.resolve()
         let resolvedTeamId = match.teamId ?? ProcessInfo.processInfo.environment["APPLE_TEAM_ID"]
-        let resolvedFirebaseAppId = firebaseCredentials.resolveAppId(for: .ios)
-        let resolvedGoogleKey = firebaseCredentials.resolveKey() ?? ProcessInfo.processInfo.environment["GOOGLE_KEY"]
+        let resolvedFirebaseAppId = firebaseAppId ?? ProcessInfo.processInfo.environment["FIREBASE_IOS_APP_ID"]
+        let resolvedGoogleKey = googleCredentials.resolveKey()
 
         let preset: (any FlowPreset) = {
             switch distribution {

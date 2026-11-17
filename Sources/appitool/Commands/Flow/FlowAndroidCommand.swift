@@ -19,8 +19,10 @@ struct FlowAndroidCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Packaging format (aab or apk). Defaults to apk for adhoc/development, aab for appstore.")
     var format: GradleTask.BuildFormat?
 
+    @Option(name: .long, help: "Firebase App ID for Android (defaults to FIREBASE_ANDROID_APP_ID in .env).")
+    var firebaseAppId: String?
+
     @OptionGroup var googleCredentials: GoogleCredentialsOptions
-    @OptionGroup var firebaseCredentials: FirebaseCredentialsOptions
     @OptionGroup var matchOptions: MatchOptions
     @OptionGroup var notificationOptions: NotificationOptions
 
@@ -32,7 +34,7 @@ struct FlowAndroidCommand: AsyncParsableCommand {
 
         let notifications = notificationOptions.resolve()
         let resolvedPackageName = packageName ?? ProcessInfo.processInfo.environment["GOOGLE_PACKAGE_NAME"]
-        let resolvedFirebaseAppId = firebaseCredentials.resolveAppId(for: .android)
+        let resolvedFirebaseAppId = firebaseAppId ?? ProcessInfo.processInfo.environment["FIREBASE_ANDROID_APP_ID"]
         let resolvedGoogleKey = googleCredentials.resolveKey()
         let resolvedFormat = format ?? (distribution == .appstore ? .aab : .apk)
         let match = matchOptions.resolve()

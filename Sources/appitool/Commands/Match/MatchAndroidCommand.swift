@@ -33,7 +33,7 @@ struct MatchAndroidCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Git repository URL for keystores storage (defaults to MATCH_GIT_URL in .env).")
     var gitUrl: String?
 
-    @Option(name: .shortAndLong, help: "Git branch name (defaults to MATCH_GIT_BRANCH in .env or 'master').")
+    @Option(name: [.customShort("b"), .long], help: "Git branch name (defaults to MATCH_GIT_BRANCH in .env or 'master').")
     var gitBranch: String?
 
     @Option(name: .long, help: "Git authentication token (defaults to MATCH_GIT_TOKEN or GITHUB_TOKEN in .env).")

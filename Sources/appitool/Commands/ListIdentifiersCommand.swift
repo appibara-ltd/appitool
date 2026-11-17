@@ -27,7 +27,7 @@ struct ListIdentifiersCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Xcode configuration name (e.g. Debug, Release).")
     var configuration: String?
 
-    @Option(name: [.short, .long, .customLong("workspace-root")], help: "Path to project root directory (defaults to current directory).")
+    @Option(name: [.customShort("d"), .long, .customLong("workspace-root")], help: "Path to project root directory (defaults to current directory).")
     var projectDir: String?
 
     @Flag(name: .long, help: "Output identifiers as JSON format.")

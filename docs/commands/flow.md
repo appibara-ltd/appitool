@@ -29,11 +29,12 @@ Executes the automated release flow for iOS.
 | `-b, --bundle-id <id>` | `APPLE_BUNDLE_ID` | Target iOS bundle identifier. Auto-detected from Xcode project if omitted. |
 | `-s, --scheme <scheme>` | `XCODE_SCHEME` | Xcode scheme to build. Auto-inferred if omitted. |
 | `-c, --configuration <config>` | `XCODE_CONFIGURATION` | Build configuration (`Debug`, `Release`). |
+| `--firebase-app-id <id>` | `FIREBASE_IOS_APP_ID` | Firebase App ID for iOS (used for Ad-Hoc / Firebase distribution). |
 | `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or stream (`--no-silent`) `xcodebuild` and Match stdout logs. |
 
 Plus shared option groups:
 - [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`)
-- [`FirebaseCredentialsOptions`](/commands/overview#firebasecredentialsoptions) (`--firebase-app-id`, `--platform`, `-g, --google-key`, `-p, --project`)
+- [`GoogleCredentialsOptions`](/commands/overview#googlecredentialsoptions) (`-g, --google-key`)
 - [`MatchOptions`](/commands/overview#matchoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`, `--keychain-name`, `--keychain-password`, `--team-id`, `--readonly`)
 - [`NotificationOptions`](/commands/overview#notificationoptions) (`--slack-url`, `--kokono-url`, `--kokono-public-key`)
 
@@ -67,11 +68,11 @@ Executes the automated release flow for Android.
 | `--dry-run` | `false` | Validate configuration, resolve Match keystore, inspect remote `versionCode`, and simulate upload without building or mutating state. |
 | `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` | Target Android package name. Auto-detected from Gradle if omitted. |
 | `-f, --format <format>` | `aab` for `appstore`; `apk` for `adhoc`/`development` | Packaging format (`aab` or `apk`). |
+| `--firebase-app-id <id>` | `FIREBASE_ANDROID_APP_ID` | Firebase App ID for Android (used for Ad-Hoc / Firebase distribution). |
 | `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or show (`--no-silent`) Gradle and Match output. |
 
 Plus shared option groups:
-- [`GoogleCredentialsOptions`](/commands/overview#googlecredentialsoptions) (`--google-key`)
-- [`FirebaseCredentialsOptions`](/commands/overview#firebasecredentialsoptions) (`--firebase-app-id`, `--platform`, `-g, --google-key`, `-p, --project`)
+- [`GoogleCredentialsOptions`](/commands/overview#googlecredentialsoptions) (`-g, --google-key`)
 - [`MatchOptions`](/commands/overview#matchoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`, `--readonly`, etc.)
 - [`NotificationOptions`](/commands/overview#notificationoptions) (`--slack-url`, `--kokono-url`, `--kokono-public-key`)
 

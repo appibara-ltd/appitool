@@ -43,7 +43,7 @@ struct AppleCredentialsOptions: ParsableArguments, Sendable {
 
 /// Reusable CLI options and environment resolution for Google Play credentials.
 struct GoogleCredentialsOptions: ParsableArguments, Sendable {
-    @Option(name: .long, help: "Google Service Account Key (file path, raw JSON, or Base64 string; defaults to GOOGLE_KEY in .env).")
+    @Option(name: .shortAndLong, help: "Google Service Account Key (file path, raw JSON, or Base64 string; defaults to GOOGLE_KEY in .env).")
     var googleKey: String?
 
     /// Resolves the credentials by checking CLI flags first, falling back to environment variables.
@@ -64,7 +64,7 @@ struct GoogleCredentialsOptions: ParsableArguments, Sendable {
     /// Returns a `GooglePlayService` or throws a descriptive `ValidationError`.
     func requireService() throws -> GooglePlayService {
         guard let service = try makeService() else {
-            throw ValidationError("Missing Google Play Service Account key. Provide --google-key or set GOOGLE_KEY in .env.")
+            throw ValidationError("Missing Google Play Service Account key. Provide -g, --google-key or set GOOGLE_KEY in .env.")
         }
         return service
     }
@@ -72,17 +72,19 @@ struct GoogleCredentialsOptions: ParsableArguments, Sendable {
 
 /// Reusable CLI options and environment resolution for Firebase project-level operations (e.g. tester groups).
 struct FirebaseProjectOptions: ParsableArguments, Sendable {
-    @Option(name: .shortAndLong, help: "Google Service Account Key (file path, raw JSON, or Base64 string; defaults to GOOGLE_KEY in .env).")
-    var googleKey: String?
+    @OptionGroup
+    var googleCredentials: GoogleCredentialsOptions
 
     @Option(name: .shortAndLong, help: "Firebase/Google Cloud project number or project ID (defaults to FIREBASE_PROJECT_ID in .env).")
     var project: String?
 
+    var googleKey: String? {
+        googleCredentials.googleKey
+    }
+
     /// Resolves the Google Key from option or environment.
     func resolveKey() -> String? {
-        let env = ProcessInfo.processInfo.environment
-        let resolved = googleKey ?? env["GOOGLE_KEY"]
-        return resolved?.isEmpty == false ? resolved : nil
+        googleCredentials.resolveKey()
     }
 
     /// Resolves the Firebase project identifier (project number or project ID).

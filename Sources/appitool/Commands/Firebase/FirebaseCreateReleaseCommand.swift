@@ -21,7 +21,7 @@ struct FirebaseCreateReleaseCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Comma-separated tester group aliases (e.g. 'internal,qa').")
     var testGroups: String?
 
-    @Option(name: .shortAndLong, help: "Comma-separated tester email addresses.")
+    @Option(name: [.customShort("e"), .long], help: "Comma-separated tester email addresses.")
     var testerEmails: String?
 
     func run() async throws {

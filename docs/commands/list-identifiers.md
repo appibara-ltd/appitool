@@ -16,7 +16,7 @@ appitool list-identifiers [options]
 | `-w, --workspace-name <name>` | Auto-detected | Custom Xcode workspace or project name. |
 | `-s, --scheme <scheme>` | Auto-inferred | Xcode scheme name. |
 | `-c, --configuration <config>` | Auto-inferred | Xcode build configuration (e.g., `Debug`, `Release`). |
-| `--project-dir <path>` / `--workspace-root <path>` | Current directory | Path to the project root directory. |
+| `-d, --project-dir <path>` / `--workspace-root <path>` | Current directory | Path to the project root directory. |
 | `--json` | `false` | Output results as pretty-printed, key-sorted JSON (ideal for CI scripts and AI agents). |
 
 ## Examples

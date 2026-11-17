@@ -61,7 +61,7 @@ Checks Android application metadata and latest build information from Firebase A
 | `-p, --package-name <name>` | Auto-detected from Android project | Target Android package name. |
 | `--firebase-app-id <id>` | `FIREBASE_ANDROID_APP_ID` | Firebase App ID for Android (used when `-d adhoc`). |
 
-Plus [`GoogleCredentialsOptions`](/commands/overview#googlecredentialsoptions) (`--google-key`).
+Plus [`GoogleCredentialsOptions`](/commands/overview#googlecredentialsoptions) (`-g, --google-key`).
 
 ### Examples
 
