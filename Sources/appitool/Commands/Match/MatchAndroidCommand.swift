@@ -3,7 +3,7 @@ import Foundation
 import Rainbow
 
 /// A command that synchronizes or adds Android keystores using Git storage (Match equivalent for Android).
-struct MatchAndroidCommand: AsyncParsableCommand {
+struct MatchAndroidCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "android",
         abstract: "Syncs or adds Android keystores using Git storage."
@@ -45,8 +45,7 @@ struct MatchAndroidCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Suppress verbose output.")
     var silent: Bool = false
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
+    func execute() async throws {
         let env = ProcessInfo.processInfo.environment
         let fm = FileManager.default
 

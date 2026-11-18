@@ -3,7 +3,7 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-struct FirebaseListReleasesCommand: AsyncParsableCommand {
+struct FirebaseListReleasesCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "list-releases",
         abstract: "Lists uploaded releases for a Firebase application."
@@ -18,9 +18,7 @@ struct FirebaseListReleasesCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Ordering of the results (e.g. 'createTime desc').")
     var orderBy: String?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         guard let service = try credentials.makeService() else {
             Log("Error: ".red.bold + "Missing Google credentials (configure GOOGLE_KEY in .env or via --google-key).")
             return

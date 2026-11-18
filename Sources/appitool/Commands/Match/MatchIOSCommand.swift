@@ -4,7 +4,7 @@ import Rainbow
 
 /// A command that synchronizes or nukes iOS/Apple code signing certificates and provisioning profiles
 /// using Git storage, providing 100% Fastlane match equivalence.
-struct MatchIOSCommand: AsyncParsableCommand {
+struct MatchIOSCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "ios",
         abstract: "Syncs, nukes, or prunes Apple certificates and provisioning profiles using Git storage (Fastlane match equivalent)."
@@ -73,8 +73,7 @@ struct MatchIOSCommand: AsyncParsableCommand {
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
+    func execute() async throws {
         let env = ProcessInfo.processInfo.environment
 
         // 1. Resolve Action

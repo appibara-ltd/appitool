@@ -4,7 +4,7 @@ import AppStoreConnectAPI
 import AppleServices
 import Rainbow
 
-struct ApplePruneCertificatesCommand: AsyncParsableCommand {
+struct ApplePruneCertificatesCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "prune-certificates",
         abstract: "Deletes (revokes) all expired certificates from Apple Developer Portal."
@@ -19,9 +19,7 @@ struct ApplePruneCertificatesCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Filter pruning by certificate type (e.g. distribution, development).")
     var type: String?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         guard let service = try appleCredentials.makeService() else {
             Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return

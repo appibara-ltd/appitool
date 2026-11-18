@@ -103,7 +103,7 @@ function generate() {
   const fullParts = [
     '# appitool — Complete CLI Documentation',
     '',
-    '> Unified CLI utility (v0.9.0) for Apple App Store Connect and Google Play operations.',
+    '> Unified CLI utility (v0.9.1) for Apple App Store Connect and Google Play operations.',
     '> Generated automatically from VitePress Markdown documentation.',
     '',
   ];

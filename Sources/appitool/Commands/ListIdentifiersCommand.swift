@@ -3,7 +3,7 @@ import Foundation
 import Rainbow
 
 /// Command that lists iOS bundle identifiers and Android applicationId/namespace.
-struct ListIdentifiersCommand: AsyncParsableCommand {
+struct ListIdentifiersCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "list-identifiers",
         abstract: "List iOS bundle identifiers and Android applicationId/namespace."
@@ -33,9 +33,7 @@ struct ListIdentifiersCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Output identifiers as JSON format.")
     var json: Bool = false
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         let root = URL(fileURLWithPath: projectDir ?? FileManager.default.currentDirectoryPath)
         let hasIos = XCodeTasks.hasIosProject(in: root)
         let hasAndroid = AndroidTasks.hasAndroidProject(in: root)

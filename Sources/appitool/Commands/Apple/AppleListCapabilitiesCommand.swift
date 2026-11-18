@@ -4,7 +4,7 @@ import AppStoreConnectAPI
 import AppleServices
 import Rainbow
 
-struct AppleListCapabilitiesCommand: AsyncParsableCommand {
+struct AppleListCapabilitiesCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "list-capabilities",
         abstract: "Lists all available App Identifier capabilities or shows capabilities enabled for a specific App ID."
@@ -16,9 +16,7 @@ struct AppleListCapabilitiesCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Application Bundle Identifier (e.g. com.example.app) to inspect enabled capabilities.")
     var bundleId: String?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         // If bundle ID is specified, query Apple Developer Portal for enabled capabilities
         if let targetBundleId = bundleId?.trimmingCharacters(in: .whitespacesAndNewlines), !targetBundleId.isEmpty {
             guard let service = try appleCredentials.makeService() else {

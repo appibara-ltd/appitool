@@ -3,7 +3,7 @@ import Foundation
 import AppleServices
 import Rainbow
 
-struct AppleDisableDeviceCommand: AsyncParsableCommand {
+struct AppleDisableDeviceCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "disable-device",
         abstract: "Disables a registered Device by UDID on Apple Developer Portal."
@@ -15,9 +15,7 @@ struct AppleDisableDeviceCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Device Unique Device Identifier (UDID).")
     var udid: String
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         guard let service = try appleCredentials.makeService() else {
             Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return

@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 
-struct FlowAndroidCommand: AsyncParsableCommand {
+struct FlowAndroidCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "android",
         abstract: "Executes the automated 7-stage release flow for Android."
@@ -29,9 +29,7 @@ struct FlowAndroidCommand: AsyncParsableCommand {
     @Flag(name: .long, inversion: .prefixedNo, help: "Suppress xcodebuild standard output and logs.")
     var silent: Bool = true
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         let notifications = notificationOptions.resolve()
         let resolvedPackageName = packageName ?? ProcessInfo.processInfo.environment["GOOGLE_PACKAGE_NAME"]
         let resolvedFirebaseAppId = firebaseAppId ?? ProcessInfo.processInfo.environment["FIREBASE_ANDROID_APP_ID"]

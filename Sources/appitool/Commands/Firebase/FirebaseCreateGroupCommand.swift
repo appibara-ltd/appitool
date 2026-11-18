@@ -3,7 +3,7 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-struct FirebaseCreateGroupCommand: AsyncParsableCommand {
+struct FirebaseCreateGroupCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "create-group",
         abstract: "Creates a new tester group (or retrieves existing if already present)."
@@ -18,9 +18,7 @@ struct FirebaseCreateGroupCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Human-readable display name for the group (e.g. 'Internal Testers').")
     var name: String?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         guard let service = try projectOptions.makeService() else {
             Log("Error: ".red.bold + "Missing Google credentials (configure GOOGLE_KEY in .env or via --google-key).")
             return

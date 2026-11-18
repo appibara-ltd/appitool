@@ -4,7 +4,7 @@ import AppleServices
 import GoogleServices
 import Rainbow
 
-struct CheckIOSCommand: AsyncParsableCommand {
+struct CheckIOSCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "ios",
         abstract: "Checks iOS application and build information from distribution providers."
@@ -25,8 +25,7 @@ struct CheckIOSCommand: AsyncParsableCommand {
     @OptionGroup
     var googleCredentials: GoogleCredentialsOptions
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
+    func execute() async throws {
         let env = ProcessInfo.processInfo.environment
 
         var targetBundleId = bundleId

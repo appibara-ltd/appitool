@@ -19,35 +19,6 @@ public struct XcodeBuildTask: Task {
         case automatic
     }
 
-    /// Flexible sendable value for custom export options plist keys.
-    public enum ExportOptionValue: Sendable, ExpressibleByStringLiteral, ExpressibleByBooleanLiteral, ExpressibleByIntegerLiteral {
-        case string(String)
-        case bool(Bool)
-        case int(Int)
-        case dictionary([String: String])
-
-        public init(stringLiteral value: String) {
-            self = .string(value)
-        }
-
-        public init(booleanLiteral value: Bool) {
-            self = .bool(value)
-        }
-
-        public init(integerLiteral value: Int) {
-            self = .int(value)
-        }
-
-        var propertyListObject: Any {
-            switch self {
-            case .string(let str): return str
-            case .bool(let b): return b
-            case .int(let i): return i
-            case .dictionary(let dict): return dict
-            }
-        }
-    }
-
     /// Configuration input for `XcodeBuildTask`.
     public struct Input: Sendable {
         /// Path to the `.xcworkspace` file (if building with workspace).
@@ -61,12 +32,6 @@ public struct XcodeBuildTask: Task {
 
         /// Build configuration (e.g., "Release", "Debug"). Defaults to "Release".
         public let configuration: String
-
-        /// The destination specifier (e.g., "generic/platform=iOS").
-        public let destination: String
-
-        /// SDK to build against (e.g., "iphoneos").
-        public let sdk: String?
 
         /// Directory where the xcarchive and exported artifacts will be stored.
         public let outputDirectory: String
@@ -92,9 +57,6 @@ public struct XcodeBuildTask: Task {
         /// Whether to allow xcodebuild to automatically communicate with Apple Developer Portal for provisioning updates. Defaults to `false`.
         public let allowProvisioningUpdates: Bool
 
-        /// Whether to disable code signing during archiving (`CODE_SIGNING_ALLOWED=NO`). Defaults to `false`.
-        public let skipCodesigning: Bool
-
         /// Code signing identity override (e.g., "Apple Distribution: ...").
         public let codesigningIdentity: String?
 
@@ -107,23 +69,8 @@ public struct XcodeBuildTask: Task {
         /// Signing style in ExportOptions plist ("manual" or "automatic").
         public let signingStyle: SigningStyle?
 
-        /// Signing certificate name or SHA-1 for export (optional).
-        public let signingCertificate: String?
-
         /// Explicit mapping of bundle identifiers to provisioning profile UUIDs or names.
         public let provisioningProfiles: [String: String]?
-
-        /// Optional path to an existing `ExportOptions.plist` file.
-        public let exportOptionsPlist: String?
-
-        /// Additional custom values to inject into the generated `ExportOptions.plist`.
-        public let customExportOptions: [String: ExportOptionValue]?
-
-        /// Whether to include symbols in export options. Defaults to `true`.
-        public let includeSymbols: Bool
-
-        /// Whether to compile bitcode in export options. Defaults to `false`.
-        public let compileBitcode: Bool
 
         /// Whether to allow App Store Connect to manage/increment version and build numbers automatically.
         public let manageAppVersionAndBuildNumber: Bool?
@@ -145,8 +92,6 @@ public struct XcodeBuildTask: Task {
             project: String? = nil,
             scheme: String? = nil,
             configuration: String = "Release",
-            destination: String = "generic/platform=iOS",
-            sdk: String? = "iphoneos",
             outputDirectory: String,
             outputName: String? = nil,
             archivePath: String? = nil,
@@ -155,17 +100,11 @@ public struct XcodeBuildTask: Task {
             skipPackageIpa: Bool = false,
             clean: Bool = false,
             allowProvisioningUpdates: Bool = false,
-            skipCodesigning: Bool = false,
             codesigningIdentity: String? = nil,
             exportMethod: ExportMethod = .appStore,
             exportTeamId: String? = nil,
             signingStyle: SigningStyle? = nil,
-            signingCertificate: String? = nil,
             provisioningProfiles: [String: String]? = nil,
-            exportOptionsPlist: String? = nil,
-            customExportOptions: [String: ExportOptionValue]? = nil,
-            includeSymbols: Bool = true,
-            compileBitcode: Bool = false,
             manageAppVersionAndBuildNumber: Bool? = nil,
             xcodebuildFormatter: String? = "xcbeautify --renderer github-actions",
             silent: Bool = false,
@@ -176,8 +115,6 @@ public struct XcodeBuildTask: Task {
             self.project = project
             self.scheme = scheme
             self.configuration = configuration
-            self.destination = destination
-            self.sdk = sdk
             self.outputDirectory = outputDirectory
             self.outputName = outputName
             self.archivePath = archivePath
@@ -186,17 +123,11 @@ public struct XcodeBuildTask: Task {
             self.skipPackageIpa = skipPackageIpa
             self.clean = clean
             self.allowProvisioningUpdates = allowProvisioningUpdates
-            self.skipCodesigning = skipCodesigning
             self.codesigningIdentity = codesigningIdentity
             self.exportMethod = exportMethod
             self.exportTeamId = exportTeamId
             self.signingStyle = signingStyle
-            self.signingCertificate = signingCertificate
             self.provisioningProfiles = provisioningProfiles
-            self.exportOptionsPlist = exportOptionsPlist
-            self.customExportOptions = customExportOptions
-            self.includeSymbols = includeSymbols
-            self.compileBitcode = compileBitcode
             self.manageAppVersionAndBuildNumber = manageAppVersionAndBuildNumber
             self.xcodebuildFormatter = xcodebuildFormatter
             self.silent = silent
@@ -646,13 +577,10 @@ public struct XcodeBuildTask: Task {
         arguments.append(contentsOf: [
             "-scheme", scheme,
             "-configuration", input.configuration,
-            "-destination", input.destination,
+            "-destination", "generic/platform=iOS",
+            "-sdk", "iphoneos",
             "-archivePath", archivePath,
         ])
-
-        if let sdk = input.sdk, !sdk.isEmpty {
-            arguments.append(contentsOf: ["-sdk", sdk])
-        }
 
         if let derivedDataPath = input.derivedDataPath, !derivedDataPath.isEmpty {
             arguments.append(contentsOf: ["-derivedDataPath", derivedDataPath])
@@ -663,18 +591,12 @@ public struct XcodeBuildTask: Task {
         }
         arguments.append("archive")
 
-        if input.skipCodesigning {
-            arguments.append("CODE_SIGNING_ALLOWED=NO")
-            arguments.append("CODE_SIGNING_REQUIRED=NO")
-            arguments.append("CODE_SIGN_IDENTITY=")
-        } else {
-            if let teamId = input.exportTeamId, !teamId.isEmpty {
-                arguments.append("DEVELOPMENT_TEAM=\(teamId)")
-            }
+        if let teamId = input.exportTeamId, !teamId.isEmpty {
+            arguments.append("DEVELOPMENT_TEAM=\(teamId)")
+        }
 
-            if let identity = input.codesigningIdentity, !identity.isEmpty {
-                arguments.append("CODE_SIGN_IDENTITY=\(identity)")
-            }
+        if let identity = input.codesigningIdentity, !identity.isEmpty {
+            arguments.append("CODE_SIGN_IDENTITY=\(identity)")
         }
 
         if input.allowProvisioningUpdates {
@@ -715,23 +637,13 @@ public struct XcodeBuildTask: Task {
         baseName: String
     ) async throws -> (ipaPath: String, dsymPath: String?) {
         let fileManager = FileManager.default
-        let exportPlistPath: String
-        var temporaryPlistUrl: URL?
-
-        if let customPlist = input.exportOptionsPlist, fileManager.fileExists(atPath: customPlist) {
-            exportPlistPath = customPlist
-        } else {
-            let tempUrl = URL(fileURLWithPath: NSTemporaryDirectory())
-                .appendingPathComponent("appitool-exportOptions-\(UUID().uuidString).plist")
-            try generateExportOptionsPlist(input: input, archivePath: archivePath, destinationUrl: tempUrl)
-            exportPlistPath = tempUrl.path
-            temporaryPlistUrl = tempUrl
-        }
+        let temporaryPlistUrl = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("appitool-exportOptions-\(UUID().uuidString).plist")
+        try generateExportOptionsPlist(input: input, archivePath: archivePath, destinationUrl: temporaryPlistUrl)
+        let exportPlistPath = temporaryPlistUrl.path
 
         defer {
-            if let tempUrl = temporaryPlistUrl {
-                try? fileManager.removeItem(at: tempUrl)
-            }
+            try? fileManager.removeItem(at: temporaryPlistUrl)
         }
 
         var arguments = [
@@ -847,8 +759,8 @@ public struct XcodeBuildTask: Task {
         var options: [String: Any] = [
             "method": input.exportMethod.rawValue,
             "signingStyle": resolvedSigningStyle.rawValue,
-            "uploadSymbols": input.includeSymbols,
-            "compileBitcode": input.compileBitcode,
+            "uploadSymbols": true,
+            "compileBitcode": false,
         ]
 
         if let teamId = resolvedTeamId, !teamId.isEmpty {
@@ -859,18 +771,8 @@ public struct XcodeBuildTask: Task {
             options["manageAppVersionAndBuildNumber"] = manage
         }
 
-        if let signingCertificate = input.signingCertificate, !signingCertificate.isEmpty {
-            options["signingCertificate"] = signingCertificate
-        }
-
         if let profiles = input.provisioningProfiles, !profiles.isEmpty {
             options["provisioningProfiles"] = profiles
-        }
-
-        if let custom = input.customExportOptions {
-            for (key, val) in custom {
-                options[key] = val.propertyListObject
-            }
         }
 
         do {

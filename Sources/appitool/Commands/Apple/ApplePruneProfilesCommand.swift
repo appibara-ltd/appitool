@@ -4,7 +4,7 @@ import AppStoreConnectAPI
 import AppleServices
 import Rainbow
 
-struct ApplePruneProfilesCommand: AsyncParsableCommand {
+struct ApplePruneProfilesCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "prune-profiles",
         abstract: "Deletes all invalid (and optionally expired) provisioning profiles from Apple Developer Portal."
@@ -19,9 +19,7 @@ struct ApplePruneProfilesCommand: AsyncParsableCommand {
     @Flag(name: .shortAndLong, help: "Also prune expired profiles in addition to INVALID profiles.")
     var includeExpired: Bool = false
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         guard let service = try appleCredentials.makeService() else {
             Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return

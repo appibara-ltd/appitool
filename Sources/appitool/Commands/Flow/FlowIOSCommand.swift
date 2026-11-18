@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 
-struct FlowIOSCommand: AsyncParsableCommand {
+struct FlowIOSCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "ios",
         abstract: "Executes the automated 7-stage release flow for iOS."
@@ -36,9 +36,7 @@ struct FlowIOSCommand: AsyncParsableCommand {
     @Flag(name: .long, inversion: .prefixedNo, help: "Wait for App Store Connect build processing to apply TestFlight release notes.")
     var waitProcessing: Bool = true
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         let notifications = notificationOptions.resolve()
         let resolvedBundleId = bundleId ?? ProcessInfo.processInfo.environment["APPLE_BUNDLE_ID"]
         let resolvedScheme = scheme ?? ProcessInfo.processInfo.environment["XCODE_SCHEME"]

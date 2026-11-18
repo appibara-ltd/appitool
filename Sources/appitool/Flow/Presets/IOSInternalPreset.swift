@@ -289,7 +289,7 @@ struct IOSInternalPreset: FlowPreset {
                 service: service,
                 bundleId: context.bundleId,
                 changelog: uploadChangelog,
-                waitForProcessing: false
+                waitForProcessing: context.waitForProcessing
             )
         )
 

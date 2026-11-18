@@ -3,7 +3,7 @@ import Foundation
 import AppleServices
 import Rainbow
 
-struct AppleDeleteCertificateCommand: AsyncParsableCommand {
+struct AppleDeleteCertificateCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "delete-certificate",
         abstract: "Deletes (revokes) a Certificate from Apple Developer Portal."
@@ -21,9 +21,7 @@ struct AppleDeleteCertificateCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Certificate serial number to delete.")
     var serialNumber: String?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         guard (portalId != nil && !portalId!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
               (name != nil && !name!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
               (serialNumber != nil && !serialNumber!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) else {

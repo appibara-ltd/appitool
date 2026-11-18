@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import Rainbow
 
-struct BuildAndroidCommand: AsyncParsableCommand {
+struct BuildAndroidCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "android",
         abstract: "Builds the project for Android using Gradle."
@@ -60,8 +60,7 @@ struct BuildAndroidCommand: AsyncParsableCommand {
 
     @OptionGroup var matchOptions: MatchOptions
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
+    func execute() async throws {
         let env = ProcessInfo.processInfo.environment
 
         // 1. Resolve Android project directory

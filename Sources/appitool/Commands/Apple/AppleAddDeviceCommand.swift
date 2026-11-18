@@ -3,7 +3,7 @@ import Foundation
 import AppleServices
 import Rainbow
 
-struct AppleAddDeviceCommand: AsyncParsableCommand {
+struct AppleAddDeviceCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "add-device",
         abstract: "Registers a new Device on Apple Developer Portal."
@@ -21,9 +21,7 @@ struct AppleAddDeviceCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Platform: ios, macos, universal. Defaults to ios.")
     var platform: String = "ios"
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         guard let service = try appleCredentials.makeService() else {
             Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return

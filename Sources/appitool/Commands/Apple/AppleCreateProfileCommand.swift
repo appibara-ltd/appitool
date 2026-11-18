@@ -4,7 +4,7 @@ import AppStoreConnectAPI
 import AppleServices
 import Rainbow
 
-struct AppleCreateProfileCommand: AsyncParsableCommand {
+struct AppleCreateProfileCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "create-profile",
         abstract: "Creates and downloads a provisioning profile on Apple Developer Portal."
@@ -34,9 +34,7 @@ struct AppleCreateProfileCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Output file path to save the generated provisioning profile.")
     var output: String?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         guard let service = try appleCredentials.makeService() else {
             Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return

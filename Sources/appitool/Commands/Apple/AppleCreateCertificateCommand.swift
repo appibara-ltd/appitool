@@ -4,7 +4,7 @@ import AppStoreConnectAPI
 import AppleServices
 import Rainbow
 
-struct AppleCreateCertificateCommand: AsyncParsableCommand {
+struct AppleCreateCertificateCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "create-certificate",
         abstract: "Creates a new signing certificate on Apple Developer Portal."
@@ -31,9 +31,7 @@ struct AppleCreateCertificateCommand: AsyncParsableCommand {
     @Flag(name: .customLong("save-to-keychain"), help: "Import the certificate and private key into 'appitool' Keychain (creating it if needed), then delete .p12 from ~/.appitool once verified.")
     var saveToKeychain: Bool = false
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         guard let service = try appleCredentials.makeService() else {
             Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
             return

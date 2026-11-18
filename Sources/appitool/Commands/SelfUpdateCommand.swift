@@ -7,7 +7,7 @@ import FoundationNetworking
 import Rainbow
 import Subprocess
 
-struct SelfUpdateCommand: AsyncParsableCommand {
+struct SelfUpdateCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "self-update",
         abstract: "Check for updates and automatically upgrade appitool to the latest release."
@@ -47,9 +47,7 @@ struct SelfUpdateCommand: AsyncParsableCommand {
         return (osName, archName)
     }
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         let currentVersionString = appitool.configuration.version
         Log("🌊 Checking for updates (current version: \(currentVersionString))...")
 

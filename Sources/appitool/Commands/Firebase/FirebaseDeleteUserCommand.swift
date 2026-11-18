@@ -3,7 +3,7 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-struct FirebaseDeleteUserCommand: AsyncParsableCommand {
+struct FirebaseDeleteUserCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "delete-user",
         abstract: "Deletes Firebase Authentication user(s) by UID, email, or all anonymous users."
@@ -24,9 +24,7 @@ struct FirebaseDeleteUserCommand: AsyncParsableCommand {
     @Flag(name: .shortAndLong, help: "Preview users to be deleted without actually deleting them.")
     var dryRun: Bool = false
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         let trimmedUid = uid?.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedEmail = email?.trimmingCharacters(in: .whitespacesAndNewlines)
 

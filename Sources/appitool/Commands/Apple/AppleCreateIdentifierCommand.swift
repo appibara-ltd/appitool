@@ -4,7 +4,7 @@ import AppStoreConnectAPI
 import AppleServices
 import Rainbow
 
-struct AppleCreateIdentifierCommand: AsyncParsableCommand {
+struct AppleCreateIdentifierCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "create-identifier",
         abstract: "Registers a new App/Bundle Identifier with optional capabilities on Apple Developer Portal."
@@ -28,9 +28,7 @@ struct AppleCreateIdentifierCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Comma-separated list of capabilities to enable (e.g. push-notifications,in-app-purchase).")
     var capabilities: String?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         let rawTarget = bundleId ?? appIdentifier
         guard let targetIdentifier = rawTarget?.trimmingCharacters(in: .whitespacesAndNewlines), !targetIdentifier.isEmpty else {
             Log("Error: ".red.bold + "Missing bundle identifier. Provide -b, --bundle-id <bundle-id>.")

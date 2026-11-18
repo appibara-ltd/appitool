@@ -3,7 +3,7 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-struct FirebaseListGroupsCommand: AsyncParsableCommand {
+struct FirebaseListGroupsCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "list-groups",
         abstract: "Lists tester groups registered in a Firebase project."
@@ -15,9 +15,7 @@ struct FirebaseListGroupsCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Maximum number of groups to return (1-1000; defaults to 25).")
     var limit: Int?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         guard let service = try projectOptions.makeService() else {
             Log("Error: ".red.bold + "Missing Google credentials (configure GOOGLE_KEY in .env or via --google-key).")
             return

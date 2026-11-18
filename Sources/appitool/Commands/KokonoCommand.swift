@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import Rainbow
 
-struct KokonoCommand: AsyncParsableCommand {
+struct KokonoCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "kokono",
         abstract: "Sends a push notification via KokoNo (with optional E2E encryption)."
@@ -20,9 +20,7 @@ struct KokonoCommand: AsyncParsableCommand {
     @Option(name: [.customShort("e"), .customLong("e2e"), .long], help: "Optional KokoNo public key for end-to-end (E2E) encryption (defaults to KOKONO_E2E_PUBLIC_KEY in .env).")
     var e2e: String?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         let resolvedUrl = url ?? ProcessInfo.processInfo.environment["KOKONO_URL"]
         guard let resolvedUrl, !resolvedUrl.isEmpty else {
             Log("Error: ".red.bold + "Missing KokoNo URL. Provide -u, --url or configure KOKONO_URL in .env.")

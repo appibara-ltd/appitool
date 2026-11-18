@@ -22,7 +22,6 @@ Artifacts are written under `~/.appitool/ios/<MainTarget>/build/<yyyy_MM_dd_HH_m
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
 | `-d, --distribution <method>` | `appstore` | Distribution method: `adhoc`, `development`, or `appstore`. Mapped to `app-store-connect`, `release-testing`, or `debugging` export methods. |
-| `-b, --bundle-id <id>` | `APPLE_BUNDLE_ID` | Target iOS bundle identifier. |
 | `-w, --workspace <path>` | `XCODE_WORKSPACE` or auto-detected | Path to `.xcworkspace`. |
 | `-p, --project <path>` | `XCODE_PROJECT` or auto-detected | Path to `.xcodeproj`. |
 | `-s, --scheme <name>` | `XCODE_SCHEME` or inferred | Xcode scheme to build (inferred via `xcodebuild -list -json`). |

@@ -3,7 +3,7 @@ import Foundation
 import AppleServices
 import Rainbow
 
-struct AppleDeleteIdentifierCommand: AsyncParsableCommand {
+struct AppleDeleteIdentifierCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "delete-identifier",
         abstract: "Deletes an App/Bundle Identifier from Apple Developer Portal."
@@ -15,9 +15,7 @@ struct AppleDeleteIdentifierCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "App/Bundle identifier to delete (e.g., com.example.app).")
     var appIdentifier: String?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         guard let targetIdentifier = appIdentifier, !targetIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             Log("Error: ".red.bold + "Missing app identifier. Provide -a, --app-identifier <bundle-id>.")
             return

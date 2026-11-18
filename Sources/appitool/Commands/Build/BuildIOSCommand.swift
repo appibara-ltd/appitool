@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import Rainbow
 
-struct BuildIOSCommand: AsyncParsableCommand {
+struct BuildIOSCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "ios",
         abstract: "Builds and packages iOS application using xcodebuild (comparable to Fastlane build_app)."
@@ -10,9 +10,6 @@ struct BuildIOSCommand: AsyncParsableCommand {
 
     @Option(name: .shortAndLong, help: "Distribution method (adhoc, development, appstore). Defaults to appstore.")
     var distribution: BuildCommand.Distribution = .appstore
-
-    @Option(name: .shortAndLong, help: "Target iOS bundle identifier (defaults to APPLE_BUNDLE_ID in .env).")
-    var bundleId: String?
 
     @Option(name: .shortAndLong, help: "Path to .xcworkspace file (defaults to XCODE_WORKSPACE in .env or auto-discovered).")
     var workspace: String?
@@ -56,8 +53,7 @@ struct BuildIOSCommand: AsyncParsableCommand {
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
+    func execute() async throws {
         let env = ProcessInfo.processInfo.environment
 
         // 1. Resolve Workspace / Project

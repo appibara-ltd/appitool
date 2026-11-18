@@ -3,7 +3,7 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-struct CheckAndroidCommand: AsyncParsableCommand {
+struct CheckAndroidCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "android",
         abstract: "Checks Android application and build information from distribution providers."
@@ -21,8 +21,7 @@ struct CheckAndroidCommand: AsyncParsableCommand {
     @OptionGroup
     var googleCredentials: GoogleCredentialsOptions
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
+    func execute() async throws {
         let env = ProcessInfo.processInfo.environment
 
         var targetPackageName = packageName

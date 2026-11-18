@@ -47,7 +47,7 @@ Choosing a platform (`ios` / `android`) and distribution (`appstore`, `adhoc`, `
   - `build`: Prepares macOS keychain (`KeychainManager`), compiles `.xcarchive` and exports `.ipa` with `.appStore` export method and manual signing via `XcodeBuildTask` (skipped in `--dry-run`).
   - `postbuild`: Verifies `.ipa` existence and non-zero file size (skipped in `--dry-run`).
   - `prerelease`: Generates plain-text release notes (max 4,000 chars) from commits since the latest `🍏_*` tag (excluding `*_adhoc` / `*_development`) via `GenerateReleaseNotesTask`.
-  - `release`: Uploads `.ipa` via `UploadToAppStoreTask` and sets TestFlight "What to Test" notes via `setWhatsNew` when `changelog` is populated (unless `--no-wait-processing` is passed).
+  - `release`: Uploads `.ipa` via `UploadToAppStoreTask`, waits for App Store Connect build processing (unless `--no-wait-processing` is passed), and sets TestFlight "What to Test" notes via `setWhatsNew` when `changelog` is populated.
   - `postrelease`: Creates and pushes Git tag `🍏_<version>_<buildNumber>` via `GitTagTask` and dispatches Slack/KokoNo notifications (skipped in `--dry-run`).
 
 ### 2. `IOSAdHocPreset` (`flow ios -d adhoc` / `development`)

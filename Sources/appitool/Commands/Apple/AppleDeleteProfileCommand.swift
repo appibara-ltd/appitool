@@ -3,7 +3,7 @@ import Foundation
 import AppleServices
 import Rainbow
 
-struct AppleDeleteProfileCommand: AsyncParsableCommand {
+struct AppleDeleteProfileCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "delete-profile",
         abstract: "Deletes a single provisioning profile from Apple Developer Portal."
@@ -21,9 +21,7 @@ struct AppleDeleteProfileCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Provisioning profile Portal ID to delete.")
     var portalId: String?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedUUID = uuid?.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedId = portalId?.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -3,7 +3,7 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-struct FirebaseExportUsersCommand: AsyncParsableCommand {
+struct FirebaseExportUsersCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "export-users",
         abstract: "Exports all Firebase Authentication users to a CSV file in the current directory."
@@ -18,9 +18,7 @@ struct FirebaseExportUsersCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Output CSV filename or path (defaults to firebase_users_<project>.csv in the current directory).")
     var output: String?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         guard let service = try projectOptions.makeService() else {
             Log("Error: ".red.bold + "Missing Google credentials (configure GOOGLE_KEY in .env or via -g, --google-key).")
             throw ExitCode.failure

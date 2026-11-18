@@ -3,7 +3,7 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-struct FirebaseListUsersCommand: AsyncParsableCommand {
+struct FirebaseListUsersCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "list-users",
         abstract: "Lists Firebase Authentication users with optional search and anonymous filtering."
@@ -30,9 +30,7 @@ struct FirebaseListUsersCommand: AsyncParsableCommand {
     @Option(name: [.customShort("t"), .long], help: "Pagination token to fetch the next page of users.")
     var pageToken: String?
 
-    func run() async throws {
-        _ = try? EnvLoader.loadEnv()
-
+    func execute() async throws {
         guard let service = try projectOptions.makeService() else {
             Log("Error: ".red.bold + "Missing Google credentials (configure GOOGLE_KEY in .env or via -g, --google-key).")
             throw ExitCode.failure
