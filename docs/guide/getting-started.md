@@ -95,7 +95,7 @@ cp .env.example .env
 Discover iOS bundle identifiers (across targets/configurations) and Android `applicationId`, `namespace`, and product flavors in the current repository:
 
 ```bash
-appitool list-identifiers
+appitool inspect
 ```
 
 ### 3. Verify Remote Store Connectivity

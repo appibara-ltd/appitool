@@ -12,7 +12,7 @@
 | [`match`](/commands/match) | `ios` *(default)*, `android` | Syncs, prunes, nukes, or adds Git-encrypted certificates, profiles, and keystores. |
 | [`apple`](/commands/apple) | 16 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, and devices. |
 | [`firebase`](/commands/firebase) | 8 subcommands | Manages Firebase App Distribution releases/groups and Firebase Auth users. |
-| [`list-identifiers`](/commands/list-identifiers) | — | Inspects local iOS bundle IDs and Android `applicationId`/`namespace`/flavors (supports `--json`). |
+| [`inspect`](/commands/inspect) | — | Inspects local iOS bundle IDs and Android `applicationId`/`namespace`/flavors (supports `--json`). |
 | [`clean`](/commands/clean) | — | Cleans cached build outputs and Xcode DerivedData under `~/.appitool`. |
 | [`notes`](/commands/notes) | — | Generates categorized Markdown release notes from Git conventional commits. |
 | [`kokono`](/commands/kokono) | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |

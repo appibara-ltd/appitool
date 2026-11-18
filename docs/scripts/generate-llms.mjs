@@ -30,7 +30,7 @@ const sections = [
       'match.md',
       'apple.md',
       'firebase.md',
-      'list-identifiers.md',
+      'inspect.md',
       'clean.md',
       'notes.md',
       'kokono.md',

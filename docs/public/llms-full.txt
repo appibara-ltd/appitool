@@ -102,7 +102,7 @@ cp .env.example .env
 Discover iOS bundle identifiers (across targets/configurations) and Android `applicationId`, `namespace`, and product flavors in the current repository:
 
 ```bash
-appitool list-identifiers
+appitool inspect
 ```
 
 ### 3. Verify Remote Store Connectivity
@@ -495,7 +495,7 @@ Notice the difference between standalone `appitool match ios` and `appitool flow
 | [`match`](/commands/match) | `ios` *(default)*, `android` | Syncs, prunes, nukes, or adds Git-encrypted certificates, profiles, and keystores. |
 | [`apple`](/commands/apple) | 16 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, and devices. |
 | [`firebase`](/commands/firebase) | 8 subcommands | Manages Firebase App Distribution releases/groups and Firebase Auth users. |
-| [`list-identifiers`](/commands/list-identifiers) | — | Inspects local iOS bundle IDs and Android `applicationId`/`namespace`/flavors (supports `--json`). |
+| [`inspect`](/commands/inspect) | — | Inspects local iOS bundle IDs and Android `applicationId`/`namespace`/flavors (supports `--json`). |
 | [`clean`](/commands/clean) | — | Cleans cached build outputs and Xcode DerivedData under `~/.appitool`. |
 | [`notes`](/commands/notes) | — | Generates categorized Markdown release notes from Git conventional commits. |
 | [`kokono`](/commands/kokono) | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |
@@ -1431,16 +1431,16 @@ appitool firebase export-users -a exclude -o ./exports/users.csv
 
 ---
 
-<!-- source: commands/list-identifiers.md -->
+<!-- source: commands/inspect.md -->
 
-# `appitool list-identifiers`
+# `appitool inspect`
 
 Inspects local iOS (Xcode) and Android (Gradle) project files in a workspace and prints resolved bundle identifiers, targets, `applicationId`, `namespace`, package name, and product flavors.
 
 ## Synopsis
 
 ```bash
-appitool list-identifiers [options]
+appitool inspect [options]
 ```
 
 ## Options & Flags
@@ -1458,13 +1458,13 @@ appitool list-identifiers [options]
 
 ```bash
 # Inspect both iOS and Android identifiers in current directory
-appitool list-identifiers
+appitool inspect
 
 # Inspect only iOS identifiers for Release configuration as JSON
-appitool list-identifiers -p ios -c Release --json
+appitool inspect -p ios -c Release --json
 
 # Inspect a project located in another directory
-appitool list-identifiers --workspace-root ~/projects/my-mobile-app
+appitool inspect --workspace-root ~/projects/my-mobile-app
 ```
 
 ---

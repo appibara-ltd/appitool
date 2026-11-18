@@ -1,11 +1,11 @@
-# `appitool list-identifiers`
+# `appitool inspect`
 
 Inspects local iOS (Xcode) and Android (Gradle) project files in a workspace and prints resolved bundle identifiers, targets, `applicationId`, `namespace`, package name, and product flavors.
 
 ## Synopsis
 
 ```bash
-appitool list-identifiers [options]
+appitool inspect [options]
 ```
 
 ## Options & Flags
@@ -23,11 +23,11 @@ appitool list-identifiers [options]
 
 ```bash
 # Inspect both iOS and Android identifiers in current directory
-appitool list-identifiers
+appitool inspect
 
 # Inspect only iOS identifiers for Release configuration as JSON
-appitool list-identifiers -p ios -c Release --json
+appitool inspect -p ios -c Release --json
 
 # Inspect a project located in another directory
-appitool list-identifiers --workspace-root ~/projects/my-mobile-app
+appitool inspect --workspace-root ~/projects/my-mobile-app
 ```

@@ -74,7 +74,7 @@ export default defineConfig({
       {
         text: 'Utility Commands',
         items: [
-          { text: 'list-identifiers', link: '/commands/list-identifiers' },
+          { text: 'inspect', link: '/commands/inspect' },
           { text: 'clean', link: '/commands/clean' },
           { text: 'notes', link: '/commands/notes' },
           { text: 'kokono', link: '/commands/kokono' },

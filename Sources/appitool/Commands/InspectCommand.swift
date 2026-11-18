@@ -2,11 +2,11 @@ import ArgumentParser
 import Foundation
 import Rainbow
 
-/// Command that lists iOS bundle identifiers and Android applicationId/namespace.
-struct ListIdentifiersCommand: BaseCommand {
+/// Command that inspects local iOS bundle identifiers and Android applicationId/namespace.
+struct InspectCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-identifiers",
-        abstract: "List iOS bundle identifiers and Android applicationId/namespace."
+        commandName: "inspect",
+        abstract: "Inspects local iOS bundle identifiers and Android applicationId/namespace."
     )
 
     enum Platform: String, ExpressibleByArgument, CaseIterable, Sendable {
