@@ -38,13 +38,13 @@ struct FlowIOSCommand: BaseCommand {
 
     func execute() async throws {
         let notifications = notificationOptions.resolve()
-        let resolvedBundleId = bundleId ?? ProcessInfo.processInfo.environment["APPLE_BUNDLE_ID"]
-        let resolvedScheme = scheme ?? ProcessInfo.processInfo.environment["XCODE_SCHEME"]
-        let resolvedConfiguration = configuration ?? ProcessInfo.processInfo.environment["XCODE_CONFIGURATION"]
+        let resolvedBundleId = bundleId ?? EnvLoader.value(for: "APPLE_BUNDLE_ID")
+        let resolvedScheme = scheme ?? EnvLoader.value(for: "XCODE_SCHEME")
+        let resolvedConfiguration = configuration ?? EnvLoader.value(for: "XCODE_CONFIGURATION")
         let appleCreds = appleCredentials.resolve()
         let match = matchOptions.resolve()
-        let resolvedTeamId = match.teamId ?? ProcessInfo.processInfo.environment["APPLE_TEAM_ID"]
-        let resolvedFirebaseAppId = firebaseAppId ?? ProcessInfo.processInfo.environment["FIREBASE_IOS_APP_ID"]
+        let resolvedTeamId = match.teamId ?? EnvLoader.value(for: "APPLE_TEAM_ID")
+        let resolvedFirebaseAppId = firebaseAppId ?? EnvLoader.value(for: "FIREBASE_IOS_APP_ID")
         let resolvedGoogleKey = googleCredentials.resolveKey()
 
         let preset: (any FlowPreset) = {

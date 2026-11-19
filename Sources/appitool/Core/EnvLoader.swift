@@ -18,6 +18,7 @@ public enum EnvLoader {
 
     /// Loads and parses environment variables from a `.env` file at the specified path,
     /// injecting them into the current process environment (`ProcessInfo`).
+    /// Empty or whitespace-only values are skipped during injection so built-in defaults and fallbacks still apply.
     ///
     /// - Parameters:
     ///   - path: The file path to the `.env` file (defaults to `".env"` in the current working directory).
@@ -44,6 +45,7 @@ public enum EnvLoader {
     }
 
     /// Parses the raw string contents of an environment file and injects the variables into `ProcessInfo`.
+    /// Empty or whitespace-only values are skipped during injection so built-in defaults and fallbacks still apply.
     ///
     /// - Parameters:
     ///   - content: Raw text content formatted as key-value pairs.
@@ -53,9 +55,21 @@ public enum EnvLoader {
     public static func parseAndInject(content: String, overwrite: Bool = false) -> [String: String] {
         let parsed = parse(content: content)
         for (key, value) in parsed {
+            guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                continue
+            }
             setEnvironmentVariable(key: key, value: value, overwrite: overwrite)
         }
         return parsed
+    }
+
+    /// Reads an environment variable from `ProcessInfo`, returning `nil` if unset, empty, or whitespace-only.
+    public static func value(for key: String) -> String? {
+        guard let raw = ProcessInfo.processInfo.environment[key] else {
+            return nil
+        }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     /// Parses the raw string contents of an environment file into a dictionary of key-value pairs.

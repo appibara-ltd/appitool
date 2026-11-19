@@ -21,7 +21,7 @@ struct KokonoCommand: BaseCommand {
     var e2e: String?
 
     func execute() async throws {
-        let resolvedUrl = url ?? ProcessInfo.processInfo.environment["KOKONO_URL"]
+        let resolvedUrl = url ?? EnvLoader.value(for: "KOKONO_URL")
         guard let resolvedUrl, !resolvedUrl.isEmpty else {
             Log("Error: ".red.bold + "Missing KokoNo URL. Provide -u, --url or configure KOKONO_URL in .env.")
             throw ExitCode.failure
@@ -34,7 +34,7 @@ struct KokonoCommand: BaseCommand {
         if url != nil {
             resolvedPublicKey = e2e
         } else {
-            resolvedPublicKey = e2e ?? ProcessInfo.processInfo.environment["KOKONO_E2E_PUBLIC_KEY"]
+            resolvedPublicKey = e2e ?? EnvLoader.value(for: "KOKONO_E2E_PUBLIC_KEY")
         }
 
         let task = NotifyTask()

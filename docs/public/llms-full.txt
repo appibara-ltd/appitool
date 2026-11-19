@@ -158,6 +158,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 - **Multiline quoted values**: Multiline PEM keys or JSON payloads enclosed in quotes.
 - **`=` preservation**: Base64 padding (`=`) and URL query strings (`?token=...`) are preserved intact.
 - **Tilde (`~`) expansion**: Paths starting with `~/` expand to the current user's home directory where path resolution is supported.
+- **Empty value handling**: Keys with empty or whitespace-only values (e.g., `MATCH_GIT_BRANCH=`) are skipped during `.env` injection and treated as unset when read via `EnvLoader.value(for:)`, so built-in defaults and fallbacks apply across both `.env` files and CI/shell environments.
 
 ---
 

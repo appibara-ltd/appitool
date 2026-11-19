@@ -183,9 +183,7 @@ struct SelfUpdateCommand: BaseCommand {
     // MARK: - Networking & Helpers
 
     private var githubToken: String? {
-        let token = ProcessInfo.processInfo.environment["GITHUB_TOKEN"] ?? ProcessInfo.processInfo.environment["GH_TOKEN"]
-        let trimmed = token?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed?.isEmpty == false ? trimmed : nil
+        EnvLoader.value(for: "GITHUB_TOKEN") ?? EnvLoader.value(for: "GH_TOKEN")
     }
 
     private func fetchLatestRelease() async throws -> GitHubRelease {

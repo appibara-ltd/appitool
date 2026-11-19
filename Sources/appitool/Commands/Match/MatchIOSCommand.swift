@@ -74,8 +74,6 @@ struct MatchIOSCommand: BaseCommand {
     var appleCredentials: AppleCredentialsOptions
 
     func execute() async throws {
-        let env = ProcessInfo.processInfo.environment
-
         // 1. Resolve Action
         var resolvedAction: MatchAction = .sync
         if nuke || actionOrType?.lowercased() == "nuke" {
@@ -88,11 +86,11 @@ struct MatchIOSCommand: BaseCommand {
         let isActionArg = actionOrType?.lowercased() == "nuke" || actionOrType?.lowercased() == "prune"
         let rawTypeStr: String?
         if isActionArg {
-            rawTypeStr = targetType ?? type ?? env["MATCH_TYPE"]
+            rawTypeStr = targetType ?? type ?? EnvLoader.value(for: "MATCH_TYPE")
         } else if let actionOrType {
             rawTypeStr = actionOrType
         } else {
-            rawTypeStr = type ?? env["MATCH_TYPE"]
+            rawTypeStr = type ?? EnvLoader.value(for: "MATCH_TYPE")
         }
 
         let isAllTypes = all || rawTypeStr?.lowercased() == "all"
@@ -127,19 +125,19 @@ struct MatchIOSCommand: BaseCommand {
         }
 
         // 4. Resolve Git URL
-        guard let resolvedGitUrl = gitUrl ?? env["MATCH_GIT_URL"], !resolvedGitUrl.isEmpty else {
+        guard let resolvedGitUrl = gitUrl ?? EnvLoader.value(for: "MATCH_GIT_URL"), !resolvedGitUrl.isEmpty else {
             Log("Error: ".red.bold + "Missing Git repository URL. Provide -g, --git-url or configure MATCH_GIT_URL in .env.")
             throw ExitCode.failure
         }
 
         // 5. Resolve Git Branch
-        let resolvedGitBranch = gitBranch ?? env["MATCH_GIT_BRANCH"] ?? "master"
+        let resolvedGitBranch = gitBranch ?? EnvLoader.value(for: "MATCH_GIT_BRANCH") ?? "master"
 
         // 6. Resolve Git Token
-        let resolvedGitToken = gitToken ?? env["MATCH_GIT_TOKEN"] ?? env["GITHUB_TOKEN"]
+        let resolvedGitToken = gitToken ?? EnvLoader.value(for: "MATCH_GIT_TOKEN") ?? EnvLoader.value(for: "GITHUB_TOKEN")
 
         // 7. Resolve Password
-        guard let resolvedPassword = password ?? env["MATCH_PASSWORD"], !resolvedPassword.isEmpty else {
+        guard let resolvedPassword = password ?? EnvLoader.value(for: "MATCH_PASSWORD"), !resolvedPassword.isEmpty else {
             Log("Error: ".red.bold + "Missing encryption password. Provide -p, --password or configure MATCH_PASSWORD in .env.")
             throw ExitCode.failure
         }
@@ -184,12 +182,12 @@ struct MatchIOSCommand: BaseCommand {
         let appleCreds = appleCredentials.resolve()
 
         // 12. Resolve Team ID & Name
-        let resolvedTeamId = teamId ?? env["APPLE_TEAM_ID"]
+        let resolvedTeamId = teamId ?? EnvLoader.value(for: "APPLE_TEAM_ID")
         let resolvedTeamName = teamName
 
         // 13. Resolve Keychain
-        let resolvedKeychainName = keychainName ?? env["MATCH_KEYCHAIN_NAME"] ?? "appitool"
-        let resolvedKeychainPassword = keychainPassword ?? env["MATCH_KEYCHAIN_PASSWORD"] ?? "appipass"
+        let resolvedKeychainName = keychainName ?? EnvLoader.value(for: "MATCH_KEYCHAIN_NAME") ?? "appitool"
+        let resolvedKeychainPassword = keychainPassword ?? EnvLoader.value(for: "MATCH_KEYCHAIN_PASSWORD") ?? "appipass"
 
         let config = MatchConfig(
             gitUrl: resolvedGitUrl,

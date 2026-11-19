@@ -61,13 +61,11 @@ struct BuildAndroidCommand: BaseCommand {
     @OptionGroup var matchOptions: MatchOptions
 
     func execute() async throws {
-        let env = ProcessInfo.processInfo.environment
-
         // 1. Resolve Android project directory
         let fm = FileManager.default
         let currentDir = fm.currentDirectoryPath
         let resolvedProjectDir: String
-        if let explicit = projectDir ?? env["ANDROID_PROJECT_DIR"] {
+        if let explicit = projectDir ?? EnvLoader.value(for: "ANDROID_PROJECT_DIR") {
             resolvedProjectDir = NSString(string: explicit).expandingTildeInPath
         } else if fm.fileExists(atPath: "\(currentDir)/android") {
             resolvedProjectDir = "\(currentDir)/android"
@@ -77,7 +75,7 @@ struct BuildAndroidCommand: BaseCommand {
 
         // 2. Resolve package name (applicationId) & target app name
         let resolvedPackageName = packageName
-            ?? env["GOOGLE_PACKAGE_NAME"]
+            ?? EnvLoader.value(for: "GOOGLE_PACKAGE_NAME")
             ?? GradleTask.resolvePackageName(projectDirectory: resolvedProjectDir)
 
         let appName = GradleTask.resolveAppName(projectDirectory: resolvedProjectDir)
@@ -105,8 +103,8 @@ struct BuildAndroidCommand: BaseCommand {
             }
         }
 
-        let resolvedBuildType = configuration ?? env["ANDROID_CONFIGURATION"] ?? "Release"
-        let resolvedFlavor = flavor ?? env["ANDROID_FLAVOR"]
+        let resolvedBuildType = configuration ?? EnvLoader.value(for: "ANDROID_CONFIGURATION") ?? "Release"
+        let resolvedFlavor = flavor ?? EnvLoader.value(for: "ANDROID_FLAVOR")
 
         // 4. Resolve signing configuration
         var tempKeystoreUrl: URL? = nil
@@ -126,7 +124,6 @@ struct BuildAndroidCommand: BaseCommand {
         }
 
         let signingConfig: GradleTask.SigningConfig? = try await resolveSigningConfig(
-            env: env,
             packageName: resolvedPackageName,
             buildType: resolvedBuildType,
             tempKeystoreUrl: &tempKeystoreUrl
@@ -145,10 +142,10 @@ struct BuildAndroidCommand: BaseCommand {
             Log("   Package:     ".dim + "\(pkg)".yellow)
         }
 
-        var gradleEnvironment = env
+        var gradleEnvironment: [String: String]? = nil
         if let gradleOpts, !gradleOpts.isEmpty {
             let finalGradleOpts = gradleOpts.contains("-Dorg.gradle.daemon=false") ? gradleOpts : "\(gradleOpts) -Dorg.gradle.daemon=false"
-            gradleEnvironment["GRADLE_OPTS"] = finalGradleOpts
+            gradleEnvironment = ["GRADLE_OPTS": finalGradleOpts]
         }
 
         do {
@@ -181,7 +178,6 @@ struct BuildAndroidCommand: BaseCommand {
     // MARK: - Signing Config Resolution
 
     private func resolveSigningConfig(
-        env: [String: String],
         packageName: String?,
         buildType: String,
         tempKeystoreUrl: inout URL?
@@ -191,7 +187,7 @@ struct BuildAndroidCommand: BaseCommand {
         var storeFilePath: String? = nil
 
         // If base64-encoded keystore is provided, write it to ~/.appitool/android/keystores/<packageName>.keystore or tmp
-        if let base64 = keystoreBase64 ?? env["ANDROID_KEYSTORE"], !base64.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let base64 = keystoreBase64 ?? EnvLoader.value(for: "ANDROID_KEYSTORE"), !base64.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             if let data = Data(base64Encoded: base64.trimmingCharacters(in: .whitespacesAndNewlines), options: .ignoreUnknownCharacters) {
                 let targetFile: URL
                 if let pkg = packageName, !pkg.isEmpty {
@@ -210,14 +206,14 @@ struct BuildAndroidCommand: BaseCommand {
         }
 
         if storeFilePath == nil {
-            if let explicitPath = keystorePath ?? env["ANDROID_KEYSTORE_PATH"], !explicitPath.isEmpty {
+            if let explicitPath = keystorePath ?? EnvLoader.value(for: "ANDROID_KEYSTORE_PATH"), !explicitPath.isEmpty {
                 storeFilePath = NSString(string: explicitPath).expandingTildeInPath
             }
         }
 
-        let storePassword = keystorePassword ?? env["ANDROID_KEYSTORE_PASSWORD"]
-        let alias = keyAlias ?? env["ANDROID_KEY_ALIAS"]
-        let keyPass = keyPassword ?? env["ANDROID_KEY_PASSWORD"]
+        let storePassword = keystorePassword ?? EnvLoader.value(for: "ANDROID_KEYSTORE_PASSWORD")
+        let alias = keyAlias ?? EnvLoader.value(for: "ANDROID_KEY_ALIAS")
+        let keyPass = keyPassword ?? EnvLoader.value(for: "ANDROID_KEY_PASSWORD")
 
         if let storeFilePath, let storePassword, let alias, let keyPass {
             return GradleTask.SigningConfig(

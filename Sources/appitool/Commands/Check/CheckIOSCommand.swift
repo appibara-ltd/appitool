@@ -26,8 +26,6 @@ struct CheckIOSCommand: BaseCommand {
     var googleCredentials: GoogleCredentialsOptions
 
     func execute() async throws {
-        let env = ProcessInfo.processInfo.environment
-
         var targetBundleId = bundleId
         if targetBundleId == nil || targetBundleId?.isEmpty == true {
             if XCodeTasks.hasIosProject() {
@@ -39,7 +37,7 @@ struct CheckIOSCommand: BaseCommand {
 
         switch distribution {
         case .adhoc:
-            guard let resolvedAppId = firebaseAppId ?? env["FIREBASE_IOS_APP_ID"], !resolvedAppId.isEmpty else {
+            guard let resolvedAppId = firebaseAppId ?? EnvLoader.value(for: "FIREBASE_IOS_APP_ID"), !resolvedAppId.isEmpty else {
                 Log("Error: ".red.bold + "Missing Firebase App ID for iOS. Provide --firebase-app-id or configure FIREBASE_IOS_APP_ID in .env.")
                 return
             }

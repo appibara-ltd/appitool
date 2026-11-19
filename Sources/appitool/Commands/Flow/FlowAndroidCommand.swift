@@ -31,8 +31,8 @@ struct FlowAndroidCommand: BaseCommand {
 
     func execute() async throws {
         let notifications = notificationOptions.resolve()
-        let resolvedPackageName = packageName ?? ProcessInfo.processInfo.environment["GOOGLE_PACKAGE_NAME"]
-        let resolvedFirebaseAppId = firebaseAppId ?? ProcessInfo.processInfo.environment["FIREBASE_ANDROID_APP_ID"]
+        let resolvedPackageName = packageName ?? EnvLoader.value(for: "GOOGLE_PACKAGE_NAME")
+        let resolvedFirebaseAppId = firebaseAppId ?? EnvLoader.value(for: "FIREBASE_ANDROID_APP_ID")
         let resolvedGoogleKey = googleCredentials.resolveKey()
         let resolvedFormat = format ?? (distribution == .appstore ? .aab : .apk)
         let match = matchOptions.resolve()

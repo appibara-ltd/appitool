@@ -22,8 +22,6 @@ struct CheckAndroidCommand: BaseCommand {
     var googleCredentials: GoogleCredentialsOptions
 
     func execute() async throws {
-        let env = ProcessInfo.processInfo.environment
-
         var targetPackageName = packageName
         if targetPackageName == nil || targetPackageName?.isEmpty == true {
             if AndroidTasks.hasAndroidProject() {
@@ -35,7 +33,7 @@ struct CheckAndroidCommand: BaseCommand {
 
         switch distribution {
         case .adhoc:
-            guard let resolvedAppId = firebaseAppId ?? env["FIREBASE_ANDROID_APP_ID"], !resolvedAppId.isEmpty else {
+            guard let resolvedAppId = firebaseAppId ?? EnvLoader.value(for: "FIREBASE_ANDROID_APP_ID"), !resolvedAppId.isEmpty else {
                 Log("Error: ".red.bold + "Missing Firebase App ID for Android. Provide --firebase-app-id or configure FIREBASE_ANDROID_APP_ID in .env.")
                 return
             }

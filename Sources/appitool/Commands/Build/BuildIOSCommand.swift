@@ -54,12 +54,10 @@ struct BuildIOSCommand: BaseCommand {
     var appleCredentials: AppleCredentialsOptions
 
     func execute() async throws {
-        let env = ProcessInfo.processInfo.environment
-
         // 1. Resolve Workspace / Project
         let detected = XCodeTasks.autoDetect()
-        let resolvedWorkspace = workspace ?? env["XCODE_WORKSPACE"] ?? detected.workspace
-        let resolvedProject = project ?? env["XCODE_PROJECT"] ?? detected.project
+        let resolvedWorkspace = workspace ?? EnvLoader.value(for: "XCODE_WORKSPACE") ?? detected.workspace
+        let resolvedProject = project ?? EnvLoader.value(for: "XCODE_PROJECT") ?? detected.project
 
         guard skipBuildArchive || resolvedWorkspace != nil || resolvedProject != nil else {
             Log("Error: ".red.bold + "Could not find .xcworkspace or .xcodeproj in current directory or ios/ subdirectory. Specify -w, --workspace or -p, --project.")
@@ -71,7 +69,7 @@ struct BuildIOSCommand: BaseCommand {
         if !skipBuildArchive || resolvedWorkspace != nil || resolvedProject != nil {
             do {
                 resolvedScheme = try await XcodeBuildTask.resolveScheme(
-                    requested: scheme ?? env["XCODE_SCHEME"],
+                    requested: scheme ?? EnvLoader.value(for: "XCODE_SCHEME"),
                     workspace: resolvedWorkspace,
                     project: resolvedProject
                 )
@@ -79,7 +77,7 @@ struct BuildIOSCommand: BaseCommand {
                 Log("Error: ".red.bold + "\(error.localizedDescription)")
                 throw ExitCode.failure
             }
-        } else if let explicitScheme = scheme ?? env["XCODE_SCHEME"] {
+        } else if let explicitScheme = scheme ?? EnvLoader.value(for: "XCODE_SCHEME") {
             resolvedScheme = explicitScheme
         } else {
             Log("Error: ".red.bold + "No scheme specified. Provide -s, --scheme or set XCODE_SCHEME in .env.")
@@ -117,9 +115,9 @@ struct BuildIOSCommand: BaseCommand {
             }.sorted { $0.1 > $1.1 }.first?.0.path
         }
 
-        let resolvedConfiguration = configuration ?? env["XCODE_CONFIGURATION"] ?? "Release"
-        let resolvedTeamId = teamId ?? env["APPLE_TEAM_ID"]
-        let resolvedFormatter = xcodebuildFormatter ?? env["XCODEBUILD_FORMATTER"] ?? "xcbeautify --renderer github-actions"
+        let resolvedConfiguration = configuration ?? EnvLoader.value(for: "XCODE_CONFIGURATION") ?? "Release"
+        let resolvedTeamId = teamId ?? EnvLoader.value(for: "APPLE_TEAM_ID")
+        let resolvedFormatter = xcodebuildFormatter ?? EnvLoader.value(for: "XCODEBUILD_FORMATTER") ?? "xcbeautify --renderer github-actions"
 
         // 5. Map Distribution to Export Method
         let exportMethod: XcodeBuildTask.ExportMethod

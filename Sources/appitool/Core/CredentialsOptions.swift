@@ -16,10 +16,9 @@ struct AppleCredentialsOptions: ParsableArguments, Sendable {
 
     /// Resolves the credentials by checking CLI flags first, falling back to environment variables.
     func resolve() -> (keyId: String, issuerId: String, key: String)? {
-        let env = ProcessInfo.processInfo.environment
-        guard let resolvedKeyId = appleKeyId ?? env["APPLE_KEY_ID"],
-              let resolvedIssuerId = appleIssuerId ?? env["APPLE_ISSUER_ID"],
-              let resolvedKey = appleKey ?? env["APPLE_KEY"],
+        guard let resolvedKeyId = appleKeyId ?? EnvLoader.value(for: "APPLE_KEY_ID"),
+              let resolvedIssuerId = appleIssuerId ?? EnvLoader.value(for: "APPLE_ISSUER_ID"),
+              let resolvedKey = appleKey ?? EnvLoader.value(for: "APPLE_KEY"),
               !resolvedKeyId.isEmpty, !resolvedIssuerId.isEmpty, !resolvedKey.isEmpty else {
             return nil
         }
@@ -48,8 +47,7 @@ struct GoogleCredentialsOptions: ParsableArguments, Sendable {
 
     /// Resolves the credentials by checking CLI flags first, falling back to environment variables.
     func resolveKey() -> String? {
-        let env = ProcessInfo.processInfo.environment
-        guard let resolvedKey = googleKey ?? env["GOOGLE_KEY"], !resolvedKey.isEmpty else {
+        guard let resolvedKey = googleKey ?? EnvLoader.value(for: "GOOGLE_KEY"), !resolvedKey.isEmpty else {
             return nil
         }
         return resolvedKey
@@ -92,11 +90,10 @@ struct FirebaseProjectOptions: ParsableArguments, Sendable {
         if let project, !project.isEmpty {
             return project
         }
-        let env = ProcessInfo.processInfo.environment
-        if let envProj = env["FIREBASE_PROJECT_ID"] ?? env["GOOGLE_PROJECT_ID"], !envProj.isEmpty {
+        if let envProj = EnvLoader.value(for: "FIREBASE_PROJECT_ID") ?? EnvLoader.value(for: "GOOGLE_PROJECT_ID"), !envProj.isEmpty {
             return envProj
         }
-        if let appId = fallbackAppId ?? env["FIREBASE_IOS_APP_ID"] ?? env["FIREBASE_ANDROID_APP_ID"], appId.contains(":") {
+        if let appId = fallbackAppId ?? EnvLoader.value(for: "FIREBASE_IOS_APP_ID") ?? EnvLoader.value(for: "FIREBASE_ANDROID_APP_ID"), appId.contains(":") {
             let segments = appId.split(separator: ":")
             if segments.count >= 2 {
                 return String(segments[1])
@@ -154,16 +151,15 @@ struct FirebaseCredentialsOptions: ParsableArguments, Sendable {
         if let firebaseAppId, !firebaseAppId.isEmpty {
             return firebaseAppId
         }
-        let env = ProcessInfo.processInfo.environment
         let targetPlatform = platform ?? self.platform
 
         switch targetPlatform {
         case .ios:
-            return env["FIREBASE_IOS_APP_ID"]
+            return EnvLoader.value(for: "FIREBASE_IOS_APP_ID")
         case .android:
-            return env["FIREBASE_ANDROID_APP_ID"]
+            return EnvLoader.value(for: "FIREBASE_ANDROID_APP_ID")
         case nil:
-            return env["FIREBASE_IOS_APP_ID"] ?? env["FIREBASE_ANDROID_APP_ID"]
+            return EnvLoader.value(for: "FIREBASE_IOS_APP_ID") ?? EnvLoader.value(for: "FIREBASE_ANDROID_APP_ID")
         }
     }
 
@@ -196,14 +192,13 @@ struct NotificationOptions: ParsableArguments, Sendable {
 
     /// Resolves notification URLs and keys by checking CLI flags first, falling back to environment variables.
     func resolve() -> (slackUrl: String?, kokonoUrl: String?, kokonoPublicKey: String?) {
-        let env = ProcessInfo.processInfo.environment
-        let resolvedSlack = slackUrl ?? env["SLACK_URL"]
-        let resolvedKokono = kokonoUrl ?? env["KOKONO_URL"]
+        let resolvedSlack = slackUrl ?? EnvLoader.value(for: "SLACK_URL")
+        let resolvedKokono = kokonoUrl ?? EnvLoader.value(for: "KOKONO_URL")
         let resolvedKey: String?
         if kokonoUrl != nil {
             resolvedKey = kokonoPublicKey
         } else {
-            resolvedKey = kokonoPublicKey ?? env["KOKONO_E2E_PUBLIC_KEY"]
+            resolvedKey = kokonoPublicKey ?? EnvLoader.value(for: "KOKONO_E2E_PUBLIC_KEY")
         }
         return (
             resolvedSlack?.isEmpty == false ? resolvedSlack : nil,
@@ -250,15 +245,14 @@ struct MatchOptions: ParsableArguments, Sendable {
         teamId: String?,
         readonly: Bool
     ) {
-        let env = ProcessInfo.processInfo.environment
-        let resolvedGitUrl = gitUrl ?? env["MATCH_GIT_URL"]
-        let resolvedGitBranch = gitBranch ?? env["MATCH_GIT_BRANCH"] ?? "master"
-        let resolvedGitToken = gitToken ?? env["MATCH_GIT_TOKEN"] ?? env["GITHUB_TOKEN"]
-        let resolvedPassword = password ?? env["MATCH_PASSWORD"]
-        let resolvedKeychainName = keychainName ?? env["MATCH_KEYCHAIN_NAME"] ?? "appitool"
-        let resolvedKeychainPassword = keychainPassword ?? env["MATCH_KEYCHAIN_PASSWORD"] ?? "appipass"
-        let resolvedTeamId = teamId ?? env["APPLE_TEAM_ID"]
-        let isReadonly = readonly || (env["MATCH_READONLY"] != "false")
+        let resolvedGitUrl = gitUrl ?? EnvLoader.value(for: "MATCH_GIT_URL")
+        let resolvedGitBranch = gitBranch ?? EnvLoader.value(for: "MATCH_GIT_BRANCH") ?? "master"
+        let resolvedGitToken = gitToken ?? EnvLoader.value(for: "MATCH_GIT_TOKEN") ?? EnvLoader.value(for: "GITHUB_TOKEN")
+        let resolvedPassword = password ?? EnvLoader.value(for: "MATCH_PASSWORD")
+        let resolvedKeychainName = keychainName ?? EnvLoader.value(for: "MATCH_KEYCHAIN_NAME") ?? "appitool"
+        let resolvedKeychainPassword = keychainPassword ?? EnvLoader.value(for: "MATCH_KEYCHAIN_PASSWORD") ?? "appipass"
+        let resolvedTeamId = teamId ?? EnvLoader.value(for: "APPLE_TEAM_ID")
+        let isReadonly = readonly || (EnvLoader.value(for: "MATCH_READONLY") != "false")
         return (
             gitUrl: resolvedGitUrl?.isEmpty == false ? resolvedGitUrl : nil,
             gitBranch: resolvedGitBranch,

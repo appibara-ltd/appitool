@@ -204,6 +204,61 @@ struct EnvLoaderTests {
         #expect(ProcessInfo.processInfo.environment[uniqueKey] == "new_value")
     }
 
+    @Test("Skips injecting empty or whitespace-only values into ProcessInfo")
+    func skipsEmptyAndWhitespaceInjection() throws {
+        let suffix = UUID().uuidString.replacingOccurrences(of: "-", with: "_")
+        let emptyKey = "TEST_EMPTY_KEY_\(suffix)"
+        let whitespaceKey = "TEST_WHITESPACE_KEY_\(suffix)"
+        let preservedKey = "TEST_PRESERVED_KEY_\(suffix)"
+
+        // Set initial non-empty value for preservedKey
+        EnvLoader.parseAndInject(content: "\(preservedKey)=existing_value", overwrite: true)
+        #expect(ProcessInfo.processInfo.environment[preservedKey] == "existing_value")
+
+        let content = """
+        \(emptyKey)=
+        \(whitespaceKey)="   "
+        \(preservedKey)=
+        """
+        let parsed = EnvLoader.parseAndInject(content: content, overwrite: true)
+
+        #expect(parsed[emptyKey] == "")
+        #expect(parsed[whitespaceKey] == "   ")
+        #expect(ProcessInfo.processInfo.environment[emptyKey] == nil)
+        #expect(ProcessInfo.processInfo.environment[whitespaceKey] == nil)
+        #expect(ProcessInfo.processInfo.environment[preservedKey] == "existing_value")
+
+        // Also verify loadEnv(from:) skips empty/whitespace injection from file
+        let fileEmptyKey = "TEST_FILE_EMPTY_\(suffix)"
+        let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent("test_empty_\(suffix).env")
+        try "\(fileEmptyKey)=\n\(preservedKey)=\"  \"".write(to: tempFile, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: tempFile) }
+
+        let fileParsed = try EnvLoader.loadEnv(from: tempFile.path, overwrite: true)
+        #expect(fileParsed[fileEmptyKey] == "")
+        #expect(ProcessInfo.processInfo.environment[fileEmptyKey] == nil)
+        #expect(ProcessInfo.processInfo.environment[preservedKey] == "existing_value")
+    }
+
+    @Test("EnvLoader.value returns nil for unset, empty, or whitespace-only values")
+    func envLoaderValueReturnsNilForEmptyOrWhitespace() {
+        let suffix = UUID().uuidString.replacingOccurrences(of: "-", with: "_")
+        let unsetKey = "TEST_VALUE_UNSET_\(suffix)"
+        let emptyKey = "TEST_VALUE_EMPTY_\(suffix)"
+        let whitespaceKey = "TEST_VALUE_WHITESPACE_\(suffix)"
+        let paddedKey = "TEST_VALUE_PADDED_\(suffix)"
+
+        #expect(EnvLoader.value(for: unsetKey) == nil)
+
+        EnvLoader.setEnvironmentVariable(key: emptyKey, value: "", overwrite: true)
+        EnvLoader.setEnvironmentVariable(key: whitespaceKey, value: "   ", overwrite: true)
+        EnvLoader.setEnvironmentVariable(key: paddedKey, value: "  develop  ", overwrite: true)
+
+        #expect(EnvLoader.value(for: emptyKey) == nil)
+        #expect(EnvLoader.value(for: whitespaceKey) == nil)
+        #expect(EnvLoader.value(for: paddedKey) == "develop")
+    }
+
     // MARK: - Disk / File Loading Tests
 
     @Test("Loads environment from an existing file on disk")

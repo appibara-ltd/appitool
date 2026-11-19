@@ -46,23 +46,22 @@ struct MatchAndroidCommand: BaseCommand {
     var silent: Bool = false
 
     func execute() async throws {
-        let env = ProcessInfo.processInfo.environment
         let fm = FileManager.default
 
         // 1. Resolve Git URL
-        guard let resolvedGitUrl = gitUrl ?? env["MATCH_GIT_URL"], !resolvedGitUrl.isEmpty else {
+        guard let resolvedGitUrl = gitUrl ?? EnvLoader.value(for: "MATCH_GIT_URL"), !resolvedGitUrl.isEmpty else {
             Log("Error: ".red.bold + "Missing Git repository URL. Provide -g, --git-url or configure MATCH_GIT_URL in .env.")
             throw ExitCode.failure
         }
 
         // 2. Resolve Git Branch
-        let resolvedGitBranch = gitBranch ?? env["MATCH_GIT_BRANCH"] ?? "master"
+        let resolvedGitBranch = gitBranch ?? EnvLoader.value(for: "MATCH_GIT_BRANCH") ?? "master"
 
         // 3. Resolve Git Token
-        let resolvedGitToken = gitToken ?? env["MATCH_GIT_TOKEN"] ?? env["GITHUB_TOKEN"]
+        let resolvedGitToken = gitToken ?? EnvLoader.value(for: "MATCH_GIT_TOKEN") ?? EnvLoader.value(for: "GITHUB_TOKEN")
 
         // 4. Resolve Password
-        guard let resolvedPassword = password ?? env["MATCH_PASSWORD"], !resolvedPassword.isEmpty else {
+        guard let resolvedPassword = password ?? EnvLoader.value(for: "MATCH_PASSWORD"), !resolvedPassword.isEmpty else {
             Log("Error: ".red.bold + "Missing encryption password. Provide -P, --password or configure MATCH_PASSWORD in .env.")
             throw ExitCode.failure
         }
@@ -70,7 +69,7 @@ struct MatchAndroidCommand: BaseCommand {
         // 5. Resolve Package Name
         let currentDir = fm.currentDirectoryPath
         let resolvedPackageName = packageName
-            ?? env["GOOGLE_PACKAGE_NAME"]
+            ?? EnvLoader.value(for: "GOOGLE_PACKAGE_NAME")
             ?? GradleTask.resolvePackageName(projectDirectory: currentDir)
 
         guard let targetPackage = resolvedPackageName, !targetPackage.isEmpty else {
@@ -86,9 +85,9 @@ struct MatchAndroidCommand: BaseCommand {
         let resolvedAction: MatchAndroidConfig.Action = (resolvedKeystorePath != nil) ? .add : .sync
 
         // 8. Resolve Credentials
-        let resolvedAlias = alias ?? env["ANDROID_KEY_ALIAS"]
-        let resolvedStorePassword = storePassword ?? env["ANDROID_KEYSTORE_PASSWORD"]
-        let resolvedKeyPassword = keyPassword ?? env["ANDROID_KEY_PASSWORD"]
+        let resolvedAlias = alias ?? EnvLoader.value(for: "ANDROID_KEY_ALIAS")
+        let resolvedStorePassword = storePassword ?? EnvLoader.value(for: "ANDROID_KEYSTORE_PASSWORD")
+        let resolvedKeyPassword = keyPassword ?? EnvLoader.value(for: "ANDROID_KEY_PASSWORD")
 
         let config = MatchAndroidConfig(
             gitUrl: resolvedGitUrl,
