@@ -41,7 +41,7 @@ extension MatchRunner {
             Log("🔓 [Match] Decrypting repository assets...".dim)
         }
         let encryption = MatchEncryption()
-        try encryption.decryptDirectory(storage.workingDirectory, password: config.password)
+        try await encryption.decryptDirectory(storage.workingDirectory, password: config.password)
 
         // 3. Dispatch action
         switch config.action {

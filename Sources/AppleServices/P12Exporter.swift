@@ -1,4 +1,5 @@
 import Foundation
+import Subprocess
 import X509
 
 /// Errors that can occur during PKCS#12 (.p12) archiving.
@@ -33,7 +34,7 @@ package struct P12Exporter: Sendable {
         cerData: Data,
         privateKeyPEM: String,
         password: String = ""
-    ) throws -> Data {
+    ) async throws -> Data {
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
@@ -58,47 +59,35 @@ package struct P12Exporter: Sendable {
             let cerPath = tempDir.appendingPathComponent("cert.cer").path
             try cerData.write(to: URL(fileURLWithPath: cerPath))
 
-            let x509Process = Process()
-            x509Process.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
-            x509Process.arguments = ["x509", "-inform", "DER", "-in", cerPath, "-out", pemCertPath]
-            x509Process.standardInput = FileHandle.nullDevice
-
-            let errPipe = Pipe()
-            x509Process.standardOutput = FileHandle.nullDevice
-            x509Process.standardError = errPipe
-
-            try x509Process.run()
-            let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-            x509Process.waitUntilExit()
-
-            guard x509Process.terminationStatus == 0 else {
-                let err = String(data: errData, encoding: .utf8) ?? "Unknown OpenSSL error"
+            let x509Result = try await Subprocess.run(
+                .path("/usr/bin/openssl"),
+                arguments: ["x509", "-inform", "DER", "-in", cerPath, "-out", pemCertPath],
+                input: .none,
+                output: .discarded,
+                error: .string(limit: 10 * 1024 * 1024)
+            )
+            guard x509Result.terminationStatus.isSuccess else {
+                let err = x509Result.standardError
                 throw P12ExporterError.conversionFailed(err.trimmingCharacters(in: .whitespacesAndNewlines))
             }
         }
 
         // 3. Export .p12 using OpenSSL
-        let p12Process = Process()
-        p12Process.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
-        p12Process.arguments = [
-            "pkcs12", "-export",
-            "-inkey", keyPath,
-            "-in", pemCertPath,
-            "-out", p12Path,
-            "-passout", "pass:\(password)"
-        ]
-        p12Process.standardInput = FileHandle.nullDevice
-
-        let p12ErrPipe = Pipe()
-        p12Process.standardOutput = FileHandle.nullDevice
-        p12Process.standardError = p12ErrPipe
-
-        try p12Process.run()
-        let p12ErrData = p12ErrPipe.fileHandleForReading.readDataToEndOfFile()
-        p12Process.waitUntilExit()
-
-        guard p12Process.terminationStatus == 0 else {
-            let err = String(data: p12ErrData, encoding: .utf8) ?? "Unknown OpenSSL error"
+        let p12Result = try await Subprocess.run(
+            .path("/usr/bin/openssl"),
+            arguments: [
+                "pkcs12", "-export",
+                "-inkey", keyPath,
+                "-in", pemCertPath,
+                "-out", p12Path,
+                "-passout", "pass:\(password)"
+            ],
+            input: .none,
+            output: .discarded,
+            error: .string(limit: 10 * 1024 * 1024)
+        )
+        guard p12Result.terminationStatus.isSuccess else {
+            let err = p12Result.standardError
             throw P12ExporterError.exportFailed(err.trimmingCharacters(in: .whitespacesAndNewlines))
         }
 
@@ -121,10 +110,10 @@ package struct P12Exporter: Sendable {
         privateKeyPEM: String,
         to destinationURL: URL,
         password: String = ""
-    ) throws {
+    ) async throws {
         let parentDir = destinationURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
-        let p12Data = try export(cerData: cerData, privateKeyPEM: privateKeyPEM, password: password)
+        let p12Data = try await export(cerData: cerData, privateKeyPEM: privateKeyPEM, password: password)
         try p12Data.write(to: destinationURL)
     }
 
@@ -140,13 +129,13 @@ package struct P12Exporter: Sendable {
         keyPath: String,
         to destinationURL: URL,
         password: String = ""
-    ) throws {
+    ) async throws {
         guard let cerData = try? Data(contentsOf: URL(fileURLWithPath: cerPath)) else {
             throw P12ExporterError.fileReadError("Failed to read certificate at \(cerPath)")
         }
         guard let keyPEM = try? String(contentsOfFile: keyPath, encoding: .utf8) else {
             throw P12ExporterError.fileReadError("Failed to read private key at \(keyPath)")
         }
-        try export(cerData: cerData, privateKeyPEM: keyPEM, to: destinationURL, password: password)
+        try await export(cerData: cerData, privateKeyPEM: keyPEM, to: destinationURL, password: password)
     }
 }

@@ -75,20 +75,31 @@ Includes `FirebaseProjectOptions` and adds app-level flags. Used by `firebase li
 | `-g, --google-key <key>` | `GOOGLE_KEY` | Inherited from `FirebaseProjectOptions` |
 | `-p, --project <id>` | `FIREBASE_PROJECT_ID` | Inherited from `FirebaseProjectOptions` |
 
-### `MatchOptions`
+### `MatchStorageOptions`
 
-Used by `flow ios`, `flow android`, and `build android`.
+Used by `match android`, `flow android`, and `build android` (and embedded in `MatchOptions`).
 
 | Flag | `.env` Fallback / Default | Description |
 |:---|:---|:---|
-| `--git-url`, `--match-git-url <url>` | `MATCH_GIT_URL` | Match Git repository URL |
-| `--git-branch`, `--match-git-branch <branch>` | `MATCH_GIT_BRANCH` (default: `master`) | Git branch name |
-| `--git-token`, `--match-git-token <token>` | `MATCH_GIT_TOKEN`, `GITHUB_TOKEN` | Git Personal Access Token |
-| `--password`, `--match-password <pass>` | `MATCH_PASSWORD` | AES decryption/encryption passphrase |
+| `--match-git-url <url>` | `MATCH_GIT_URL` | Match Git repository URL |
+| `--match-git-branch <branch>` | `MATCH_GIT_BRANCH` (default: `master`) | Git branch name |
+| `--match-git-token <token>` | `MATCH_GIT_TOKEN`, `GITHUB_TOKEN` | Git Personal Access Token |
+| `--match-password <pass>` | `MATCH_PASSWORD` | AES decryption/encryption passphrase |
+
+### `MatchOptions`
+
+Includes `MatchStorageOptions` and adds Apple/iOS signing options. Used by `match ios` and `flow ios`.
+
+| Flag | `.env` Fallback / Default | Description |
+|:---|:---|:---|
+| `--match-git-url <url>` | `MATCH_GIT_URL` | Inherited from `MatchStorageOptions` |
+| `--match-git-branch <branch>` | `MATCH_GIT_BRANCH` (default: `master`) | Inherited from `MatchStorageOptions` |
+| `--match-git-token <token>` | `MATCH_GIT_TOKEN`, `GITHUB_TOKEN` | Inherited from `MatchStorageOptions` |
+| `--match-password <pass>` | `MATCH_PASSWORD` | Inherited from `MatchStorageOptions` |
 | `--keychain-name <name>` | `MATCH_KEYCHAIN_NAME` (default: `appitool`) | Custom macOS keychain name or path |
 | `--keychain-password <pass>` | `MATCH_KEYCHAIN_PASSWORD` (default: `appipass`) | Keychain unlock password |
 | `--team-id <id>` | `APPLE_TEAM_ID` | Apple Developer Team ID |
-| `--readonly` | `MATCH_READONLY != "false"` (defaults to `true` in `flow`) | Read-only mode (do not create new certs/profiles) |
+| `--readonly` | `MATCH_READONLY != "false"` in `flow ios` (defaults to `true`); `false` in `match ios` | Read-only mode (do not create new certs/profiles) |
 
 ### `NotificationOptions`
 

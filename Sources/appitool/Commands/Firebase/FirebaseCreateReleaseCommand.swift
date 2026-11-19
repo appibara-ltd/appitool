@@ -25,15 +25,8 @@ struct FirebaseCreateReleaseCommand: BaseCommand {
     var testerEmails: String?
 
     func execute() async throws {
-        guard let service = try credentials.makeService() else {
-            Log("Error: ".red.bold + "Missing Google credentials (configure GOOGLE_KEY in .env or via --google-key).")
-            return
-        }
-
-        guard let appId = credentials.resolveAppId() else {
-            Log("Error: ".red.bold + "Missing Firebase App ID (configure FIREBASE_IOS_APP_ID / FIREBASE_ANDROID_APP_ID in .env or via --firebase-app-id).")
-            return
-        }
+        let service = try credentials.requireService()
+        let appId = try credentials.requireAppId()
 
         let parsedGroups = testGroups?.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         let parsedEmails = testerEmails?.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }

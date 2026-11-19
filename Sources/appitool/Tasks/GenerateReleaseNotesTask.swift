@@ -78,7 +78,7 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
     public func run(_ input: Input) async throws -> Output {
         let shouldIncludeLinks = input.includeCommitLinks ?? !input.plainText
         let commitBaseURL = shouldIncludeLinks
-            ? Self.resolveWebCommitBaseURL(workingDirectory: input.workingDirectory)
+            ? await Self.resolveWebCommitBaseURL(workingDirectory: input.workingDirectory)
             : nil
 
         var args = ["--no-pager", "log", "--no-merges", "--pretty=format:%h|%s"]
@@ -87,7 +87,7 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
         if let from = input.from, !from.isEmpty {
             args.append("\(from)..\(targetRef)")
         } else if input.autoDetectLatestTag {
-            if let latestTag = Self.resolveLatestTag(
+            if let latestTag = await Self.resolveLatestTag(
                 for: targetRef,
                 tagPrefix: input.tagPrefix,
                 excludeTagPatterns: input.excludeTagPatterns,
@@ -104,7 +104,7 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
             args.append(to)
         }
 
-        let gitResult = try Self.runGit(arguments: args, workingDirectory: input.workingDirectory)
+        let gitResult = try await Self.runGit(arguments: args, workingDirectory: input.workingDirectory)
         guard gitResult.exitCode == 0 else {
             let errorMsg = gitResult.stderr.isEmpty ? "Unknown git error" : gitResult.stderr
             throw ReleaseNotesError.gitExecutionFailed(exitCode: gitResult.exitCode, message: errorMsg)
@@ -187,29 +187,13 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
     private static func runGit(
         arguments: [String],
         workingDirectory: String?
-    ) throws -> (exitCode: Int32, stdout: String, stderr: String) {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["git"] + arguments
-        process.standardInput = FileHandle.nullDevice
-
-        if let workingDirectory {
-            process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
-        }
-
-        let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
-
-        try process.run()
-        let outData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let errData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-
-        let stdout = String(data: outData, encoding: .utf8) ?? ""
-        let stderr = String(data: errData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return (process.terminationStatus, stdout, stderr)
+    ) async throws -> (exitCode: Int32, stdout: String, stderr: String) {
+        let result = try await ProcessRunner.git(arguments, in: workingDirectory)
+        return (
+            result.exitCode,
+            result.stdout,
+            result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
     }
 
     /// Resolves the latest ancestor tag before `targetRef` (optionally filtered by `tagPrefix`).
@@ -219,7 +203,7 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
         tagPrefix: String?,
         excludeTagPatterns: [String],
         workingDirectory: String?
-    ) -> String? {
+    ) async -> String? {
         var matchArgs: [String] = []
         if let rawPrefix = tagPrefix?.trimmingCharacters(in: .whitespacesAndNewlines), !rawPrefix.isEmpty {
             let glob = rawPrefix.hasSuffix("*") ? rawPrefix : "\(rawPrefix)*"
@@ -232,11 +216,11 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
             }
         }
 
-        if let exact = try? runGit(
+        if let exact = try? await runGit(
             arguments: ["describe", "--tags", "--exact-match"] + matchArgs + [targetRef],
             workingDirectory: workingDirectory
         ), exact.exitCode == 0 {
-            if let prev = try? runGit(
+            if let prev = try? await runGit(
                 arguments: ["describe", "--tags", "--abbrev=0"] + matchArgs + ["\(targetRef)^"],
                 workingDirectory: workingDirectory
             ), prev.exitCode == 0 {
@@ -246,7 +230,7 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
             return nil
         }
 
-        guard let latest = try? runGit(
+        guard let latest = try? await runGit(
             arguments: ["describe", "--tags", "--abbrev=0"] + matchArgs + [targetRef],
             workingDirectory: workingDirectory
         ), latest.exitCode == 0 else {
@@ -259,8 +243,8 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
 
     // MARK: - Remote URL Resolution
 
-    private static func resolveWebCommitBaseURL(workingDirectory: String?) -> String? {
-        guard let result = try? runGit(arguments: ["config", "--get", "remote.origin.url"], workingDirectory: workingDirectory),
+    private static func resolveWebCommitBaseURL(workingDirectory: String?) async -> String? {
+        guard let result = try? await runGit(arguments: ["config", "--get", "remote.origin.url"], workingDirectory: workingDirectory),
               result.exitCode == 0 else {
             return nil
         }

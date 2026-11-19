@@ -25,10 +25,7 @@ struct FirebaseUpdateReleaseCommand: BaseCommand {
     var testerEmails: String?
 
     func execute() async throws {
-        guard let service = try credentials.makeService() else {
-            Log("Error: ".red.bold + "Missing Google credentials (configure GOOGLE_KEY in .env or via --google-key).")
-            return
-        }
+        let service = try credentials.requireService()
 
         // Resolve full release resource name if only release ID was provided
         let resolvedReleaseName: String
@@ -36,8 +33,7 @@ struct FirebaseUpdateReleaseCommand: BaseCommand {
             resolvedReleaseName = releaseId
         } else {
             guard let appId = credentials.resolveAppId() else {
-                Log("Error: ".red.bold + "When specifying a release ID without full resource name, Firebase App ID is required (--firebase-app-id).")
-                return
+                throw CommandError("When specifying a release ID without full resource name, Firebase App ID is required (--firebase-app-id).")
             }
             let segments = appId.split(separator: ":")
             let projectNumber = segments.count >= 2 ? String(segments[1]) : "-"

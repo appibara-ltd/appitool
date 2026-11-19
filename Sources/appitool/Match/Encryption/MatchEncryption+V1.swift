@@ -13,7 +13,7 @@ extension MatchEncryption {
         case sha256
     }
 
-    package func decryptV1(encryptedPayload: Data, password: String, fileName: String) throws -> Data {
+    package func decryptV1(encryptedPayload: Data, password: String, fileName: String) async throws -> Data {
         let prefixLen = Self.v1Prefix.utf8.count // 8 bytes ("Salted__")
         guard encryptedPayload.count >= prefixLen + 8 else {
             throw MatchError.decryptionFailed("Corrupted V1 encrypted structure in '\(fileName)'.")
@@ -24,14 +24,14 @@ extension MatchEncryption {
 
         // 1. Try MD5 EVP_BytesToKey (Fastlane legacy default / OpenSSL 1.0.x)
         let (keyMd5, ivMd5) = evpBytesToKey(password: password, salt: salt, keyLen: 32, ivLen: 16, hash: .md5)
-        if let decrypted = try? decryptAes256Cbc(data: ciphertext, key: keyMd5, iv: ivMd5),
+        if let decrypted = try? await decryptAes256Cbc(data: ciphertext, key: keyMd5, iv: ivMd5),
            isValidDecryptedPayload(decrypted) {
             return decrypted
         }
 
         // 2. Try SHA256 EVP_BytesToKey (Fastlane with OpenSSL 1.1+)
         let (keySha256, ivSha256) = evpBytesToKey(password: password, salt: salt, keyLen: 32, ivLen: 16, hash: .sha256)
-        if let decrypted = try? decryptAes256Cbc(data: ciphertext, key: keySha256, iv: ivSha256),
+        if let decrypted = try? await decryptAes256Cbc(data: ciphertext, key: keySha256, iv: ivSha256),
            isValidDecryptedPayload(decrypted) {
             return decrypted
         }
@@ -40,7 +40,7 @@ extension MatchEncryption {
         if let derived = try? pbkdf2HmacSha256(password: password, salt: salt, length: 48, iterations: 10_000) {
             let key = derived.subdata(in: 0..<32)
             let iv = derived.subdata(in: 32..<48)
-            if let decrypted = try? decryptAes256Cbc(data: ciphertext, key: key, iv: iv),
+            if let decrypted = try? await decryptAes256Cbc(data: ciphertext, key: key, iv: iv),
                isValidDecryptedPayload(decrypted) {
                 return decrypted
             }
@@ -80,7 +80,7 @@ extension MatchEncryption {
         return (key, iv)
     }
 
-    package func decryptAes256Cbc(data: Data, key: Data, iv: Data) throws -> Data {
+    package func decryptAes256Cbc(data: Data, key: Data, iv: Data) async throws -> Data {
         #if canImport(CommonCrypto)
         var outData = Data(count: data.count + kCCBlockSizeAES128)
         var numBytesDecrypted: size_t = 0
@@ -113,26 +113,15 @@ extension MatchEncryption {
         outData.count = numBytesDecrypted
         return outData
         #else
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
         let keyHex = key.map { String(format: "%02x", $0) }.joined()
         let ivHex = iv.map { String(format: "%02x", $0) }.joined()
-        process.arguments = ["enc", "-d", "-aes-256-cbc", "-K", keyHex, "-iv", ivHex]
-
-        let inPipe = Pipe()
-        let outPipe = Pipe()
-        process.standardInput = inPipe
-        process.standardOutput = outPipe
-        process.standardError = FileHandle.nullDevice
-
-        try process.run()
-        try inPipe.fileHandleForWriting.write(contentsOf: data)
-        try inPipe.fileHandleForWriting.close()
-
-        let decryptedData = outPipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0, !decryptedData.isEmpty else {
+        let result = try await ProcessRunner.runBytes(
+            "/usr/bin/openssl",
+            arguments: ["enc", "-d", "-aes-256-cbc", "-K", keyHex, "-iv", ivHex],
+            input: Array(data)
+        )
+        let decryptedData = Data(result.stdout)
+        guard result.exitCode == 0, !decryptedData.isEmpty else {
             throw MatchError.decryptionFailed("AES-256-CBC decryption via openssl failed.")
         }
         return decryptedData

@@ -29,24 +29,15 @@ struct FirebaseDeleteUserCommand: BaseCommand {
         let trimmedEmail = email?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if anonymous && ((trimmedUid?.isEmpty == false) || (trimmedEmail?.isEmpty == false)) {
-            Log("Error: ".red.bold + "Cannot combine -a, --anonymous with -u, --uid or -e, --email.")
-            throw ExitCode.failure
+            throw CommandError("Cannot combine -a, --anonymous with -u, --uid or -e, --email.")
         }
 
         guard anonymous || (trimmedUid?.isEmpty == false) || (trimmedEmail?.isEmpty == false) else {
-            Log("Error: ".red.bold + "Missing target user. Provide -u, --uid, -e, --email, or -a, --anonymous.")
-            throw ExitCode.failure
+            throw CommandError("Missing target user. Provide -u, --uid, -e, --email, or -a, --anonymous.")
         }
 
-        guard let service = try projectOptions.makeService() else {
-            Log("Error: ".red.bold + "Missing Google credentials (configure GOOGLE_KEY in .env or via -g, --google-key).")
-            throw ExitCode.failure
-        }
-
-        guard let project = projectOptions.resolveProject() else {
-            Log("Error: ".red.bold + "Missing project identifier (configure FIREBASE_PROJECT_ID in .env, or provide -p, --project).")
-            throw ExitCode.failure
-        }
+        let service = try projectOptions.requireService()
+        let project = try projectOptions.requireProject()
 
         if anonymous {
             Log("🔍 Scanning for anonymous Firebase Auth users in project [\(project)]...".dim)
@@ -135,7 +126,7 @@ struct FirebaseDeleteUserCommand: BaseCommand {
             targetUid = matched.localId
             targetLabel = "\(mail) [UID: \(matched.localId)]"
         } else {
-            throw ExitCode.failure
+            throw CommandError("Missing target user. Provide -u, --uid, -e, --email, or -a, --anonymous.")
         }
 
         if dryRun {
@@ -144,12 +135,7 @@ struct FirebaseDeleteUserCommand: BaseCommand {
         }
 
         Log("🗑️  Deleting Firebase Auth user '\(targetLabel)' from project [\(project)]...".dim)
-        do {
-            try await service.deleteAuthUser(project: project, uid: targetUid)
-            Log("🟢 Successfully deleted Firebase Auth user '\(targetLabel)'.".green.bold)
-        } catch {
-            Log("Error: ".red.bold + "Failed to delete user: \(error.localizedDescription)")
-            throw ExitCode.failure
-        }
+        try await service.deleteAuthUser(project: project, uid: targetUid)
+        Log("🟢 Successfully deleted Firebase Auth user '\(targetLabel)'.".green.bold)
     }
 }

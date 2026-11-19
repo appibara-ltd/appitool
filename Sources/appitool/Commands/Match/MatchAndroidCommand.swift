@@ -30,41 +30,17 @@ struct MatchAndroidCommand: BaseCommand {
     @Option(name: .long, help: "Key password (defaults to ANDROID_KEY_PASSWORD in .env).")
     var keyPassword: String?
 
-    @Option(name: .shortAndLong, help: "Git repository URL for keystores storage (defaults to MATCH_GIT_URL in .env).")
-    var gitUrl: String?
-
-    @Option(name: [.customShort("b"), .long], help: "Git branch name (defaults to MATCH_GIT_BRANCH in .env or 'master').")
-    var gitBranch: String?
-
-    @Option(name: .long, help: "Git authentication token (defaults to MATCH_GIT_TOKEN or GITHUB_TOKEN in .env).")
-    var gitToken: String?
-
-    @Option(name: [.customShort("P"), .long], help: "Passphrase for AES encryption/decryption (defaults to MATCH_PASSWORD in .env).")
-    var password: String?
-
     @Flag(name: .long, help: "Suppress verbose output.")
     var silent: Bool = false
+
+    @OptionGroup
+    var matchOptions: MatchStorageOptions
 
     func execute() async throws {
         let fm = FileManager.default
 
-        // 1. Resolve Git URL
-        guard let resolvedGitUrl = gitUrl ?? EnvLoader.value(for: "MATCH_GIT_URL"), !resolvedGitUrl.isEmpty else {
-            Log("Error: ".red.bold + "Missing Git repository URL. Provide -g, --git-url or configure MATCH_GIT_URL in .env.")
-            throw ExitCode.failure
-        }
-
-        // 2. Resolve Git Branch
-        let resolvedGitBranch = gitBranch ?? EnvLoader.value(for: "MATCH_GIT_BRANCH") ?? "master"
-
-        // 3. Resolve Git Token
-        let resolvedGitToken = gitToken ?? EnvLoader.value(for: "MATCH_GIT_TOKEN") ?? EnvLoader.value(for: "GITHUB_TOKEN")
-
-        // 4. Resolve Password
-        guard let resolvedPassword = password ?? EnvLoader.value(for: "MATCH_PASSWORD"), !resolvedPassword.isEmpty else {
-            Log("Error: ".red.bold + "Missing encryption password. Provide -P, --password or configure MATCH_PASSWORD in .env.")
-            throw ExitCode.failure
-        }
+        // 1-4. Resolve Match storage options
+        let storage = try matchOptions.require()
 
         // 5. Resolve Package Name
         let currentDir = fm.currentDirectoryPath
@@ -73,8 +49,7 @@ struct MatchAndroidCommand: BaseCommand {
             ?? GradleTask.resolvePackageName(projectDirectory: currentDir)
 
         guard let targetPackage = resolvedPackageName, !targetPackage.isEmpty else {
-            Log("Error: ".red.bold + "Missing package name. Provide -p, --package-name or configure GOOGLE_PACKAGE_NAME in .env.")
-            throw ExitCode.failure
+            throw CommandError("Missing package name. Provide -p, --package-name or configure GOOGLE_PACKAGE_NAME in .env.")
         }
 
         // 6. Resolve Build Type
@@ -90,10 +65,10 @@ struct MatchAndroidCommand: BaseCommand {
         let resolvedKeyPassword = keyPassword ?? EnvLoader.value(for: "ANDROID_KEY_PASSWORD")
 
         let config = MatchAndroidConfig(
-            gitUrl: resolvedGitUrl,
-            gitBranch: resolvedGitBranch,
-            gitToken: resolvedGitToken,
-            password: resolvedPassword,
+            gitUrl: storage.gitUrl,
+            gitBranch: storage.gitBranch,
+            gitToken: storage.gitToken,
+            password: storage.password,
             action: resolvedAction,
             packageName: targetPackage,
             buildType: resolvedBuildType,
@@ -105,24 +80,19 @@ struct MatchAndroidCommand: BaseCommand {
         )
 
         let runner = MatchRunner()
-        do {
-            let result = try await runner.runAndroid(config)
-            if !silent {
-                if resolvedAction == .add {
-                    Log("\n🎉 Keystore successfully added to Match storage!".green.bold)
-                    Log("   Package:      ".dim + "\(targetPackage)".bold)
-                    Log("   Build Type:   ".dim + "\(resolvedBuildType.rawValue)")
-                } else {
-                    Log("\n✨ Match Android sync completed successfully!".green.bold)
-                    Log("   Package:      ".dim + "\(targetPackage)".bold)
-                    Log("   Build Type:   ".dim + "\(resolvedBuildType.rawValue)")
-                    Log("   Keystore:     ".dim + "\(result.keystorePath)".green)
-                    Log("   Key Alias:    ".dim + "\(result.alias)")
-                }
+        let result = try await runner.runAndroid(config)
+        if !silent {
+            if resolvedAction == .add {
+                Log("\n🎉 Keystore successfully added to Match storage!".green.bold)
+                Log("   Package:      ".dim + "\(targetPackage)".bold)
+                Log("   Build Type:   ".dim + "\(resolvedBuildType.rawValue)")
+            } else {
+                Log("\n✨ Match Android sync completed successfully!".green.bold)
+                Log("   Package:      ".dim + "\(targetPackage)".bold)
+                Log("   Build Type:   ".dim + "\(resolvedBuildType.rawValue)")
+                Log("   Keystore:     ".dim + "\(result.keystorePath)".green)
+                Log("   Key Alias:    ".dim + "\(result.alias)")
             }
-        } catch {
-            Log("Error: ".red.bold + "\(error.localizedDescription)")
-            throw ExitCode.failure
         }
     }
 }

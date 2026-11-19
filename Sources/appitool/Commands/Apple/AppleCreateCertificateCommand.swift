@@ -32,34 +32,26 @@ struct AppleCreateCertificateCommand: BaseCommand {
     var saveToKeychain: Bool = false
 
     func execute() async throws {
-        guard let service = try appleCredentials.makeService() else {
-            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
-            return
-        }
+        let service = try appleCredentials.requireService()
 
         guard let (_, typeLabel) = try? AppleTypeMapper.parseCertificateType(type) else {
-            Log("Error: ".red.bold + "Unsupported certificate type '\(type)'.")
-            Log("💡 Supported types: development, distribution, developer-id, ios-development, ios-distribution, mac-development, mac-distribution, mac-installer".yellow)
-            return
+            throw CommandError(
+                "Unsupported certificate type '\(type)'.",
+                hint: "💡 Supported types: development, distribution, developer-id, ios-development, ios-distribution, mac-development, mac-distribution, mac-installer"
+            )
         }
 
         Log("🔐 Generating RSA 2048-bit private key and CSR...".dim)
         Log("🚀 Submitting CSR to Apple Developer Portal for \(typeLabel) certificate...".dim)
 
-        let result: CreateCertificateResult
-        do {
-            result = try await service.createSigningCertificate(
-                type: type,
-                name: name,
-                outputDirectory: output,
-                exportP12: p12,
-                p12Password: p12Password,
-                saveToKeychain: saveToKeychain
-            )
-        } catch {
-            Log("Error: ".red.bold + "Failed to create certificate: \(error.localizedDescription)")
-            return
-        }
+        let result = try await service.createSigningCertificate(
+            type: type,
+            name: name,
+            outputDirectory: output,
+            exportP12: p12,
+            p12Password: p12Password,
+            saveToKeychain: saveToKeychain
+        )
 
         let portalId = result.certificate.id
         let serialNumber = result.certificate.attributes?.serialNumber ?? "-"

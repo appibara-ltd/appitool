@@ -74,7 +74,7 @@ Executes the automated release flow for Android.
 
 Plus shared option groups:
 - [`GoogleCredentialsOptions`](/commands/overview#googlecredentialsoptions) (`-g, --google-key`)
-- [`MatchOptions`](/commands/overview#matchoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`, `--readonly`, etc.)
+- [`MatchStorageOptions`](/commands/overview#matchstorageoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`)
 - [`NotificationOptions`](/commands/overview#notificationoptions) (`--slack-url`, `--kokono-url`, `--kokono-public-key`)
 
 ### Examples

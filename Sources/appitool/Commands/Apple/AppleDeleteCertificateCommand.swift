@@ -25,34 +25,26 @@ struct AppleDeleteCertificateCommand: BaseCommand {
         guard (portalId != nil && !portalId!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
               (name != nil && !name!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
               (serialNumber != nil && !serialNumber!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) else {
-            Log("Error: ".red.bold + "Missing target certificate. Provide -p, --portal-id, -n, --name, or -s, --serial-number.")
-            return
+            throw CommandError("Missing target certificate. Provide -p, --portal-id, -n, --name, or -s, --serial-number.")
         }
 
-        guard let service = try appleCredentials.makeService() else {
-            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
-            return
-        }
+        let service = try appleCredentials.requireService()
 
         let targetDescription = name ?? serialNumber ?? portalId ?? "unknown"
         Log("🔍 Searching for certificate '\(targetDescription)' on Apple Developer Portal...".dim)
 
-        do {
-            let result = try await service.deleteSigningCertificate(
-                portalId: portalId,
-                name: name,
-                serialNumber: serialNumber
-            )
+        let result = try await service.deleteSigningCertificate(
+            portalId: portalId,
+            name: name,
+            serialNumber: serialNumber
+        )
 
-            if result.deleted {
-                let displayName = result.matchedCertificate?.attributes?.name ?? result.targetDescription
-                Log("🟢 Successfully deleted certificate '\(displayName)' from Apple Developer Portal.".green.bold)
-                Log("🟡️ Note: Any provisioning profiles tied to this certificate have been invalidated by Apple.".dim)
-            } else {
-                Log("🟡️ Certificate '\(result.targetDescription)' does not exist on Apple Developer Portal (already absent).".yellow)
-            }
-        } catch {
-            Log("Error: ".red.bold + "Failed to delete certificate: \(error.localizedDescription)")
+        if result.deleted {
+            let displayName = result.matchedCertificate?.attributes?.name ?? result.targetDescription
+            Log("🟢 Successfully deleted certificate '\(displayName)' from Apple Developer Portal.".green.bold)
+            Log("🟡️ Note: Any provisioning profiles tied to this certificate have been invalidated by Apple.".dim)
+        } else {
+            Log("🟡️ Certificate '\(result.targetDescription)' does not exist on Apple Developer Portal (already absent).".yellow)
         }
     }
 }

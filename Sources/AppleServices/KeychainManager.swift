@@ -1,5 +1,6 @@
 import Foundation
 import Crypto
+import Subprocess
 import X509
 
 /// Information about an imported certificate and private key in the Keychain.
@@ -209,7 +210,7 @@ package struct KeychainManager: Sendable {
         #if !os(macOS)
         // Keychain is only supported on macOS. On Linux/other platforms, gracefully parse certificate
         // info as a no-op without running macOS /usr/bin/security commands, indicating not imported into Keychain.
-        return parseCertificateInfo(p12Path: p12Path, password: password, cerPath: cerPath, isKeychainImported: false)
+        return await parseCertificateInfo(p12Path: p12Path, password: password, cerPath: cerPath, isKeychainImported: false)
         #else
         let targetPath = resolvedKeychainPath
 
@@ -242,30 +243,24 @@ package struct KeychainManager: Sendable {
                 let tempP12 = tempDir.appendingPathComponent("repackaged.p12").path
                 let tempPassword = UUID().uuidString
 
-                let extractProcess = Process()
-                extractProcess.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
-                extractProcess.arguments = [
-                    "pkcs12", "-in", p12Path, "-nodes", "-out", tempPem, "-passin", "pass:\(password)"
-                ]
-                extractProcess.standardInput = FileHandle.nullDevice
-                extractProcess.standardOutput = FileHandle.nullDevice
-                extractProcess.standardError = FileHandle.nullDevice
-                try? extractProcess.run()
-                extractProcess.waitUntilExit()
+                let extractResult = try? await Subprocess.run(
+                    .path("/usr/bin/openssl"),
+                    arguments: ["pkcs12", "-in", p12Path, "-nodes", "-out", tempPem, "-passin", "pass:\(password)"],
+                    input: .none,
+                    output: .discarded,
+                    error: .discarded
+                )
 
-                if extractProcess.terminationStatus == 0 {
-                    let repackageProcess = Process()
-                    repackageProcess.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
-                    repackageProcess.arguments = [
-                        "pkcs12", "-export", "-in", tempPem, "-out", tempP12, "-passout", "pass:\(tempPassword)"
-                    ]
-                    repackageProcess.standardInput = FileHandle.nullDevice
-                    repackageProcess.standardOutput = FileHandle.nullDevice
-                    repackageProcess.standardError = FileHandle.nullDevice
-                    try? repackageProcess.run()
-                    repackageProcess.waitUntilExit()
+                if extractResult?.terminationStatus.isSuccess == true {
+                    let repackageResult = try? await Subprocess.run(
+                        .path("/usr/bin/openssl"),
+                        arguments: ["pkcs12", "-export", "-in", tempPem, "-out", tempP12, "-passout", "pass:\(tempPassword)"],
+                        input: .none,
+                        output: .discarded,
+                        error: .discarded
+                    )
 
-                    if repackageProcess.terminationStatus == 0 {
+                    if repackageResult?.terminationStatus.isSuccess == true {
                         let retryArgs = [
                             "import", tempP12,
                             "-k", targetPath,
@@ -297,7 +292,7 @@ package struct KeychainManager: Sendable {
         ])
 
         // 4. Extract and return certificate info
-        return parseCertificateInfo(p12Path: p12Path, password: password, cerPath: cerPath, isKeychainImported: true)
+        return await parseCertificateInfo(p12Path: p12Path, password: password, cerPath: cerPath, isKeychainImported: true)
         #endif
     }
 
@@ -313,7 +308,7 @@ package struct KeychainManager: Sendable {
     ) async throws -> ImportedCertificateInfo {
         #if !os(macOS)
         // Keychain is only supported on macOS; no-op on other platforms
-        return parseCertificateInfo(
+        return await parseCertificateInfo(
             certData: cerData,
             p12Data: p12Data,
             password: password,
@@ -343,7 +338,7 @@ package struct KeychainManager: Sendable {
             cerPath: tempCerPath
         )
 
-        return parseCertificateInfo(
+        return await parseCertificateInfo(
             certData: cerData,
             p12Data: p12Data,
             password: password,
@@ -361,7 +356,7 @@ package struct KeychainManager: Sendable {
         cerPath: String? = nil,
         fallbackId: String? = nil,
         isKeychainImported: Bool = false
-    ) -> ImportedCertificateInfo {
+    ) async -> ImportedCertificateInfo {
         let certId: String
         if let fallbackId, !fallbackId.isEmpty {
             certId = fallbackId
@@ -398,46 +393,50 @@ package struct KeychainManager: Sendable {
 
         // 2. Fallback when cerPath is missing: extract certificate from .p12 via OpenSSL and decode with swift-certificates
         if certData == nil {
-            let derProcess = Process()
-            derProcess.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
+            let derOutput: String?
             if let p12Path {
-                derProcess.arguments = [
-                    "pkcs12", "-in", p12Path, "-clcerts", "-nokeys", "-passin", "pass:\(password)"
-                ]
-                derProcess.standardInput = FileHandle.nullDevice
+                let res = try? await Subprocess.run(
+                    .path("/usr/bin/openssl"),
+                    arguments: [
+                        "pkcs12", "-in", p12Path, "-clcerts", "-nokeys", "-passin", "pass:\(password)"
+                    ],
+                    input: .none,
+                    output: .string(limit: 10 * 1024 * 1024),
+                    error: .discarded
+                )
+                derOutput = (res?.terminationStatus.isSuccess == true) ? res?.standardOutput : nil
             } else if let p12Data {
-                derProcess.arguments = [
-                    "pkcs12", "-clcerts", "-nokeys", "-passin", "pass:\(password)"
-                ]
-                let inPipe = Pipe()
-                derProcess.standardInput = inPipe
-                try? inPipe.fileHandleForWriting.write(contentsOf: p12Data)
-                try? inPipe.fileHandleForWriting.close()
+                let res = try? await Subprocess.run(
+                    .path("/usr/bin/openssl"),
+                    arguments: [
+                        "pkcs12", "-clcerts", "-nokeys", "-passin", "pass:\(password)"
+                    ],
+                    input: .array(Array(p12Data)),
+                    output: .string(limit: 10 * 1024 * 1024),
+                    error: .discarded
+                )
+                derOutput = (res?.terminationStatus.isSuccess == true) ? res?.standardOutput : nil
+            } else {
+                derOutput = nil
             }
-            let derPipe = Pipe()
-            derProcess.standardOutput = derPipe
-            derProcess.standardError = FileHandle.nullDevice
-            if (try? derProcess.run()) != nil {
-                let outData = derPipe.fileHandleForReading.readDataToEndOfFile()
-                derProcess.waitUntilExit()
-                if derProcess.terminationStatus == 0, let pemString = String(data: outData, encoding: .utf8) {
-                    let lines = pemString.components(separatedBy: .newlines)
-                    let base64 = lines.filter { !$0.hasPrefix("-----") && !$0.isEmpty }.joined()
-                    if let decoded = Data(base64Encoded: base64) {
-                        certData = decoded
-                        if let cert = try? Certificate(derEncoded: [UInt8](decoded)) {
-                            for rdn in cert.subject {
-                                for attr in rdn {
-                                    if attr.type == .RDNAttributeType.commonName {
-                                        subjectName = String(attr.value)
-                                        break
-                                    }
+
+            if let pemString = derOutput {
+                let lines = pemString.components(separatedBy: .newlines)
+                let base64 = lines.filter { !$0.hasPrefix("-----") && !$0.isEmpty }.joined()
+                if let decoded = Data(base64Encoded: base64) {
+                    certData = decoded
+                    if let cert = try? Certificate(derEncoded: [UInt8](decoded)) {
+                        for rdn in cert.subject {
+                            for attr in rdn {
+                                if attr.type == .RDNAttributeType.commonName {
+                                    subjectName = String(attr.value)
+                                    break
                                 }
-                                if subjectName != nil { break }
                             }
-                            if subjectName == nil {
-                                subjectName = cert.subject.description
-                            }
+                            if subjectName != nil { break }
+                        }
+                        if subjectName == nil {
+                            subjectName = cert.subject.description
                         }
                     }
                 }
@@ -473,20 +472,19 @@ package struct KeychainManager: Sendable {
     }
 
     private func runSecurity(_ args: [String]) async throws -> (Int32, String) {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
-        process.arguments = args
-        process.standardInput = FileHandle.nullDevice
-
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-
-        try process.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-
-        let output = String(data: data, encoding: .utf8) ?? ""
-        return (process.terminationStatus, output)
+        let result = try await Subprocess.run(
+            .path("/usr/bin/security"),
+            arguments: Arguments(args),
+            input: .none,
+            output: .string(limit: 10 * 1024 * 1024),
+            error: .combinedWithOutput
+        )
+        let exitCode: Int32 = switch result.terminationStatus {
+        case .exited(let code): code
+        #if !os(Windows)
+        case .signaled(let code): code
+        #endif
+        }
+        return (exitCode, result.standardOutput)
     }
 }

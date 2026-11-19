@@ -1,6 +1,5 @@
 import Foundation
 import Rainbow
-import Subprocess
 
 /// A task that handles building, archiving, and packaging iOS applications using `xcodebuild`
 /// providing full functional parity with Fastlane's `build_app` (`gym`) and `@cmd-bin/react-native`.
@@ -433,12 +432,12 @@ public struct XcodeBuildTask: Task {
             arguments.append(contentsOf: ["-project", project])
         }
 
-        guard let result = try? await runDirectProcess(binary: "xcodebuild", arguments: arguments),
+        guard let result = try? await ProcessRunner.run("xcrun", arguments: ["xcodebuild"] + arguments, combineOutput: true),
               result.exitCode == 0 else {
             return nil
         }
 
-        for line in result.output.components(separatedBy: .newlines) {
+        for line in result.stdout.components(separatedBy: .newlines) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if trimmed.hasPrefix("TARGET_NAME =") {
                 let parts = trimmed.split(separator: "=", maxSplits: 1)
@@ -546,23 +545,6 @@ public struct XcodeBuildTask: Task {
         return allSchemes[0]
     }
 
-    private static func runDirectProcess(
-        binary: String,
-        arguments: [String]
-    ) async throws -> (exitCode: Int32, output: String) {
-        let result = try await Subprocess.run(
-            .name("xcrun"),
-            arguments: Arguments([binary] + arguments),
-            output: .string(limit: 10 * 1024 * 1024),
-            error: .combinedWithOutput
-        )
-        let exitCode: Int32 = switch result.terminationStatus {
-        case .exited(let code): code
-        case .signaled(let code): code
-        }
-        return (exitCode, result.standardOutput)
-    }
-
     // MARK: - Archive Execution
 
     private func executeArchive(input: Input, scheme: String, archivePath: String) async throws {
@@ -609,15 +591,15 @@ public struct XcodeBuildTask: Task {
             Log("🔨 ".bold + "Compiling Xcode archive: \(scheme) (\(input.configuration))...".dim)
         }
 
-        let result = try await runCommand(
-            binary: "xcodebuild",
+        let result = try await ProcessRunner.stream(
+            "xcodebuild",
             arguments: arguments,
             formatter: input.xcodebuildFormatter,
-            silent: input.silent
+            style: input.silent ? .silent : .logLines
         )
 
         guard result.exitCode == 0 else {
-            throw XcodeBuildError.archiveFailed(exitCode: result.exitCode, output: result.output)
+            throw XcodeBuildError.archiveFailed(exitCode: result.exitCode, output: result.stdout)
         }
 
         guard FileManager.default.fileExists(atPath: archivePath) else {
@@ -664,15 +646,15 @@ public struct XcodeBuildTask: Task {
 
         let ipasBefore = Self.ipaModificationDates(in: input.outputDirectory)
 
-        let result = try await runCommand(
-            binary: "xcodebuild",
+        let result = try await ProcessRunner.stream(
+            "xcodebuild",
             arguments: arguments,
             formatter: input.xcodebuildFormatter,
-            silent: input.silent
+            style: input.silent ? .silent : .logLines
         )
 
         guard result.exitCode == 0 else {
-            throw XcodeBuildError.exportFailed(exitCode: result.exitCode, output: result.output)
+            throw XcodeBuildError.exportFailed(exitCode: result.exitCode, output: result.stdout)
         }
 
         // Locate the IPA produced by this export. The output directory is dedicated to this build,
@@ -702,12 +684,12 @@ public struct XcodeBuildTask: Task {
             if fileManager.fileExists(atPath: zipPath) {
                 try? fileManager.removeItem(atPath: zipPath)
             }
-            _ = try? await Subprocess.run(
-                .name("zip"),
+            _ = try? await ProcessRunner.run(
+                "zip",
                 arguments: ["-q", "-r", zipPath, "."],
-                workingDirectory: FilePath(dsymInArchive),
-                output: .discarded,
-                error: .discarded
+                workingDirectory: dsymInArchive,
+                discardError: true,
+                discardOutput: true,
             )
 
             if fileManager.fileExists(atPath: zipPath) {
@@ -792,117 +774,5 @@ public struct XcodeBuildTask: Task {
             return nil
         }
         return team
-    }
-
-    // MARK: - Subprocess Runner
-
-    private struct CommandResult {
-        let exitCode: Int32
-        let output: String
-    }
-
-    private func runCommand(
-        binary: String,
-        arguments: [String],
-        formatter: String?,
-        silent: Bool
-    ) async throws -> CommandResult {
-        // Build single shell command with pipefail if a formatter is configured
-        let fullCommand: String
-        let escapedArgs = arguments.map { arg in
-            if arg.contains(" ") || arg.contains("\"") || arg.contains("'") {
-                return "\"\(arg.replacingOccurrences(of: "\"", with: "\\\""))\""
-            }
-            return arg
-        }.joined(separator: " ")
-
-        if let formatter, !formatter.isEmpty {
-            // Check if formatter command exists before piping to avoid silent pipe fails
-            let formatterBin = formatter.split(separator: " ").first.map(String.init) ?? ""
-            if hasExecutable(formatterBin) {
-                fullCommand = "set -o pipefail && \(binary) \(escapedArgs) | \(formatter)"
-            } else {
-                fullCommand = "\(binary) \(escapedArgs)"
-            }
-        } else {
-            fullCommand = "\(binary) \(escapedArgs)"
-        }
-
-        final class OutputBuffer: @unchecked Sendable {
-            private let lock = NSLock()
-            private var data = Data()
-
-            func append(_ bytes: Data) {
-                lock.lock()
-                data.append(bytes)
-                lock.unlock()
-            }
-
-            var stringValue: String {
-                lock.lock()
-                defer { lock.unlock() }
-                return String(data: data, encoding: .utf8) ?? ""
-            }
-        }
-
-        let buffer = OutputBuffer()
-
-        let result = try await Subprocess.run(
-            .name("bash"),
-            arguments: ["-c", fullCommand],
-            input: .none,
-            output: .sequence,
-            error: .combinedWithOutput
-        ) { execution in
-            var pending = Data()
-            let newline = UInt8(ascii: "\n")
-
-            func emit(_ lineData: Data) {
-                var line = String(decoding: lineData, as: UTF8.self)
-                if line.hasSuffix("\r") { line.removeLast() }
-                Log(line)
-            }
-
-            for try await bufferChunk in execution.standardOutput {
-                let data = Data(buffer: bufferChunk)
-                guard !data.isEmpty else { continue }
-                buffer.append(data)
-                guard !silent else { continue }
-
-                pending.append(data)
-                while let idx = pending.firstIndex(of: newline) {
-                    emit(pending.subdata(in: pending.startIndex..<idx))
-                    pending.removeSubrange(pending.startIndex...idx)
-                }
-            }
-
-            if !silent, !pending.isEmpty {
-                emit(pending)
-            }
-        }
-
-        let exitCode: Int32 = switch result.terminationStatus {
-        case .exited(let code): code
-        case .signaled(let code): code
-        }
-
-        return CommandResult(
-            exitCode: exitCode,
-            output: buffer.stringValue
-        )
-    }
-
-    private func hasExecutable(_ name: String) -> Bool {
-        guard !name.isEmpty else { return false }
-        if name.hasPrefix("/") {
-            return FileManager.default.isExecutableFile(atPath: name)
-        }
-        for dir in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"] {
-            let fullPath = "\(dir)/\(name)"
-            if FileManager.default.isExecutableFile(atPath: fullPath) {
-                return true
-            }
-        }
-        return false
     }
 }

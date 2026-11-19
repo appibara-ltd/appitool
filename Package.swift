@@ -144,6 +144,7 @@ let package = Package(
                 .product(name: "SwiftASN1", package: "swift-asn1"),
                 .product(name: "X509", package: "swift-certificates"),
                 .product(name: "Rainbow", package: "Rainbow"),
+                .product(name: "Subprocess", package: "swift-subprocess"),
             ],
             swiftSettings: defaultSwiftSettings
         ),

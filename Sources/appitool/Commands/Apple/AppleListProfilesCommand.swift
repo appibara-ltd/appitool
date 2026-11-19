@@ -19,10 +19,7 @@ struct AppleListProfilesCommand: BaseCommand {
     var limit: Int?
 
     func execute() async throws {
-        guard let service = try appleCredentials.makeService() else {
-            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
-            return
-        }
+        let service = try appleCredentials.requireService()
 
         Log("🔍 Fetching provisioning profiles from Apple Developer Portal...".dim)
         let profiles = try await service.fetchProfiles(limit: limit, name: name)

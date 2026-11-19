@@ -19,15 +19,8 @@ struct FirebaseListReleasesCommand: BaseCommand {
     var orderBy: String?
 
     func execute() async throws {
-        guard let service = try credentials.makeService() else {
-            Log("Error: ".red.bold + "Missing Google credentials (configure GOOGLE_KEY in .env or via --google-key).")
-            return
-        }
-
-        guard let appId = credentials.resolveAppId() else {
-            Log("Error: ".red.bold + "Missing Firebase App ID (configure FIREBASE_IOS_APP_ID / FIREBASE_ANDROID_APP_ID in .env or via --firebase-app-id).")
-            return
-        }
+        let service = try credentials.requireService()
+        let appId = try credentials.requireAppId()
 
         Log("🔍 Fetching releases from Firebase App Distribution [App: \(appId)]...".dim)
         let (rawReleases, _) = try await service.listReleases(

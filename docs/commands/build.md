@@ -86,7 +86,7 @@ Artifacts are written under `~/.appitool/android/<Target>/build/<yyyy_MM_dd_HH_m
 | `--gradle-opts <opts>` | — | Custom JVM options passed via `GRADLE_OPTS` (automatically appends `-Dorg.gradle.daemon=false` if omitted). |
 | `--match` | `false` | Fetch signing keystore from Match Git repository. |
 
-Plus [`MatchOptions`](/commands/overview#matchoptions).
+Plus [`MatchStorageOptions`](/commands/overview#matchstorageoptions).
 
 ### Examples
 

@@ -35,47 +35,39 @@ struct AppleCreateProfileCommand: BaseCommand {
     var output: String?
 
     func execute() async throws {
-        guard let service = try appleCredentials.makeService() else {
-            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
-            return
-        }
+        let service = try appleCredentials.requireService()
 
         let cleanBundleId = bundleId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanBundleId.isEmpty else {
-            Log("Error: ".red.bold + "Bundle ID cannot be empty.")
-            return
+            throw CommandError("Bundle ID cannot be empty.")
         }
 
         let deviceList = deviceIds?.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
 
         Log("🔍 Resolving App Identifier '\(cleanBundleId)' and resources on Apple Developer Portal...".dim)
 
-        do {
-            let result = try await service.createProvisioningProfile(
-                bundleId: cleanBundleId,
-                type: type,
-                platform: platform,
-                name: name,
-                certificateId: certificateId,
-                deviceIds: deviceList,
-                outputPath: output
-            )
+        let result = try await service.createProvisioningProfile(
+            bundleId: cleanBundleId,
+            type: type,
+            platform: platform,
+            name: name,
+            certificateId: certificateId,
+            deviceIds: deviceList,
+            outputPath: output
+        )
 
-            Log("\n🟢 Provisioning profile created successfully!".green.bold)
-            Log("  • Name: ".cyan + "\(result.profile.name)".bold)
-            Log("  • Portal ID: ".cyan + "\(result.profile.id)".bold)
-            Log("  • UUID: ".cyan + "\(result.profile.uuid)".bold)
-            Log("  • Type: ".cyan + "\(result.profileType.rawValue)")
-            Log("  • Bundle ID: ".cyan + "\(result.bundleId)")
+        Log("\n🟢 Provisioning profile created successfully!".green.bold)
+        Log("  • Name: ".cyan + "\(result.profile.name)".bold)
+        Log("  • Portal ID: ".cyan + "\(result.profile.id)".bold)
+        Log("  • UUID: ".cyan + "\(result.profile.uuid)".bold)
+        Log("  • Type: ".cyan + "\(result.profileType.rawValue)")
+        Log("  • Bundle ID: ".cyan + "\(result.bundleId)")
 
-            if let fileURL = result.savedURL {
-                Log("  💾 Saved to: ".green.bold + "\(fileURL.path)")
-            } else {
-                Log("🟡️ To save the profile to a file, re-run with -o, --output <path>.".dim)
-            }
-            Log("")
-        } catch {
-            Log("Error: ".red.bold + "Failed to create provisioning profile: \(error.localizedDescription)")
+        if let fileURL = result.savedURL {
+            Log("  💾 Saved to: ".green.bold + "\(fileURL.path)")
+        } else {
+            Log("🟡️ To save the profile to a file, re-run with -o, --output <path>.".dim)
         }
+        Log("")
     }
 }

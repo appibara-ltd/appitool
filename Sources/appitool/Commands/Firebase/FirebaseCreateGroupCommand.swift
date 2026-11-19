@@ -19,15 +19,8 @@ struct FirebaseCreateGroupCommand: BaseCommand {
     var name: String?
 
     func execute() async throws {
-        guard let service = try projectOptions.makeService() else {
-            Log("Error: ".red.bold + "Missing Google credentials (configure GOOGLE_KEY in .env or via --google-key).")
-            return
-        }
-
-        guard let project = projectOptions.resolveProject() else {
-            Log("Error: ".red.bold + "Missing project identifier (configure FIREBASE_PROJECT_ID in .env, or provide -p, --project).")
-            return
-        }
+        let service = try projectOptions.requireService()
+        let project = try projectOptions.requireProject()
 
         let displayName = name ?? alias
         Log("👥 Creating or getting tester group '\(displayName)' (alias: \(alias)) in project [\(project)]...".dim)

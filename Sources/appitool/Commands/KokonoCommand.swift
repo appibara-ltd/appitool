@@ -23,8 +23,7 @@ struct KokonoCommand: BaseCommand {
     func execute() async throws {
         let resolvedUrl = url ?? EnvLoader.value(for: "KOKONO_URL")
         guard let resolvedUrl, !resolvedUrl.isEmpty else {
-            Log("Error: ".red.bold + "Missing KokoNo URL. Provide -u, --url or configure KOKONO_URL in .env.")
-            throw ExitCode.failure
+            throw CommandError("Missing KokoNo URL. Provide -u, --url or configure KOKONO_URL in .env.")
         }
 
         // Per-URL Keypair Isolation:
@@ -50,8 +49,7 @@ struct KokonoCommand: BaseCommand {
             ))
             Log("🟢 KokoNo notification sent successfully.".bold)
         } catch {
-            Log("Error: ".red.bold + "Failed to send KokoNo notification: \(error.localizedDescription)")
-            throw ExitCode.failure
+            throw CommandError("Failed to send KokoNo notification: \(error.localizedDescription)")
         }
     }
 }

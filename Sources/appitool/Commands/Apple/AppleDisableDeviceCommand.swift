@@ -16,15 +16,11 @@ struct AppleDisableDeviceCommand: BaseCommand {
     var udid: String
 
     func execute() async throws {
-        guard let service = try appleCredentials.makeService() else {
-            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
-            return
-        }
+        let service = try appleCredentials.requireService()
 
         Log("🔍 Searching for device with UDID '\(udid)' on Apple Developer Portal...".dim)
         guard let device = try await service.findDevice(udid: udid) else {
-            Log("Error: ".red.bold + "Device with UDID '\(udid)' not found on Apple Developer Portal.")
-            return
+            throw CommandError("Device with UDID '\(udid)' not found on Apple Developer Portal.")
         }
 
         let devName = device.attributes?.name ?? "unnamed"

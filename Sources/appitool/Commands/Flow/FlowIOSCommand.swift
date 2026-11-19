@@ -7,6 +7,8 @@ struct FlowIOSCommand: BaseCommand {
         abstract: "Executes the automated 7-stage release flow for iOS."
     )
 
+    static var handlesErrors: Bool { false }
+
     @Option(name: .shortAndLong, help: "Distribution method (adhoc, development, appstore). Defaults to appstore.")
     var distribution: BuildCommand.Distribution = .appstore
 
@@ -43,7 +45,7 @@ struct FlowIOSCommand: BaseCommand {
         let resolvedConfiguration = configuration ?? EnvLoader.value(for: "XCODE_CONFIGURATION")
         let appleCreds = appleCredentials.resolve()
         let match = matchOptions.resolve()
-        let resolvedTeamId = match.teamId ?? EnvLoader.value(for: "APPLE_TEAM_ID")
+        let resolvedTeamId = match.teamId
         let resolvedFirebaseAppId = firebaseAppId ?? EnvLoader.value(for: "FIREBASE_IOS_APP_ID")
         let resolvedGoogleKey = googleCredentials.resolveKey()
 

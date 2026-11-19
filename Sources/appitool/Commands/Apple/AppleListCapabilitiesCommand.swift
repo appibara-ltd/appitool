@@ -19,10 +19,7 @@ struct AppleListCapabilitiesCommand: BaseCommand {
     func execute() async throws {
         // If bundle ID is specified, query Apple Developer Portal for enabled capabilities
         if let targetBundleId = bundleId?.trimmingCharacters(in: .whitespacesAndNewlines), !targetBundleId.isEmpty {
-            guard let service = try appleCredentials.makeService() else {
-                Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
-                return
-            }
+            let service = try appleCredentials.requireService()
 
             Log("🔍 Fetching App Identifier '\(targetBundleId)' from Apple Developer Portal...".dim)
             let result: (bundleId: Components.Schemas.BundleId, capabilities: [Components.Schemas.BundleIdCapability])

@@ -17,14 +17,10 @@ struct AppleDeleteIdentifierCommand: BaseCommand {
 
     func execute() async throws {
         guard let targetIdentifier = appIdentifier, !targetIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            Log("Error: ".red.bold + "Missing app identifier. Provide -a, --app-identifier <bundle-id>.")
-            return
+            throw CommandError("Missing app identifier. Provide -a, --app-identifier <bundle-id>.")
         }
 
-        guard let service = try appleCredentials.makeService() else {
-            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
-            return
-        }
+        let service = try appleCredentials.requireService()
 
         Log("🔍 Checking bundle identifier '\(targetIdentifier)' on Apple Developer Portal...".dim)
 
@@ -38,8 +34,10 @@ struct AppleDeleteIdentifierCommand: BaseCommand {
                 Log("🟡️ Bundle identifier '\(targetIdentifier)' does not exist on Apple Developer Portal (already absent).".yellow)
             }
         } catch {
-            Log("Error: ".red.bold + "Failed to delete bundle identifier: \(error.localizedDescription)")
-            Log("💡 Tip: Apple does not allow deleting bundle identifiers that are actively linked to App records in App Store Connect.".yellow)
+            throw CommandError(
+                "Failed to delete bundle identifier: \(error.localizedDescription)",
+                hint: "💡 Tip: Apple does not allow deleting bundle identifiers that are actively linked to App records in App Store Connect."
+            )
         }
     }
 }

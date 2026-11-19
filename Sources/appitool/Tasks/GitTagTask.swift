@@ -65,20 +65,20 @@ public struct GitTagTask: Task, Sendable {
         }
 
         let workDir = input.workingDirectory ?? FileManager.default.currentDirectoryPath
-        let repoCheck = try Self.runGit(arguments: ["rev-parse", "--is-inside-work-tree"], workingDirectory: workDir)
+        let repoCheck = try await Self.runGit(arguments: ["rev-parse", "--is-inside-work-tree"], workingDirectory: workDir)
         guard repoCheck.exitCode == 0 else {
             throw GitTagError.notAGitRepository(workDir)
         }
 
         var tagArgs: [String] = []
-        if !Self.hasGitAuthorIdentity(in: workDir) {
+        if !(await Self.hasGitAuthorIdentity(in: workDir)) {
             tagArgs.append(contentsOf: ["-c", "user.name=appitool", "-c", "user.email=tool@appibara.com"])
         }
 
         let tagMessage = input.message ?? "Release \(tagName)"
         tagArgs.append(contentsOf: ["tag", "-a", "-f", tagName, "-m", tagMessage])
 
-        let tagResult = try Self.runGit(arguments: tagArgs, workingDirectory: workDir)
+        let tagResult = try await Self.runGit(arguments: tagArgs, workingDirectory: workDir)
         guard tagResult.exitCode == 0 else {
             let reason = tagResult.stderr.isEmpty ? tagResult.stdout : tagResult.stderr
             throw GitTagError.tagCreationFailed(tagName: tagName, message: reason)
@@ -88,13 +88,13 @@ public struct GitTagTask: Task, Sendable {
             return Output(tagName: tagName, pushed: false)
         }
 
-        let remoteCheck = try Self.runGit(arguments: ["remote", "get-url", input.remote], workingDirectory: workDir)
+        let remoteCheck = try await Self.runGit(arguments: ["remote", "get-url", input.remote], workingDirectory: workDir)
         guard remoteCheck.exitCode == 0 else {
             Log("ℹ️ Created local Git tag '\(tagName)' (remote '\(input.remote)' not configured; skipping push).".yellow)
             return Output(tagName: tagName, pushed: false)
         }
 
-        let pushResult = try Self.runGit(arguments: ["push", input.remote, tagName], workingDirectory: workDir)
+        let pushResult = try await Self.runGit(arguments: ["push", input.remote, tagName], workingDirectory: workDir)
         guard pushResult.exitCode == 0 else {
             let reason = pushResult.stderr.isEmpty ? pushResult.stdout : pushResult.stderr
             throw GitTagError.pushFailed(tagName: tagName, remote: input.remote, message: reason)
@@ -105,9 +105,9 @@ public struct GitTagTask: Task, Sendable {
 
     // MARK: - Private Helpers
 
-    private static func hasGitAuthorIdentity(in directory: String) -> Bool {
-        let name = (try? runGit(arguments: ["config", "--get", "user.name"], workingDirectory: directory))
-        let email = (try? runGit(arguments: ["config", "--get", "user.email"], workingDirectory: directory))
+    private static func hasGitAuthorIdentity(in directory: String) async -> Bool {
+        let name = try? await runGit(arguments: ["config", "--get", "user.name"], workingDirectory: directory)
+        let email = try? await runGit(arguments: ["config", "--get", "user.email"], workingDirectory: directory)
         let hasName = name?.exitCode == 0 && name?.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
         let hasEmail = email?.exitCode == 0 && email?.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
         return hasName && hasEmail
@@ -116,25 +116,12 @@ public struct GitTagTask: Task, Sendable {
     private static func runGit(
         arguments: [String],
         workingDirectory: String
-    ) throws -> (exitCode: Int32, stdout: String, stderr: String) {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["git", "-c", "core.askPass=", "-c", "credential.helper="] + arguments
-        process.standardInput = FileHandle.nullDevice
-        process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
-
-        let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
-
-        try process.run()
-        let outData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let errData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-
-        let stdout = String(data: outData, encoding: .utf8) ?? ""
-        let stderr = String(data: errData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return (process.terminationStatus, stdout, stderr)
+    ) async throws -> (exitCode: Int32, stdout: String, stderr: String) {
+        let result = try await ProcessRunner.git(arguments, in: workingDirectory)
+        return (
+            result.exitCode,
+            result.stdout,
+            result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
     }
 }

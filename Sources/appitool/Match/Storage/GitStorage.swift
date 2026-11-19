@@ -182,25 +182,7 @@ public final class GitStorage: Sendable {
     }
 
     private func runGit(args: [String], in directory: String?) async throws -> (Int32, String) {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        // -c core.askPass="" and -c credential.helper="" prevents hanging on credentials prompts without reading ProcessInfo
-        process.arguments = ["-c", "core.askPass=", "-c", "credential.helper="] + args
-        process.standardInput = FileHandle.nullDevice
-
-        if let directory {
-            process.currentDirectoryURL = URL(fileURLWithPath: directory)
-        }
-
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-
-        try process.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-
-        let output = String(data: data, encoding: .utf8) ?? ""
-        return (process.terminationStatus, output)
+        let result = try await ProcessRunner.git(args, in: directory, combineOutput: true)
+        return (result.exitCode, result.stdout)
     }
 }

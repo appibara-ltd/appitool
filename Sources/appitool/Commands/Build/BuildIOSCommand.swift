@@ -60,28 +60,21 @@ struct BuildIOSCommand: BaseCommand {
         let resolvedProject = project ?? EnvLoader.value(for: "XCODE_PROJECT") ?? detected.project
 
         guard skipBuildArchive || resolvedWorkspace != nil || resolvedProject != nil else {
-            Log("Error: ".red.bold + "Could not find .xcworkspace or .xcodeproj in current directory or ios/ subdirectory. Specify -w, --workspace or -p, --project.")
-            throw ExitCode.failure
+            throw CommandError("Could not find .xcworkspace or .xcodeproj in current directory or ios/ subdirectory. Specify -w, --workspace or -p, --project.")
         }
 
         // 3. Resolve Scheme via xcodebuild -list -json
         let resolvedScheme: String
         if !skipBuildArchive || resolvedWorkspace != nil || resolvedProject != nil {
-            do {
-                resolvedScheme = try await XcodeBuildTask.resolveScheme(
-                    requested: scheme ?? EnvLoader.value(for: "XCODE_SCHEME"),
-                    workspace: resolvedWorkspace,
-                    project: resolvedProject
-                )
-            } catch {
-                Log("Error: ".red.bold + "\(error.localizedDescription)")
-                throw ExitCode.failure
-            }
+            resolvedScheme = try await XcodeBuildTask.resolveScheme(
+                requested: scheme ?? EnvLoader.value(for: "XCODE_SCHEME"),
+                workspace: resolvedWorkspace,
+                project: resolvedProject
+            )
         } else if let explicitScheme = scheme ?? EnvLoader.value(for: "XCODE_SCHEME") {
             resolvedScheme = explicitScheme
         } else {
-            Log("Error: ".red.bold + "No scheme specified. Provide -s, --scheme or set XCODE_SCHEME in .env.")
-            throw ExitCode.failure
+            throw CommandError("No scheme specified. Provide -s, --scheme or set XCODE_SCHEME in .env.")
         }
 
         // 4. Resolve Target, Output Directory & DerivedData
@@ -164,43 +157,38 @@ struct BuildIOSCommand: BaseCommand {
 
         // 7. Execute XcodeBuildTask
         let task = XcodeBuildTask()
-        do {
-            let output = try await task.run(.init(
-                workspace: resolvedWorkspace,
-                project: resolvedProject,
-                scheme: resolvedScheme,
-                configuration: resolvedConfiguration,
-                outputDirectory: resolvedOutputDir,
-                outputName: resolvedOutputName,
-                archivePath: resolvedArchivePath,
-                derivedDataPath: resolvedDerivedData,
-                skipBuildArchive: skipBuildArchive,
-                skipPackageIpa: skipPackageIpa,
-                clean: clean,
-                allowProvisioningUpdates: allowProvisioningUpdates,
-                codesigningIdentity: codesigningIdentity,
-                exportMethod: exportMethod,
-                exportTeamId: resolvedTeamId,
-                manageAppVersionAndBuildNumber: manageBuildNumber,
-                xcodebuildFormatter: resolvedFormatter,
-                silent: silent,
-                xcargs: xcargs,
-                exportXcargs: exportXcargs
-            ))
+        let output = try await task.run(.init(
+            workspace: resolvedWorkspace,
+            project: resolvedProject,
+            scheme: resolvedScheme,
+            configuration: resolvedConfiguration,
+            outputDirectory: resolvedOutputDir,
+            outputName: resolvedOutputName,
+            archivePath: resolvedArchivePath,
+            derivedDataPath: resolvedDerivedData,
+            skipBuildArchive: skipBuildArchive,
+            skipPackageIpa: skipPackageIpa,
+            clean: clean,
+            allowProvisioningUpdates: allowProvisioningUpdates,
+            codesigningIdentity: codesigningIdentity,
+            exportMethod: exportMethod,
+            exportTeamId: resolvedTeamId,
+            manageAppVersionAndBuildNumber: manageBuildNumber,
+            xcodebuildFormatter: resolvedFormatter,
+            silent: silent,
+            xcargs: xcargs,
+            exportXcargs: exportXcargs
+        ))
 
-            Log("\n" + "🎉 iOS Build Completed Successfully!".green.bold)
-            if let archive = output.archivePath {
-                Log("   Archive: ".dim + "\(archive)".green)
-            }
-            if let ipa = output.ipaPath {
-                Log("   IPA:     ".dim + "\(ipa)".green.bold)
-            }
-            if let dsym = output.dsymPath {
-                Log("   dSYM:    ".dim + "\(dsym)".dim)
-            }
-        } catch {
-            Log("\n" + "🔴 Build Failed: ".red.bold + "\(error.localizedDescription)")
-            throw ExitCode.failure
+        Log("\n" + "🎉 iOS Build Completed Successfully!".green.bold)
+        if let archive = output.archivePath {
+            Log("   Archive: ".dim + "\(archive)".green)
+        }
+        if let ipa = output.ipaPath {
+            Log("   IPA:     ".dim + "\(ipa)".green.bold)
+        }
+        if let dsym = output.dsymPath {
+            Log("   dSYM:    ".dim + "\(dsym)".dim)
         }
     }
 }

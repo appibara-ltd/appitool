@@ -1,7 +1,6 @@
 import ArgumentParser
 import Foundation
 import Rainbow
-import Subprocess
 
 /// A task that handles building Android applications using Gradle (`gradlew`),
 /// producing Android App Bundles (AAB) or APK artifacts.
@@ -235,17 +234,17 @@ public struct GradleTask: Task {
         }
 
         // 7. Execute Gradle command
-        let result = try await executeProcess(
-            executable: gradlewPath,
+        let result = try await ProcessRunner.stream(
+            gradlewPath,
             arguments: args,
             workingDirectory: workingDirectory,
+            environment: input.environment,
             formatter: input.formatter,
-            silent: input.silent,
-            environment: input.environment
+            style: input.silent ? .silent : .rawStdout
         )
 
         guard result.exitCode == 0 else {
-            throw GradleError.buildFailed(exitCode: result.exitCode, output: result.output)
+            throw GradleError.buildFailed(exitCode: result.exitCode, output: result.stdout)
         }
 
         // 8. Discover generated artifacts
@@ -488,120 +487,5 @@ public struct GradleTask: Task {
         }
 
         return nil
-    }
-
-    // MARK: - Process Execution
-
-    private struct CommandResult {
-        let exitCode: Int32
-        let output: String
-    }
-
-    private func executeProcess(
-        executable: String,
-        arguments: [String],
-        workingDirectory: String,
-        formatter: String?,
-        silent: Bool,
-        environment: [String: String]?
-    ) async throws -> CommandResult {
-        let escapedArgs = arguments.map { arg in
-            if arg.contains(" ") || arg.contains("\"") || arg.contains("'") {
-                return "\"\(arg.replacingOccurrences(of: "\"", with: "\\\""))\""
-            }
-            return arg
-        }.joined(separator: " ")
-
-
-        final class OutputBuffer: @unchecked Sendable {
-            private let lock = NSLock()
-            private var data = Data()
-
-            func append(_ bytes: Data) {
-                lock.lock()
-                data.append(bytes)
-                lock.unlock()
-            }
-
-            var stringValue: String {
-                lock.lock()
-                defer { lock.unlock() }
-                return String(data: data, encoding: .utf8) ?? ""
-            }
-        }
-
-        let buffer = OutputBuffer()
-
-        let exec: Subprocess.Executable
-        let args: [String]
-
-        if let formatter, !formatter.isEmpty {
-            let formatterBin = formatter.split(separator: " ").first.map(String.init) ?? ""
-            if hasExecutable(formatterBin) {
-                exec = .name("bash")
-                args = ["-c", "set -o pipefail && \"\(executable)\" \(escapedArgs) | \(formatter)"]
-            } else {
-                exec = executable.hasPrefix("/") ? .path(FilePath(executable)) : .name(executable)
-                args = arguments
-            }
-        } else {
-            exec = executable.hasPrefix("/") ? .path(FilePath(executable)) : .name(executable)
-            args = arguments
-        }
-
-        var envConfig: Subprocess.Environment = .inherit
-        if let environment {
-            var updates: [Subprocess.Environment.Key: String?] = [:]
-            for (k, v) in environment {
-                updates[Subprocess.Environment.Key(stringLiteral: k)] = v
-            }
-            envConfig = envConfig.updating(updates)
-        }
-
-        let workDir: FilePath? = !workingDirectory.isEmpty ? FilePath(workingDirectory) : nil
-
-        let result = try await Subprocess.run(
-            exec,
-            arguments: Arguments(args),
-            environment: envConfig,
-            workingDirectory: workDir,
-            input: .none,
-            output: .sequence,
-            error: .combinedWithOutput
-        ) { execution in
-            for try await bufferChunk in execution.standardOutput {
-                let data = Data(buffer: bufferChunk)
-                if !data.isEmpty {
-                    buffer.append(data)
-                    if !silent {
-                        FileHandle.standardOutput.write(data)
-                    }
-                }
-            }
-        }
-
-        let exitCode: Int32 = switch result.terminationStatus {
-        case .exited(let code): code
-        case .signaled(let code): code
-        }
-
-        return CommandResult(
-            exitCode: exitCode,
-            output: buffer.stringValue
-        )
-    }
-
-    private func hasExecutable(_ name: String) -> Bool {
-        guard !name.isEmpty else { return false }
-        if name.hasPrefix("/") {
-            return FileManager.default.isExecutableFile(atPath: name)
-        }
-        for dir in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"] {
-            let fullPath = "\(dir)/\(name)"
-            if FileManager.default.isExecutableFile(atPath: fullPath) {
-                return true
-            }
-        }
-        return false
     }
 }

@@ -1,5 +1,4 @@
 import Foundation
-import Subprocess
 
 /// A suite of atomic Android project operations, inspection, and identifier resolutions.
 public enum AndroidTasks {
@@ -384,23 +383,18 @@ public enum AndroidTasks {
         }
         args.append(contentsOf: ["-I", tempScriptUrl.path, "printAppInfo"])
 
-        let result = try await Subprocess.run(
-            .path(FilePath(gradlewUrl.path)),
-            arguments: Arguments(args),
-            workingDirectory: FilePath(androidRoot.path),
-            output: .string(limit: 10 * 1024 * 1024),
-            error: .combinedWithOutput
+        let result = try await ProcessRunner.run(
+            gradlewUrl.path,
+            arguments: args,
+            workingDirectory: androidRoot.path,
+            combineOutput: true
         )
 
-        guard result.terminationStatus.isSuccess else {
-            let code = switch result.terminationStatus {
-            case .exited(let c): c
-            case .signaled(let c): c
-            }
+        guard result.isSuccess else {
             throw NSError(
                 domain: "AndroidTasks",
-                code: Int(code),
-                userInfo: [NSLocalizedDescriptionKey: "Gradle evaluation failed (exit code \(code)): \(result.standardOutput)"]
+                code: Int(result.exitCode),
+                userInfo: [NSLocalizedDescriptionKey: "Gradle evaluation failed (exit code \(result.exitCode)): \(result.stdout)"]
             )
         }
 
@@ -410,7 +404,7 @@ public enum AndroidTasks {
         var namespace: String?
         var flavors: [AndroidFlavor] = []
 
-        for line in result.standardOutput.components(separatedBy: .newlines) {
+        for line in result.stdout.components(separatedBy: .newlines) {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.hasPrefix("APPI_VERSION_CODE=") {
                 let val = String(trimmed.dropFirst("APPI_VERSION_CODE=".count)).trimmingCharacters(in: .whitespacesAndNewlines)

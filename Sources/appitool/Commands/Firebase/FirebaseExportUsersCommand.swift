@@ -19,15 +19,8 @@ struct FirebaseExportUsersCommand: BaseCommand {
     var output: String?
 
     func execute() async throws {
-        guard let service = try projectOptions.makeService() else {
-            Log("Error: ".red.bold + "Missing Google credentials (configure GOOGLE_KEY in .env or via -g, --google-key).")
-            throw ExitCode.failure
-        }
-
-        guard let project = projectOptions.resolveProject() else {
-            Log("Error: ".red.bold + "Missing project identifier (configure FIREBASE_PROJECT_ID in .env, or provide -p, --project).")
-            throw ExitCode.failure
-        }
+        let service = try projectOptions.requireService()
+        let project = try projectOptions.requireProject()
 
         Log("🔍 Fetching all Firebase Auth users for project [\(project)]...".dim)
 

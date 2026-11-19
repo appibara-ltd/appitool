@@ -7,6 +7,8 @@ struct FlowAndroidCommand: BaseCommand {
         abstract: "Executes the automated 7-stage release flow for Android."
     )
 
+    static var handlesErrors: Bool { false }
+
     @Option(name: .shortAndLong, help: "Distribution method (adhoc, development, appstore). Defaults to appstore.")
     var distribution: BuildCommand.Distribution = .appstore
 
@@ -23,7 +25,7 @@ struct FlowAndroidCommand: BaseCommand {
     var firebaseAppId: String?
 
     @OptionGroup var googleCredentials: GoogleCredentialsOptions
-    @OptionGroup var matchOptions: MatchOptions
+    @OptionGroup var matchOptions: MatchStorageOptions
     @OptionGroup var notificationOptions: NotificationOptions
 
     @Flag(name: .long, inversion: .prefixedNo, help: "Suppress xcodebuild standard output and logs.")
@@ -55,7 +57,6 @@ struct FlowAndroidCommand: BaseCommand {
             matchGitBranch: match.gitBranch,
             matchGitToken: match.gitToken,
             matchPassword: match.password,
-            matchReadonly: match.readonly,
             firebaseAppId: resolvedFirebaseAppId,
             googleKey: resolvedGoogleKey,
             slackUrl: notifications.slackUrl,

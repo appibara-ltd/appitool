@@ -20,10 +20,7 @@ struct ApplePruneProfilesCommand: BaseCommand {
     var includeExpired: Bool = false
 
     func execute() async throws {
-        guard let service = try appleCredentials.makeService() else {
-            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
-            return
-        }
+        let service = try appleCredentials.requireService()
 
         Log("🔍 Inspecting provisioning profiles on Apple Developer Portal...".dim)
         let result = try await service.pruneProfiles(includeExpired: includeExpired, dryRun: dryRun)

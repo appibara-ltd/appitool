@@ -58,7 +58,7 @@ struct BuildAndroidCommand: BaseCommand {
     @Flag(name: .long, help: "Fetch signing keystore from Match Git repository.")
     var match: Bool = false
 
-    @OptionGroup var matchOptions: MatchOptions
+    @OptionGroup var matchOptions: MatchStorageOptions
 
     func execute() async throws {
         // 1. Resolve Android project directory
@@ -148,30 +148,25 @@ struct BuildAndroidCommand: BaseCommand {
             gradleEnvironment = ["GRADLE_OPTS": finalGradleOpts]
         }
 
-        do {
-            let output = try await task.run(.init(
-                projectDirectory: resolvedProjectDir,
-                buildType: resolvedBuildType,
-                flavor: resolvedFlavor,
-                format: resolvedFormat,
-                outputDirectory: resolvedOutputDir,
-                artifactName: artifactBaseName,
-                signing: signingConfig,
-                clean: clean,
-                silent: silent,
-                environment: gradleEnvironment
-            ))
+        let output = try await task.run(.init(
+            projectDirectory: resolvedProjectDir,
+            buildType: resolvedBuildType,
+            flavor: resolvedFlavor,
+            format: resolvedFormat,
+            outputDirectory: resolvedOutputDir,
+            artifactName: artifactBaseName,
+            signing: signingConfig,
+            clean: clean,
+            silent: silent,
+            environment: gradleEnvironment
+        ))
 
-            Log("\n" + "🎉 Android Build Completed Successfully!".green.bold)
-            if let aab = output.aabPath {
-                Log("   Bundle (AAB): ".dim + "\(aab)".green.bold)
-            }
-            if let apk = output.apkPath {
-                Log("   Package (APK): ".dim + "\(apk)".green.bold)
-            }
-        } catch {
-            Log("\n" + "🔴 Build Failed: ".red.bold + "\(error.localizedDescription)")
-            throw ExitCode.failure
+        Log("\n" + "🎉 Android Build Completed Successfully!".green.bold)
+        if let aab = output.aabPath {
+            Log("   Bundle (AAB): ".dim + "\(aab)".green.bold)
+        }
+        if let apk = output.apkPath {
+            Log("   Package (APK): ".dim + "\(apk)".green.bold)
         }
     }
 

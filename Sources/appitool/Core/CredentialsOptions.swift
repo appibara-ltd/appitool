@@ -115,6 +115,14 @@ struct FirebaseProjectOptions: ParsableArguments, Sendable {
         }
         return service
     }
+
+    /// Returns the Firebase project identifier or throws a descriptive `ValidationError`.
+    func requireProject(fallbackAppId: String? = nil) throws -> String {
+        guard let project = resolveProject(fallbackAppId: fallbackAppId) else {
+            throw ValidationError("Missing project identifier (configure FIREBASE_PROJECT_ID in .env, or provide -p, --project).")
+        }
+        return project
+    }
 }
 
 /// Reusable CLI options and environment resolution for Firebase application-level operations (e.g. releases).
@@ -177,6 +185,14 @@ struct FirebaseCredentialsOptions: ParsableArguments, Sendable {
     func requireService() throws -> FirebaseService {
         try projectOptions.requireService()
     }
+
+    /// Returns the Firebase App ID or throws a descriptive `ValidationError`.
+    func requireAppId(for platform: Platform? = nil) throws -> String {
+        guard let appId = resolveAppId(for: platform) else {
+            throw ValidationError("Missing Firebase App ID (configure FIREBASE_IOS_APP_ID / FIREBASE_ANDROID_APP_ID in .env or via --firebase-app-id).")
+        }
+        return appId
+    }
 }
 
 /// Reusable CLI options and environment resolution for Webhook notifications.
@@ -208,34 +224,80 @@ struct NotificationOptions: ParsableArguments, Sendable {
     }
 }
 
-/// Reusable CLI options and environment resolution for Fastlane Match.
+/// Reusable CLI options and environment resolution for Match Git storage.
+struct MatchStorageOptions: ParsableArguments, Sendable {
+    @Option(name: .long, help: "Git repository URL for Match storage (defaults to MATCH_GIT_URL in .env).")
+    var matchGitUrl: String?
+
+    @Option(name: .long, help: "Git branch name for Match storage (defaults to MATCH_GIT_BRANCH in .env or 'master').")
+    var matchGitBranch: String?
+
+    @Option(name: .long, help: "Git authentication token for Match storage (defaults to MATCH_GIT_TOKEN or GITHUB_TOKEN in .env).")
+    var matchGitToken: String?
+
+    @Option(name: .long, help: "Passphrase for Match AES encryption/decryption (defaults to MATCH_PASSWORD in .env).")
+    var matchPassword: String?
+
+    /// Resolves Match storage options by checking CLI flags first, falling back to environment variables.
+    func resolve() -> (
+        gitUrl: String?,
+        gitBranch: String,
+        gitToken: String?,
+        password: String?
+    ) {
+        let resolvedGitUrl = matchGitUrl ?? EnvLoader.value(for: "MATCH_GIT_URL")
+        let resolvedGitBranch = matchGitBranch ?? EnvLoader.value(for: "MATCH_GIT_BRANCH") ?? "master"
+        let resolvedGitToken = matchGitToken ?? EnvLoader.value(for: "MATCH_GIT_TOKEN") ?? EnvLoader.value(for: "GITHUB_TOKEN")
+        let resolvedPassword = matchPassword ?? EnvLoader.value(for: "MATCH_PASSWORD")
+        return (
+            gitUrl: resolvedGitUrl?.isEmpty == false ? resolvedGitUrl : nil,
+            gitBranch: resolvedGitBranch,
+            gitToken: resolvedGitToken?.isEmpty == false ? resolvedGitToken : nil,
+            password: resolvedPassword?.isEmpty == false ? resolvedPassword : nil
+        )
+    }
+
+    /// Returns resolved Match storage options or throws a descriptive `ValidationError` when URL or password is missing.
+    func require() throws -> (
+        gitUrl: String,
+        gitBranch: String,
+        gitToken: String?,
+        password: String
+    ) {
+        let resolved = resolve()
+        guard let gitUrl = resolved.gitUrl, !gitUrl.isEmpty else {
+            throw ValidationError("Missing Git repository URL. Provide --match-git-url or configure MATCH_GIT_URL in .env.")
+        }
+        guard let password = resolved.password, !password.isEmpty else {
+            throw ValidationError("Missing encryption password. Provide --match-password or configure MATCH_PASSWORD in .env.")
+        }
+        return (
+            gitUrl: gitUrl,
+            gitBranch: resolved.gitBranch,
+            gitToken: resolved.gitToken,
+            password: password
+        )
+    }
+}
+
+/// Reusable CLI options and environment resolution for Apple/iOS Fastlane Match.
 struct MatchOptions: ParsableArguments, Sendable {
-    @Option(name: [.long, .customLong("match-git-url")], help: "Git repository URL for certificates storage (defaults to MATCH_GIT_URL in .env).")
-    var gitUrl: String?
+    @OptionGroup var storage: MatchStorageOptions
 
-    @Option(name: [.long, .customLong("match-git-branch")], help: "Git branch name (defaults to MATCH_GIT_BRANCH in .env or 'master').")
-    var gitBranch: String?
-
-    @Option(name: [.long, .customLong("match-git-token")], help: "Git authentication token (defaults to MATCH_GIT_TOKEN or GITHUB_TOKEN in .env).")
-    var gitToken: String?
-
-    @Option(name: [.long, .customLong("match-password")], help: "Passphrase for AES encryption/decryption (defaults to MATCH_PASSWORD in .env).")
-    var password: String?
-
-    @Option(name: [.long], help: "Custom keychain name or path (defaults to MATCH_KEYCHAIN_NAME in .env).")
+    @Option(name: .long, help: "Custom keychain name or path (defaults to MATCH_KEYCHAIN_NAME in .env).")
     var keychainName: String?
 
-    @Option(name: [.long], help: "Password for unlocking custom keychain (defaults to MATCH_KEYCHAIN_PASSWORD in .env).")
+    @Option(name: .long, help: "Password for unlocking custom keychain (defaults to MATCH_KEYCHAIN_PASSWORD in .env).")
     var keychainPassword: String?
 
-    @Option(name: [.long], help: "Apple Developer Portal Team ID (defaults to APPLE_TEAM_ID in .env).")
+    @Option(name: .long, help: "Apple Developer Portal Team ID (defaults to APPLE_TEAM_ID in .env).")
     var teamId: String?
 
-    @Flag(name: [.long], help: "Only fetch existing certificates and profiles without creating new ones.")
+    @Flag(name: .long, help: "Only fetch existing certificates and profiles without creating new ones.")
     var readonly: Bool = false
 
     /// Resolves Match options by checking CLI flags first, falling back to environment variables.
-    func resolve() -> (
+    func resolve(defaultReadonly: Bool = true) -> (
         gitUrl: String?,
         gitBranch: String,
         gitToken: String?,
@@ -245,19 +307,18 @@ struct MatchOptions: ParsableArguments, Sendable {
         teamId: String?,
         readonly: Bool
     ) {
-        let resolvedGitUrl = gitUrl ?? EnvLoader.value(for: "MATCH_GIT_URL")
-        let resolvedGitBranch = gitBranch ?? EnvLoader.value(for: "MATCH_GIT_BRANCH") ?? "master"
-        let resolvedGitToken = gitToken ?? EnvLoader.value(for: "MATCH_GIT_TOKEN") ?? EnvLoader.value(for: "GITHUB_TOKEN")
-        let resolvedPassword = password ?? EnvLoader.value(for: "MATCH_PASSWORD")
+        let resolvedStorage = storage.resolve()
         let resolvedKeychainName = keychainName ?? EnvLoader.value(for: "MATCH_KEYCHAIN_NAME") ?? "appitool"
         let resolvedKeychainPassword = keychainPassword ?? EnvLoader.value(for: "MATCH_KEYCHAIN_PASSWORD") ?? "appipass"
         let resolvedTeamId = teamId ?? EnvLoader.value(for: "APPLE_TEAM_ID")
-        let isReadonly = readonly || (EnvLoader.value(for: "MATCH_READONLY") != "false")
+        let isReadonly = defaultReadonly
+            ? (readonly || (EnvLoader.value(for: "MATCH_READONLY") != "false"))
+            : readonly
         return (
-            gitUrl: resolvedGitUrl?.isEmpty == false ? resolvedGitUrl : nil,
-            gitBranch: resolvedGitBranch,
-            gitToken: resolvedGitToken?.isEmpty == false ? resolvedGitToken : nil,
-            password: resolvedPassword?.isEmpty == false ? resolvedPassword : nil,
+            gitUrl: resolvedStorage.gitUrl,
+            gitBranch: resolvedStorage.gitBranch,
+            gitToken: resolvedStorage.gitToken,
+            password: resolvedStorage.password,
             keychainName: resolvedKeychainName.isEmpty ? "appitool" : resolvedKeychainName,
             keychainPassword: resolvedKeychainPassword.isEmpty ? "appipass" : resolvedKeychainPassword,
             teamId: resolvedTeamId?.isEmpty == false ? resolvedTeamId : nil,

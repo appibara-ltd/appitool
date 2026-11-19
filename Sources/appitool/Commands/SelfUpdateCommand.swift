@@ -5,7 +5,6 @@ import Foundation
 import FoundationNetworking
 #endif
 import Rainbow
-import Subprocess
 
 struct SelfUpdateCommand: BaseCommand {
     static let configuration = CommandConfiguration(
@@ -98,8 +97,7 @@ struct SelfUpdateCommand: BaseCommand {
         }
 
         guard let checksumsAsset = release.assets.first(where: { $0.name == Self.checksumsName }) else {
-            Log("🔴 Error: Could not locate '\(Self.checksumsName)' in release assets for \(latestTag).".red)
-            throw ExitCode.failure
+            throw CommandError("Could not locate '\(Self.checksumsName)' in release assets for \(latestTag).")
         }
 
         let artifactName = tarballAsset.name
@@ -118,14 +116,12 @@ struct SelfUpdateCommand: BaseCommand {
 
         Log("   🔄 Verifying SHA256 checksum...")
         guard let checksumsString = String(data: checksumsData, encoding: .utf8) else {
-            Log("🔴 Error: Invalid checksums file format.".red)
-            throw ExitCode.failure
+            throw CommandError("Invalid checksums file format.")
         }
 
         let calculatedHash = SHA256.hash(data: tarballData).map { String(format: "%02x", $0) }.joined()
         guard let expectedHash = parseChecksum(from: checksumsString, for: artifactName) else {
-            Log("🔴 Error: Checksum for '\(artifactName)' not found in \(Self.checksumsName).".red)
-            throw ExitCode.failure
+            throw CommandError("Checksum for '\(artifactName)' not found in \(Self.checksumsName).")
         }
 
         if calculatedHash.lowercased() != expectedHash.lowercased() {
@@ -140,8 +136,7 @@ struct SelfUpdateCommand: BaseCommand {
         try await runProcess("tar", arguments: ["-xzf", tarballPath.path, "-C", tempDir.path])
         let extractedBinary = tempDir.appendingPathComponent("appitool")
         guard FileManager.default.fileExists(atPath: extractedBinary.path) else {
-            Log("🔴 Error: 'appitool' binary was not found in the extracted archive.".red)
-            throw ExitCode.failure
+            throw CommandError("'appitool' binary was not found in the extracted archive.")
         }
 
         // Locate current running binary
@@ -153,9 +148,10 @@ struct SelfUpdateCommand: BaseCommand {
             (!fileManager.fileExists(atPath: currentExecutableURL.path) || fileManager.isWritableFile(atPath: currentExecutableURL.path))
 
         if !isWritable {
-            Log("🔴 Error: Permission denied to write to '\(currentExecutableURL.path)'.".red)
-            Log("   Please re-run with sudo: sudo appitool self-update".yellow)
-            throw ExitCode.failure
+            throw CommandError(
+                "Permission denied to write to '\(currentExecutableURL.path)'.",
+                hint: "   Please re-run with sudo: sudo appitool self-update"
+            )
         }
 
         Log("   🔄 Replacing binary at \(currentExecutableURL.path)...")
@@ -223,8 +219,7 @@ struct SelfUpdateCommand: BaseCommand {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-            Log("🔴 Error: Failed to download asset '\(asset.name)' from \(targetURL) (HTTP \(statusCode)).".red)
-            throw ExitCode.failure
+            throw CommandError("Failed to download asset '\(asset.name)' from \(targetURL) (HTTP \(statusCode)).")
         }
         return data
     }
@@ -246,20 +241,15 @@ struct SelfUpdateCommand: BaseCommand {
     @discardableResult
     private func runProcess(_ executable: String, arguments: [String]) async throws -> String {
         do {
-            let result = try await Subprocess.run(
-                .name(executable),
-                arguments: Arguments(arguments),
-                output: .string(limit: 10 * 1024 * 1024),
-                error: .combinedWithOutput
+            let result = try await ProcessRunner.run(
+                executable,
+                arguments: arguments,
+                combineOutput: true
             )
-            guard result.terminationStatus.isSuccess else {
-                let code = switch result.terminationStatus {
-                case .exited(let c): c
-                case .signaled(let c): c
-                }
-                throw ValidationError("Process '\(executable) \(arguments.joined(separator: " "))' failed (exit code \(code)): \(result.standardOutput)")
+            guard result.isSuccess else {
+                throw ValidationError("Process '\(executable) \(arguments.joined(separator: " "))' failed (exit code \(result.exitCode)): \(result.stdout)")
             }
-            return result.standardOutput
+            return result.stdout
         } catch let error as ValidationError {
             throw error
         } catch {

@@ -9,10 +9,10 @@ package struct MatchEncryption: Sendable {
     package init() {}
 
     /// Recursively decrypts all match files in the specified directory.
-    package func decryptDirectory(_ directoryPath: String, password: String) throws {
+    package func decryptDirectory(_ directoryPath: String, password: String) async throws {
         let files = findMatchFiles(in: directoryPath)
         for file in files {
-            try decryptFile(atPath: file, password: password)
+            try await decryptFile(atPath: file, password: password)
         }
     }
 
@@ -70,7 +70,7 @@ package struct MatchEncryption: Sendable {
     }
 
     /// Decrypts a single file in-place if encrypted.
-    package func decryptFile(atPath path: String, password: String) throws {
+    package func decryptFile(atPath path: String, password: String) async throws {
         guard let rawContent = try? Data(contentsOf: URL(fileURLWithPath: path)), !rawContent.isEmpty else {
             return
         }
@@ -85,7 +85,7 @@ package struct MatchEncryption: Sendable {
             try decryptedData.write(to: URL(fileURLWithPath: path), options: .atomic)
         case .v1:
             guard let payload = payloadToDecrypt else { return }
-            let decryptedData = try decryptV1(encryptedPayload: payload, password: password, fileName: fileName)
+            let decryptedData = try await decryptV1(encryptedPayload: payload, password: password, fileName: fileName)
             try decryptedData.write(to: URL(fileURLWithPath: path), options: .atomic)
         case .unencrypted:
             return

@@ -137,7 +137,7 @@ extension AppStoreService {
             }
 
             // 3. Package .cer and private key into .p12 data
-            let p12Data = try P12Exporter.export(
+            let p12Data = try await P12Exporter.export(
                 cerData: cerData,
                 privateKeyPEM: csrResult.privateKeyPEM,
                 password: p12Password

@@ -20,10 +20,7 @@ struct ApplePruneCertificatesCommand: BaseCommand {
     var type: String?
 
     func execute() async throws {
-        guard let service = try appleCredentials.makeService() else {
-            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
-            return
-        }
+        let service = try appleCredentials.requireService()
 
         Log("🔍 Inspecting certificates on Apple Developer Portal...".dim)
         let result = try await service.pruneCertificates(typeFilter: type, dryRun: dryRun)

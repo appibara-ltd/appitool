@@ -31,14 +31,10 @@ struct AppleCreateIdentifierCommand: BaseCommand {
     func execute() async throws {
         let rawTarget = bundleId ?? appIdentifier
         guard let targetIdentifier = rawTarget?.trimmingCharacters(in: .whitespacesAndNewlines), !targetIdentifier.isEmpty else {
-            Log("Error: ".red.bold + "Missing bundle identifier. Provide -b, --bundle-id <bundle-id>.")
-            return
+            throw CommandError("Missing bundle identifier. Provide -b, --bundle-id <bundle-id>.")
         }
 
-        guard let service = try appleCredentials.makeService() else {
-            Log("Error: ".red.bold + "Missing App Store Connect credentials (configure APPLE_KEY, APPLE_KEY_ID, APPLE_ISSUER_ID).")
-            return
-        }
+        let service = try appleCredentials.requireService()
 
         let capList: [String] = capabilities?
             .components(separatedBy: ",")
@@ -47,18 +43,12 @@ struct AppleCreateIdentifierCommand: BaseCommand {
 
         Log("🚀 Registering App Identifier '\(targetIdentifier)' on Apple Developer Portal...".dim)
 
-        let result: RegisterBundleIdResult
-        do {
-            result = try await service.registerBundleIdWithCapabilities(
-                identifier: targetIdentifier,
-                name: name,
-                platform: platform,
-                capabilities: capList
-            )
-        } catch {
-            Log("Error: ".red.bold + "Failed to create App Identifier: \(error.localizedDescription)")
-            return
-        }
+        let result = try await service.registerBundleIdWithCapabilities(
+            identifier: targetIdentifier,
+            name: name,
+            platform: platform,
+            capabilities: capList
+        )
 
         let createdName = result.bundleId.attributes?.name ?? (name ?? targetIdentifier)
         let portalId = result.bundleId.id

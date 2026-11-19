@@ -1,8 +1,6 @@
 import AppleServices
 import Foundation
 import Rainbow
-import Subprocess
-import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -252,13 +250,13 @@ struct UploadToAppStoreTask: Task {
         try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: tempDir) }
 
-        let result = try await Subprocess.run(
-            .name("unzip"),
+        let result = try await ProcessRunner.run(
+            "unzip",
             arguments: ["-o", "-q", ipaUrl.path, "Payload/*.app/Info.plist", "-d", tempDir.path],
-            output: .discarded,
-            error: .discarded
+            discardError: true,
+            discardOutput: true,
         )
-        guard case .exited(0) = result.terminationStatus else {
+        guard result.isSuccess else {
             throw UploadToAppStoreError.missingVersionInfo("unzip failed to extract Info.plist")
         }
 

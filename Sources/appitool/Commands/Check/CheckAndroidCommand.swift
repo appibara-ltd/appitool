@@ -34,77 +34,63 @@ struct CheckAndroidCommand: BaseCommand {
         switch distribution {
         case .adhoc:
             guard let resolvedAppId = firebaseAppId ?? EnvLoader.value(for: "FIREBASE_ANDROID_APP_ID"), !resolvedAppId.isEmpty else {
-                Log("Error: ".red.bold + "Missing Firebase App ID for Android. Provide --firebase-app-id or configure FIREBASE_ANDROID_APP_ID in .env.")
-                return
+                throw CommandError("Missing Firebase App ID for Android. Provide --firebase-app-id or configure FIREBASE_ANDROID_APP_ID in .env.")
             }
 
             let googleKey = googleCredentials.resolveKey()
             guard let service = try FirebaseService.makeService(googleKey: googleKey) else {
-                Log("Error: ".red.bold + "Missing Firebase credentials. Provide -g, --google-key or configure GOOGLE_KEY in .env.")
-                return
+                throw CommandError("Missing Firebase credentials. Provide -g, --google-key or configure GOOGLE_KEY in .env.")
             }
 
             Log("Checking Firebase Android App information...".dim)
             let appTask = GetFirebaseAppInfoTask()
-            do {
-                guard case .android(let app) = try await appTask.run(.init(platform: .android, firebaseAppId: resolvedAppId, service: service)) else {
-                    return
-                }
-                Log("\n" + "─── Firebase Android App Information ───".cyan.bold)
-                if let appId = app.appId {
-                    Log("App ID:        ".bold + "\(appId)".green)
-                }
-                if let resolvedPackageName = app.packageName {
-                    Log("Package Name:  ".bold + "\(resolvedPackageName)".yellow)
-                }
-                if let displayName = app.displayName {
-                    Log("Display Name:  ".bold + "\(displayName)")
-                }
-                if let projectId = app.projectId {
-                    Log("Project ID:    ".bold + "\(projectId)")
-                }
-                if let state = app.state {
-                    Log("State:         ".bold + "\(state.rawValue)")
-                }
-
-                let buildTask = GetLatestBuildNumberTask()
-                if let buildInfo = try? await buildTask.run(.init(
-                    target: .android(packageName: targetPackageName ?? app.packageName, firebaseAppId: resolvedAppId, firebaseService: service),
-                    distribution: .adhoc
-                )) {
-                    Log("Latest Build:  ".bold + "v\(buildInfo.version) (\(buildInfo.buildNumber))".green.bold)
-                }
-                Log("────────────────────────────────────────".cyan.dim + "\n")
-            } catch {
-                Log("Error: ".red.bold + "Failed to retrieve Firebase Android App info: \(error.localizedDescription)")
+            guard case .android(let app) = try await appTask.run(.init(platform: .android, firebaseAppId: resolvedAppId, service: service)) else {
+                return
             }
+            Log("\n" + "─── Firebase Android App Information ───".cyan.bold)
+            if let appId = app.appId {
+                Log("App ID:        ".bold + "\(appId)".green)
+            }
+            if let resolvedPackageName = app.packageName {
+                Log("Package Name:  ".bold + "\(resolvedPackageName)".yellow)
+            }
+            if let displayName = app.displayName {
+                Log("Display Name:  ".bold + "\(displayName)")
+            }
+            if let projectId = app.projectId {
+                Log("Project ID:    ".bold + "\(projectId)")
+            }
+            if let state = app.state {
+                Log("State:         ".bold + "\(state.rawValue)")
+            }
+
+            let buildTask = GetLatestBuildNumberTask()
+            if let buildInfo = try? await buildTask.run(.init(
+                target: .android(packageName: targetPackageName ?? app.packageName, firebaseAppId: resolvedAppId, firebaseService: service),
+                distribution: .adhoc
+            )) {
+                Log("Latest Build:  ".bold + "v\(buildInfo.version) (\(buildInfo.buildNumber))".green.bold)
+            }
+            Log("────────────────────────────────────────".cyan.dim + "\n")
 
         case .appstore:
             guard let targetPackageName, !targetPackageName.isEmpty else {
-                Log("Error: ".red.bold + "No package name specified. Provide -p, --package-name or ensure an Android project exists.")
-                return
+                throw CommandError("No package name specified. Provide -p, --package-name or ensure an Android project exists.")
             }
 
-            guard let service = try googleCredentials.makeService() else {
-                Log("Error: ".red.bold + "Missing Google Play Service Account credentials (provide --google-key or configure GOOGLE_KEY in .env).")
-                return
-            }
+            let service = try googleCredentials.requireService()
 
             Log("Fetching latest build from Google Play Console for ".dim + "\(targetPackageName)".bold + "...".dim)
             let task = GetLatestBuildNumberTask()
-            do {
-                let info = try await task.run(.init(
-                    target: .android(packageName: targetPackageName, service: service),
-                    distribution: .appstore
-                ))
-                Log("\n" + "─── Google Play Store Build Information ───".cyan.bold)
-                Log("Package Name:  ".bold + "\(targetPackageName)".yellow)
-                Log("Version:       ".bold + "\(info.version)".green)
-                Log("Build Number:  ".bold + "\(info.buildNumber)".green.bold)
-                Log("───────────────────────────────────────────".cyan.dim + "\n")
-            } catch {
-                Log("Error: ".red.bold + "Failed to retrieve Google Play build: \(error.localizedDescription)")
-            }
+            let info = try await task.run(.init(
+                target: .android(packageName: targetPackageName, service: service),
+                distribution: .appstore
+            ))
+            Log("\n" + "─── Google Play Store Build Information ───".cyan.bold)
+            Log("Package Name:  ".bold + "\(targetPackageName)".yellow)
+            Log("Version:       ".bold + "\(info.version)".green)
+            Log("Build Number:  ".bold + "\(info.buildNumber)".green.bold)
+            Log("───────────────────────────────────────────".cyan.dim + "\n")
 
         case .development:
             Log("Development distribution has no remote information to check.".yellow)

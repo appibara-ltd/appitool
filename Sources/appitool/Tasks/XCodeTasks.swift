@@ -1,7 +1,6 @@
 import Foundation
 import PathKit
 import Rainbow
-import Subprocess
 import XcodeProj
 
 /// A suite of atomic Xcode project operations powered exclusively by `XcodeProj`.
@@ -1220,15 +1219,14 @@ public enum XCodeTasks {
         }
 
         do {
-            let result = try await Subprocess.run(
-                .name("xcrun"),
-                arguments: Arguments(["xcodebuild"] + args),
-                workingDirectory: FilePath(workingDirectory.path),
-                output: .string(limit: 10 * 1024 * 1024),
-                error: .discarded
+            let result = try await ProcessRunner.run(
+                "xcrun",
+                arguments: ["xcodebuild"] + args,
+                workingDirectory: workingDirectory.path,
+                discardError: true
             )
-            guard result.terminationStatus.isSuccess else { return nil }
-            return result.standardOutput
+            guard result.isSuccess else { return nil }
+            return result.stdout
         } catch {
             return nil
         }

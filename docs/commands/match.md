@@ -29,25 +29,19 @@ Syncs, prunes, or nukes Apple certificates and provisioning profiles using Git s
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
 | `-t, --type <type>` | `MATCH_TYPE` or `appstore` | Distribution type: `appstore`, `development`, `adhoc`, `enterprise`, `developer_id`. |
-| `-g, --git-url <url>` | `MATCH_GIT_URL` | Git repository URL for certificates/profiles storage. |
-| `-b, --git-branch <branch>` | `MATCH_GIT_BRANCH` or `master` | Git branch name. |
 | `--platform <platform>` | `ios` | Target Apple platform: `ios`, `macos`, `tvos`, `catalyst`. |
-| `--git-token <token>` | `MATCH_GIT_TOKEN` or `GITHUB_TOKEN` | Git Personal Access Token for HTTPS repositories. |
-| `-p, --password <pass>` | `MATCH_PASSWORD` | Passphrase for AES encryption/decryption. |
 | `-a, --app-identifiers <ids>` | Auto-discovered from local Xcode project | Comma-separated bundle identifiers to sync profiles for. |
-| `-r, --readonly` | `false` | Read-only mode; prevents creating new certificates or profiles on Apple Developer Portal. |
 | `--prune` | `false` | Prune revoked/expired certificates and profiles from Git storage. |
 | `-A, --all` | `false` | Operate across all distribution types when pruning. |
 | `--nuke` | `false` | Revoke certificates and delete provisioning profiles on Apple Developer Portal and in Git storage. |
 | `-f, --force` | `false` | Force renewal of provisioning profiles even if still valid. |
 | `--shallow-clone` / `--no-shallow-clone` | `true` for `--readonly`; `false` otherwise | Perform shallow Git clone (`--depth 1`). |
-| `--team-id <id>` | `APPLE_TEAM_ID` | Apple Developer Team ID. |
 | `--team-name <name>` | — | Apple Developer Team Name (used as certificate CN when generating a new certificate). |
-| `--keychain-name <name>` | `MATCH_KEYCHAIN_NAME` or `appitool` | Custom macOS keychain name or path. |
-| `--keychain-password <pass>` | `MATCH_KEYCHAIN_PASSWORD` or `appipass` | Custom keychain password. |
 | `--silent` | `false` | Suppress verbose logging. |
 
-Plus [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`).
+Plus shared option groups:
+- [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`)
+- [`MatchOptions`](/commands/overview#matchoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`, `--keychain-name`, `--keychain-password`, `--team-id`, `--readonly`; `--readonly` defaults to `false` in `match ios`)
 
 ### Examples
 
@@ -87,11 +81,9 @@ Syncs an encrypted Android keystore (`.keystore`, `.jks`, `.p12`) from Git stora
 | `-a, --alias <name>` | `ANDROID_KEY_ALIAS` | Key alias inside keystore. |
 | `--store-password <pass>` | `ANDROID_KEYSTORE_PASSWORD` | Keystore password. |
 | `--key-password <pass>` | `ANDROID_KEY_PASSWORD` | Key password. |
-| `-g, --git-url <url>` | `MATCH_GIT_URL` | Git repository URL for keystores storage. |
-| `-b, --git-branch <branch>` | `MATCH_GIT_BRANCH` or `master` | Git branch name. |
-| `--git-token <token>` | `MATCH_GIT_TOKEN` or `GITHUB_TOKEN` | Git authentication token. |
-| `-P, --password <pass>` | `MATCH_PASSWORD` | Passphrase for AES encryption/decryption. |
 | `--silent` | `false` | Suppress verbose output. |
+
+Plus [`MatchStorageOptions`](/commands/overview#matchstorageoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`).
 
 ### Examples
 
