@@ -57,6 +57,73 @@ enum IOSPresetHelpers {
 
         return appIdentifiers
     }
+
+    /// Snapshots `project.pbxproj` before prebuild mutates code signing settings so it can be restored after building.
+    static func backupProjectPbxproj(context: FlowContext) throws {
+        guard !context.isDryRun else { return }
+        let projectPath = try XCodeTasks.resolveProjectPath(
+            projectPath: context.xcodeProjectPath,
+            workspacePath: context.workspacePath,
+            in: context.projectDirectory
+        )
+        let pbxprojUrl = URL(fileURLWithPath: projectPath).appendingPathComponent("project.pbxproj")
+        try context.fileRestorer.backup(pbxprojUrl)
+    }
+
+    /// Computes the next build number, normalizes literal `Info.plist` `CFBundleVersion` entries to `$(CURRENT_PROJECT_VERSION)`,
+    /// and registers temporary `Info.plist` backups when `CURRENT_PROJECT_VERSION` is missing in the original project.
+    static func prepareIOSBuildNumber(
+        context: inout FlowContext,
+        baseBuildStr: String?,
+        sourceLabel: String,
+        configuration: String
+    ) throws {
+        guard let baseBuildStr, let baseBuild = Int(baseBuildStr) else { return }
+
+        let nextBuildNumber = String(baseBuild + 1)
+        let prevDisplay = context.buildNumber != nil
+            ? "\(context.buildNumber!) (\(sourceLabel): \(baseBuildStr))"
+            : baseBuildStr
+        Log("🔢 Incrementing build number: \(prevDisplay.bold) -> \(nextBuildNumber.bold.green)".dim)
+
+        if !context.isDryRun {
+            let result = try XCodeTasks.updateBuildNumber(
+                .init(
+                    projectPath: context.xcodeProjectPath,
+                    workspacePath: context.workspacePath,
+                    buildNumber: nextBuildNumber,
+                    version: context.version,
+                    configurations: [configuration]
+                ),
+                in: context.projectDirectory
+            )
+
+            for (url, originalData) in result.temporaryBackups {
+                context.fileRestorer.registerBackup(originalData, for: url)
+            }
+
+            if !result.normalizedInfoPlists.isEmpty {
+                let names = result.normalizedInfoPlists.map(\.lastPathComponent).joined(separator: ", ")
+                Log("📝 Updated Info.plist CFBundleVersion to $(CURRENT_PROJECT_VERSION): \(names)".dim)
+            }
+            if !result.temporaryBackups.isEmpty {
+                Log(
+                    "📝 Temporarily updated Info.plist CFBundleVersion to $(CURRENT_PROJECT_VERSION) (will be restored after build because CURRENT_PROJECT_VERSION is not defined in project.pbxproj)."
+                        .dim)
+            }
+        }
+
+        context.buildNumber = nextBuildNumber
+    }
+
+    /// Restores any temporary `project.pbxproj` or `Info.plist` snapshots registered during prebuild.
+    static func restoreTemporaryFiles(context: FlowContext) {
+        let restored = context.fileRestorer.restoreAll()
+        if !restored.isEmpty {
+            let names = restored.map(\.lastPathComponent).sorted().joined(separator: ", ")
+            Log("↩️ Restored temporary workspace file(s): \(names)".dim)
+        }
+    }
 }
 
 /// Shared setup logic for Android presets (extracting package name, namespace, version info, and evaluating Gradle).

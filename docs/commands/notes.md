@@ -21,7 +21,7 @@ appitool notes [options]
 
 | Option | Default | Description |
 |:---|:---|:---|
-| `-f, --from <ref>` | Latest Git tag before `--to` (or last 20 commits if untagged) | Starting Git tag or commit reference (exclusive). |
+| `-f, --from <ref>` | Latest Git tag at or before `--to` (or last 20 commits if untagged) | Starting Git tag or commit reference (exclusive). If omitted and `--to` (or `HEAD`) already sits on a matching tag, no commits are returned; pass `-f` explicitly to inspect a tagged release. |
 | `-t, --to <ref>` | `HEAD` | Ending Git tag or commit reference (inclusive). |
 | `-p, --tag-prefix <prefix>` | — | Filter auto-detected tags by prefix when `--from` is omitted (e.g. `v`, `ios-v`, `android-`). |
 | `-o, --output <path>` | Print to stdout | File path to write the generated Markdown release notes. |

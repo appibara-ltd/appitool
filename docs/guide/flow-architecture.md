@@ -13,10 +13,10 @@
 | # | Stage (`FlowStage`) | Emoji | Display Name | Core Responsibilities |
 |:---:|:---|:---:|:---|:---|
 | 1 | `setup` | 🔍 | Setup & Environment | Inspect project (`Xcode` / `Gradle`), resolve bundle ID / package name, sync Match certs/profiles or keystore, fetch latest remote build number. |
-| 2 | `prebuild` | 🔧 | Pre-Build & Versioning | Compute next build number / `versionCode` (`remote + 1`), apply manual code signing settings to Xcode targets, bump iOS build number. |
-| 3 | `build` | 🔨 | Build Compilation | Run `xcodebuild` (`.xcarchive` + `.ipa` + dSYM) or `./gradlew` (`bundleRelease` / `assembleRelease`) and record artifact paths in `FlowContext`. |
+| 2 | `prebuild` | 🔧 | Pre-Build & Versioning | Compute next build number / `versionCode` (`remote + 1`), snapshot `project.pbxproj`, apply temporary manual code signing to Xcode targets, and normalize literal `Info.plist` `CFBundleVersion` entries to `$(CURRENT_PROJECT_VERSION)` via `XCodeTasks.updateBuildNumber`. |
+| 3 | `build` | 🔨 | Build Compilation | Run `xcodebuild` (injecting `CURRENT_PROJECT_VERSION=<buildNumber>` for `.xcarchive`, `.ipa`, and dSYM, then restoring `project.pbxproj` and any temporary `Info.plist` edits in `defer`) or `./gradlew` (`bundleRelease` / `assembleRelease`) and record artifact paths in `FlowContext`. |
 | 4 | `postbuild` | 📦 | Post-Build | Verify that the generated `.ipa`, `.aab`, or `.apk` artifact exists on disk, is non-empty, and log its file size. |
-| 5 | `prerelease` | 📝 | Pre-Release | Generate plain-text store release notes via `GenerateReleaseNotesTask` using platform tag prefix (`🍏_` for iOS, `🤖_` for Android) and store character limits. |
+| 5 | `prerelease` | 📝 | Pre-Release | Generate plain-text store release notes via `GenerateReleaseNotesTask` using platform tag prefix (`🍏_` for iOS, `🤖_` for Android) and store character limits (left empty if `HEAD` already sits on a matching tag); supports `--release-notes`, `--notes-from`, and `--notes-locale` overrides and logs the resolved source and preview. |
 | 6 | `release` | 🚀 | Release & Store Upload | Upload binary to App Store Connect / TestFlight, Google Play Console `internal` track, or Firebase App Distribution. |
 | 7 | `postrelease` | 📣 | Post-Release & Notifications | Create & push the release Git tag (`🍏_<version>_<buildNumber>[_adhoc]` / `🤖_<version>_<buildNumber>[_adhoc]`) via `GitTagTask` and dispatch completion notifications to configured Slack and KokoNo webhooks (previewed / skipped in `--dry-run` mode). |
 
@@ -43,8 +43,8 @@ Choosing a platform (`ios` / `android`) and distribution (`appstore`, `adhoc`, `
   - `MATCH_PASSWORD`
 - **Stage Execution**:
   - `setup`: Detects `.xcworkspace`/`.xcodeproj`, scheme, configuration, main target, bundle ID, and project version. Runs `MatchTask` with `type: .appstore` (forced `readonly` when `--dry-run` is set). Queries App Store Connect (`GetLatestBuildNumberTask`) for the latest TestFlight build number.
-  - `prebuild`: Extracts signing identity (`iPhone Distribution` or `Apple Distribution`) and Team ID from installed certificates. Configures manual code signing per target via `XCodeTasks.configureManualSigning` and increments build number (`appstore_build_number + 1`) in Xcode project (skipped in `--dry-run`).
-  - `build`: Prepares macOS keychain (`KeychainManager`), compiles `.xcarchive` and exports `.ipa` with `.appStore` export method and manual signing via `XcodeBuildTask` (skipped in `--dry-run`).
+  - `prebuild`: Extracts signing identity (`iPhone Distribution` or `Apple Distribution`) and Team ID from installed certificates. Snapshots `project.pbxproj`, configures manual code signing per target via `XCodeTasks.configureManualSigning`, computes `appstore_build_number + 1` in `context.buildNumber`, and calls `XCodeTasks.updateBuildNumber` to normalize literal `Info.plist` `CFBundleVersion` values to `$(CURRENT_PROJECT_VERSION)` without editing `project.pbxproj` (permanently when `CURRENT_PROJECT_VERSION` is already defined in `project.pbxproj`, or registered for post-build restore otherwise; skipped in `--dry-run`).
+  - `build`: Prepares macOS keychain (`KeychainManager`), compiles `.xcarchive` (passing `CURRENT_PROJECT_VERSION=<buildNumber>`) and exports `.ipa` with `.appStore` export method and manual signing via `XcodeBuildTask`, restoring `project.pbxproj` and any temporary `Info.plist` edits immediately in `defer` (skipped in `--dry-run`).
   - `postbuild`: Verifies `.ipa` existence and non-zero file size (skipped in `--dry-run`).
   - `prerelease`: Generates plain-text release notes (max 4,000 chars) from commits since the latest `🍏_*` tag (excluding `*_adhoc` / `*_development`) via `GenerateReleaseNotesTask`.
   - `release`: Uploads `.ipa` via `UploadToAppStoreTask`, waits for App Store Connect build processing (unless `--no-wait-processing` is passed), and sets TestFlight "What to Test" notes via `setWhatsNew` when `changelog` is populated.
@@ -59,8 +59,8 @@ Choosing a platform (`ios` / `android`) and distribution (`appstore`, `adhoc`, `
   - `GOOGLE_KEY`
 - **Stage Execution**:
   - `setup`: Inspects iOS project, runs `MatchTask` with `type: .adhoc`, and queries Firebase App Distribution (`GetLatestBuildNumberTask`) for the latest build number.
-  - `prebuild`: Configures manual signing on Xcode targets and increments build number (`firebase_build_number + 1`) unless `--dry-run`.
-  - `build`: Prepares keychain and builds `.ipa` with `.adHoc` export method.
+  - `prebuild`: Snapshots `project.pbxproj`, configures manual signing on Xcode targets, computes `firebase_build_number + 1` in `context.buildNumber`, and normalizes literal `Info.plist` `CFBundleVersion` values to `$(CURRENT_PROJECT_VERSION)` via `XCodeTasks.updateBuildNumber` (kept permanently when `CURRENT_PROJECT_VERSION` exists in `project.pbxproj`, or registered for post-build restore otherwise; skipped in `--dry-run`).
+  - `build`: Prepares keychain, builds `.xcarchive` (passing `CURRENT_PROJECT_VERSION=<buildNumber>`) and exports `.ipa` with `.adHoc` export method, restoring `project.pbxproj` and temporary `Info.plist` edits immediately in `defer` (skipped in `--dry-run`).
   - `postbuild`: Verifies `.ipa` existence and non-zero file size (skipped in `--dry-run`).
   - `prerelease`: Generates plain-text release notes (max 4,000 chars) from commits since the latest `🍏_*` tag via `GenerateReleaseNotesTask`.
   - `release`: Ensures tester group `internal` exists on Firebase (`createOrGetGroup`) and uploads the `.ipa` with generated release notes via `UploadToFirebaseTask`.
@@ -100,7 +100,7 @@ Choosing a platform (`ios` / `android`) and distribution (`appstore`, `adhoc`, `
 `FlowRunner` wraps all stage execution inside a unified error boundary:
 
 - **Pre-flight Validation**: `preset.requirements(context:)` runs before any stage executes, throwing `FlowRequirementError` with the full list of missing configuration keys.
-- **Temporary Keystore Cleanup**: In `defer`, any temporary keystore decrypted by Match for Android (`context.androidSigningTempUrl`) and empty `~/.appitool/android/keystores` directories are deleted automatically.
+- **Temporary File & Keystore Cleanup**: `TemporaryFileRestorer` (owned by `FlowContext.fileRestorer`) snapshots `project.pbxproj` before signing mutations and any temporary `Info.plist` edits made when `CURRENT_PROJECT_VERSION` is missing in `project.pbxproj`; iOS `build` restores them in `defer` and `FlowRunner`'s `defer` block (plus `SIGINT`/`SIGTERM` signal handlers) acts as an emergency fallback if a stage exits early. For Android, any temporary keystore decrypted by Match (`context.androidSigningTempUrl`) and empty `~/.appitool/android/keystores` directories are deleted automatically.
 - **Failure Handling**: If any stage throws:
   1. Pipeline execution halts immediately.
   2. `FlowRunner` prints a highlighted banner showing the failing stage (`context.currentStage`) and error reason.

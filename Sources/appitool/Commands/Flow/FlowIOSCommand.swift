@@ -31,6 +31,7 @@ struct FlowIOSCommand: BaseCommand {
     @OptionGroup var googleCredentials: GoogleCredentialsOptions
     @OptionGroup var matchOptions: MatchOptions
     @OptionGroup var notificationOptions: NotificationOptions
+    @OptionGroup var releaseNotesOptions: ReleaseNotesOptions
 
     @Flag(name: .long, inversion: .prefixedNo, help: "Suppress xcodebuild standard output and logs.")
     var silent: Bool = true
@@ -40,6 +41,7 @@ struct FlowIOSCommand: BaseCommand {
 
     func execute() async throws {
         let notifications = notificationOptions.resolve()
+        let resolvedNotes = releaseNotesOptions.resolve()
         let resolvedBundleId = bundleId ?? EnvLoader.value(for: "APPLE_BUNDLE_ID")
         let resolvedScheme = scheme ?? EnvLoader.value(for: "XCODE_SCHEME")
         let resolvedConfiguration = configuration ?? EnvLoader.value(for: "XCODE_CONFIGURATION")
@@ -82,6 +84,9 @@ struct FlowIOSCommand: BaseCommand {
             kokonoUrl: notifications.kokonoUrl,
             kokonoPublicKey: notifications.kokonoPublicKey,
             preset: preset,
+            changelog: resolvedNotes.releaseNotes,
+            releaseNotesFrom: resolvedNotes.notesFrom,
+            releaseNotesLocale: resolvedNotes.notesLocale,
             silent: silent,
             waitForProcessing: waitProcessing,
         )

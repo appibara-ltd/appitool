@@ -22,7 +22,7 @@ struct NotesCommand: AsyncParsableCommand {
 
     func run() async throws {
         let task = GenerateReleaseNotesTask()
-        let markdown = try await task.run(
+        let result = try await task.run(
             .init(
                 from: from,
                 to: to,
@@ -30,6 +30,7 @@ struct NotesCommand: AsyncParsableCommand {
                 tagPrefix: tagPrefix
             )
         )
+        let markdown = result.notes
 
         if markdown.isEmpty {
             Log("ℹ️ No commits found for the specified range.".yellow)

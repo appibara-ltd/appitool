@@ -128,19 +128,28 @@ extension FlowPreset {
     /// using the platform-specific tag prefix (`🍏_` for iOS, `🤖_` for Android).
     func prerelease(context: inout FlowContext) async throws {
         if let existing = context.changelog?.trimmingCharacters(in: .whitespacesAndNewlines), !existing.isEmpty {
+            context.changelog = existing
             Log("📝 Using existing release notes (\(existing.count) chars).".dim)
+            logReleaseNotesPreview(existing)
             return
         }
 
         let tagPrefix = context.platform.tagPrefix
         let excludePatterns: [String] = (context.distribution == .appstore) ? ["*_adhoc", "*_development"] : []
         let maxLength = (context.platform == .android && context.distribution == .appstore) ? 500 : 4000
+        let rawFrom = context.releaseNotesFrom?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let explicitFrom = (rawFrom?.isEmpty == false) ? rawFrom : nil
 
-        Log("📝 Generating release notes from git (tag prefix: '\(tagPrefix)')...".dim)
+        if let explicitFrom {
+            Log("📝 Generating release notes from git (from: '\(explicitFrom)')...".dim)
+        } else {
+            Log("📝 Generating release notes from git (tag prefix: '\(tagPrefix)')...".dim)
+        }
 
         do {
-            let notes = try await GenerateReleaseNotesTask().run(
+            let output = try await GenerateReleaseNotesTask().run(
                 .init(
+                    from: explicitFrom,
                     workingDirectory: context.projectDirectory.path,
                     autoDetectLatestTag: true,
                     tagPrefix: tagPrefix,
@@ -150,21 +159,44 @@ extension FlowPreset {
                 )
             )
 
-            let trimmed = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            switch output.source {
+            case .explicitFrom(let ref):
+                Log("   • Source: '\(ref)..HEAD'".dim)
+            case .tag(let tag):
+                Log("   • Source: tag '\(tag)..HEAD'".dim)
+            case .fallback(let limit):
+                let fallbackDesc = limit.map { "last \($0) commit(s)" } ?? "git history"
+                Log("🚧 No matching '\(tagPrefix)*' tag found; fell back to \(fallbackDesc).".yellow)
+            case .explicitToOnly(let ref):
+                Log("   • Source: '\(ref)'".dim)
+            case .fullHistory:
+                Log("   • Source: full git history".dim)
+            }
+
+            let trimmed = output.notes.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.isEmpty {
-                Log("ℹ️ No commits found since last '\(tagPrefix)*' tag; release notes left empty.".yellow)
+                switch output.source {
+                case .tag(let tag):
+                    Log("ℹ️ No commits found since tag '\(tag)'; release notes left empty.".yellow)
+                case .explicitFrom(let ref):
+                    Log("ℹ️ No commits found since '\(ref)'; release notes left empty.".yellow)
+                default:
+                    Log("ℹ️ No commits found since last '\(tagPrefix)*' tag; release notes left empty.".yellow)
+                }
             } else {
                 context.changelog = trimmed
                 Log("🟢 Generated release notes (\(trimmed.count) chars).".green)
-                if context.isDryRun {
-                    Log("   Preview:".dim)
-                    for line in trimmed.components(separatedBy: .newlines) {
-                        Log("   \(line)".dim)
-                    }
-                }
+                logReleaseNotesPreview(trimmed)
             }
         } catch {
             Log("🚧 Could not generate release notes from git: \(error.localizedDescription)".yellow)
+        }
+    }
+
+    private func logReleaseNotesPreview(_ notes: String) {
+        Log("   Preview:".dim)
+        for line in notes.components(separatedBy: .newlines) {
+            Log("   \(line)".dim)
         }
     }
 

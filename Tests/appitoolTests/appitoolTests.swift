@@ -13,37 +13,38 @@ import ArgumentParser
     try await command.run()
 }
 
-@Test func testBuildCommandConfiguration() async throws {
+@Test func testBuildCommandConfiguration() throws {
     #expect(BuildCommand.configuration.commandName == "build")
     #expect(BuildCommand.configuration.abstract == "Builds the project for a specified platform and distribution.")
     #expect(appitool.configuration.subcommands.contains(where: { $0 == BuildCommand.self }))
+    #expect(BuildCommand.configuration.subcommands.contains(where: { $0 == BuildIOSCommand.self }))
+    #expect(BuildCommand.configuration.subcommands.contains(where: { $0 == BuildAndroidCommand.self }))
 }
 
-@Test func testBuildCommandValidPlatformsAndDistributions() async throws {
-    let iosCommand = try BuildCommand.parse(["ios", "--distribution", "appstore"])
-    #expect(iosCommand.platform == .ios)
+@Test func testBuildCommandValidPlatformsAndDistributions() throws {
+    let iosCommand = try #require(
+        try BuildCommand.parseAsRoot(["ios", "--distribution", "appstore"]) as? BuildIOSCommand
+    )
     #expect(iosCommand.distribution == .appstore)
-    try await iosCommand.run()
 
-    let androidCommand = try BuildCommand.parse(["android", "-d", "development"])
-    #expect(androidCommand.platform == .android)
+    let androidCommand = try #require(
+        try BuildCommand.parseAsRoot(["android", "-d", "development"]) as? BuildAndroidCommand
+    )
     #expect(androidCommand.distribution == .development)
-    try await androidCommand.run()
 
-    let adhocCommand = try BuildCommand.parse(["iOS", "--distribution", "adhoc"])
-    #expect(adhocCommand.platform == .ios)
+    let adhocCommand = try BuildIOSCommand.parse(["--distribution", "adhoc"])
     #expect(adhocCommand.distribution == .adhoc)
 }
 
 @Test func testBuildCommandInvalidPlatformFails() throws {
     #expect(throws: (any Error).self) {
-        try BuildCommand.parse(["windows", "--distribution", "appstore"])
+        try BuildCommand.parseAsRoot(["windows", "--distribution", "appstore"])
     }
 }
 
 @Test func testBuildCommandInvalidDistributionFails() throws {
     #expect(throws: (any Error).self) {
-        try BuildCommand.parse(["ios", "--distribution", "store"])
+        try BuildCommand.parseAsRoot(["ios", "--distribution", "store"])
     }
 }
 

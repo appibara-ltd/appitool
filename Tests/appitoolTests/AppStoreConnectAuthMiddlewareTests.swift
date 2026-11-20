@@ -8,6 +8,7 @@ import CryptoKit
 import Crypto
 #endif
 @testable import appitool
+import AppleServices
 
 @Suite("AppStoreConnectAuthMiddleware Tests")
 struct AppStoreConnectAuthMiddlewareTests {

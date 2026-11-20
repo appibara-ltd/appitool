@@ -11,7 +11,7 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
         public let workingDirectory: String?
         /// Optional path to write the generated release notes file.
         public let outputPath: String?
-        /// Automatically resolve the latest ancestor tag before `to` (or `HEAD`) when `from` is omitted.
+        /// Automatically resolve the latest matching tag at or before `to` (or `HEAD`) when `from` is omitted.
         public let autoDetectLatestTag: Bool
         /// Optional prefix to filter tags when `autoDetectLatestTag` is enabled (e.g. `v`, `ios-v`, `android-`).
         public let tagPrefix: String?
@@ -70,7 +70,23 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
         }
     }
 
-    public typealias Output = String
+    public enum Source: Sendable, Equatable {
+        case explicitFrom(String)
+        case tag(String)
+        case fallback(limit: Int?)
+        case explicitToOnly(String)
+        case fullHistory
+    }
+
+    public struct Output: Sendable, Equatable {
+        public let notes: String
+        public let source: Source
+
+        public init(notes: String, source: Source) {
+            self.notes = notes
+            self.source = source
+        }
+    }
 
     public init() {}
 
@@ -83,9 +99,11 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
 
         var args = ["--no-pager", "log", "--no-merges", "--pretty=format:%h|%s"]
         let targetRef = (input.to?.isEmpty == false) ? input.to! : "HEAD"
+        let source: Source
 
-        if let from = input.from, !from.isEmpty {
+        if let from = input.from?.trimmingCharacters(in: .whitespacesAndNewlines), !from.isEmpty {
             args.append("\(from)..\(targetRef)")
+            source = .explicitFrom(from)
         } else if input.autoDetectLatestTag {
             if let latestTag = await Self.resolveLatestTag(
                 for: targetRef,
@@ -94,14 +112,20 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
                 workingDirectory: input.workingDirectory
             ) {
                 args.append("\(latestTag)..\(targetRef)")
+                source = .tag(latestTag)
             } else {
-                if let maxCommits = input.fallbackMaxCommits, maxCommits > 0 {
+                let appliedLimit: Int? = (input.fallbackMaxCommits ?? 0) > 0 ? input.fallbackMaxCommits : nil
+                if let maxCommits = appliedLimit {
                     args.append(contentsOf: ["-n", String(maxCommits)])
                 }
                 args.append(targetRef)
+                source = .fallback(limit: appliedLimit)
             }
         } else if let to = input.to, !to.isEmpty {
             args.append(to)
+            source = .explicitToOnly(to)
+        } else {
+            source = .fullHistory
         }
 
         let gitResult = try await Self.runGit(arguments: args, workingDirectory: input.workingDirectory)
@@ -179,7 +203,7 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
             }
         }
 
-        return formattedNotes
+        return Output(notes: formattedNotes, source: source)
     }
 
     // MARK: - Git Helpers
@@ -196,8 +220,8 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
         )
     }
 
-    /// Resolves the latest ancestor tag before `targetRef` (optionally filtered by `tagPrefix`).
-    /// If `targetRef` itself sits on a matching tag, returns the previous matching tag (`<targetRef>^`) so the diff is non-empty.
+    /// Resolves the latest matching tag at or before `targetRef` (optionally filtered by `tagPrefix` and `excludeTagPatterns`).
+    /// If `targetRef` itself sits on a matching tag, that tag is returned so `<tag>..<targetRef>` yields no commits.
     private static func resolveLatestTag(
         for targetRef: String,
         tagPrefix: String?,
@@ -214,20 +238,6 @@ public struct GenerateReleaseNotesTask: Task, Sendable {
             if !pattern.isEmpty {
                 matchArgs.append(contentsOf: ["--exclude", pattern])
             }
-        }
-
-        if let exact = try? await runGit(
-            arguments: ["describe", "--tags", "--exact-match"] + matchArgs + [targetRef],
-            workingDirectory: workingDirectory
-        ), exact.exitCode == 0 {
-            if let prev = try? await runGit(
-                arguments: ["describe", "--tags", "--abbrev=0"] + matchArgs + ["\(targetRef)^"],
-                workingDirectory: workingDirectory
-            ), prev.exitCode == 0 {
-                let tag = prev.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-                return tag.isEmpty ? nil : tag
-            }
-            return nil
         }
 
         guard let latest = try? await runGit(

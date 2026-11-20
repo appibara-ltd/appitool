@@ -52,6 +52,12 @@ struct FlowRunner: Sendable {
         }
 
         defer {
+            let restored = context.fileRestorer.restoreAll()
+            if !restored.isEmpty {
+                let names = restored.map(\.lastPathComponent).sorted().joined(separator: ", ")
+                Log("↩️ Restored temporary workspace file(s): \(names)".dim)
+            }
+
             let fm = FileManager.default
             if let tempUrl = context.androidSigningTempUrl {
                 try? fm.removeItem(at: tempUrl)

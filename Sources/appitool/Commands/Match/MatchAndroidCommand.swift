@@ -37,16 +37,13 @@ struct MatchAndroidCommand: BaseCommand {
     var matchOptions: MatchStorageOptions
 
     func execute() async throws {
-        let fm = FileManager.default
-
         // 1-4. Resolve Match storage options
         let storage = try matchOptions.require()
 
         // 5. Resolve Package Name
-        let currentDir = fm.currentDirectoryPath
         let resolvedPackageName = packageName
             ?? EnvLoader.value(for: "GOOGLE_PACKAGE_NAME")
-            ?? GradleTask.resolvePackageName(projectDirectory: currentDir)
+            ?? AndroidTasks.resolvePackageName()
 
         guard let targetPackage = resolvedPackageName, !targetPackage.isEmpty else {
             throw CommandError("Missing package name. Provide -p, --package-name or configure GOOGLE_PACKAGE_NAME in .env.")

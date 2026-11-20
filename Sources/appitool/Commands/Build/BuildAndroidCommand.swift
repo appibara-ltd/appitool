@@ -74,16 +74,16 @@ struct BuildAndroidCommand: BaseCommand {
         }
 
         // 2. Resolve package name (applicationId) & target app name
+        let projectURL = URL(fileURLWithPath: resolvedProjectDir)
         let resolvedPackageName = packageName
             ?? EnvLoader.value(for: "GOOGLE_PACKAGE_NAME")
-            ?? GradleTask.resolvePackageName(projectDirectory: resolvedProjectDir)
+            ?? AndroidTasks.resolvePackageName(in: projectURL)
 
-        let appName = GradleTask.resolveAppName(projectDirectory: resolvedProjectDir)
+        let appName = AndroidTasks.resolveAppName(in: projectURL)
         let mainTarget: String
         if let appName, !appName.isEmpty {
             mainTarget = appName
         } else {
-            let projectURL = URL(fileURLWithPath: resolvedProjectDir)
             let folderName = projectURL.lastPathComponent == "android"
                 ? projectURL.deletingLastPathComponent().lastPathComponent
                 : projectURL.lastPathComponent

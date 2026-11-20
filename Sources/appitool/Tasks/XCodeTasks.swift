@@ -36,6 +36,37 @@ public enum XCodeTasks {
         return detected.workspace != nil || detected.project != nil
     }
 
+    /// Resolves the path to the target `.xcodeproj` from an explicit project path, workspace path, or directory auto-detection.
+    public static func resolveProjectPath(
+        projectPath: String? = nil,
+        workspacePath: String? = nil,
+        in directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) throws -> String {
+        if let proj = projectPath, !proj.isEmpty {
+            return proj
+        }
+        let detected = autoDetect(in: directory)
+        if let proj = detected.project {
+            return proj
+        }
+        if let ws = workspacePath ?? detected.workspace {
+            let companion = URL(fileURLWithPath: ws).deletingPathExtension().appendingPathExtension("xcodeproj").path
+            if FileManager.default.fileExists(atPath: companion) {
+                return companion
+            }
+            throw NSError(
+                domain: "XCodeTasks",
+                code: 6,
+                userInfo: [NSLocalizedDescriptionKey: "Could not find companion .xcodeproj for workspace '\(ws)'."]
+            )
+        }
+        throw NSError(
+            domain: "XCodeTasks",
+            code: 7,
+            userInfo: [NSLocalizedDescriptionKey: "No Xcode project found in current directory or ios/ subdirectory."]
+        )
+    }
+
     // MARK: - Project Inspection
 
     public struct ProjectInfo: Sendable {
@@ -464,32 +495,11 @@ public enum XCodeTasks {
         _ input: ManualSigningInput,
         in directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     ) throws -> [TargetSigningResult] {
-        let effectiveProjectPath: String
-        if let proj = input.projectPath, !proj.isEmpty {
-            effectiveProjectPath = proj
-        } else {
-            let detected = autoDetect(in: directory)
-            if let proj = detected.project {
-                effectiveProjectPath = proj
-            } else if let ws = input.workspacePath ?? detected.workspace {
-                let companion = URL(fileURLWithPath: ws).deletingPathExtension().appendingPathExtension("xcodeproj").path
-                if FileManager.default.fileExists(atPath: companion) {
-                    effectiveProjectPath = companion
-                } else {
-                    throw NSError(
-                        domain: "XCodeTasks",
-                        code: 6,
-                        userInfo: [NSLocalizedDescriptionKey: "Could not find companion .xcodeproj for workspace '\(ws)'."]
-                    )
-                }
-            } else {
-                throw NSError(
-                    domain: "XCodeTasks",
-                    code: 7,
-                    userInfo: [NSLocalizedDescriptionKey: "No Xcode project found in current directory or ios/ subdirectory."]
-                )
-            }
-        }
+        let effectiveProjectPath = try resolveProjectPath(
+            projectPath: input.projectPath,
+            workspacePath: input.workspacePath,
+            in: directory
+        )
 
         let projectPath = Path(effectiveProjectPath)
         let projectUrl = URL(fileURLWithPath: effectiveProjectPath)
@@ -1410,76 +1420,58 @@ public enum XCodeTasks {
         }
     }
 
-    /// Updates `CURRENT_PROJECT_VERSION` (build number) and optionally `MARKETING_VERSION` (version string)
-    /// in the Xcode project (`.xcodeproj`) using `XcodeProj`.
-    ///
-    /// - Parameters:
-    ///   - input: Options specifying the build number, optional version, target filters, and paths.
-    ///   - directory: The directory to search for project/workspace if paths are omitted.
-    /// - Returns: A list of target names that were updated.
+    public struct UpdateBuildNumberResult: Sendable {
+        public let updatedTargets: [String]
+        public let normalizedInfoPlists: [URL]
+        public let temporaryBackups: [URL: Data]
+
+        public init(
+            updatedTargets: [String] = [],
+            normalizedInfoPlists: [URL] = [],
+            temporaryBackups: [URL: Data] = [:]
+        ) {
+            self.updatedTargets = updatedTargets
+            self.normalizedInfoPlists = normalizedInfoPlists
+            self.temporaryBackups = temporaryBackups
+        }
+    }
+
+    /// Normalizes literal `CFBundleVersion` values in referenced `Info.plist` files to `$(CURRENT_PROJECT_VERSION)`
+    /// without mutating `project.pbxproj`. When any configuration of a target lacks `CURRENT_PROJECT_VERSION`, the
+    /// original `Info.plist` bytes are returned in `temporaryBackups` so callers can restore them after building.
     @discardableResult
     public static func updateBuildNumber(
         _ input: UpdateBuildNumberInput,
         in directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-    ) throws -> [String] {
-        let effectiveProjectPath: String
-        if let proj = input.projectPath, !proj.isEmpty {
-            effectiveProjectPath = proj
-        } else {
-            let detected = autoDetect(in: directory)
-            if let proj = detected.project {
-                effectiveProjectPath = proj
-            } else if let ws = input.workspacePath ?? detected.workspace {
-                let companion = URL(fileURLWithPath: ws).deletingPathExtension().appendingPathExtension("xcodeproj").path
-                if FileManager.default.fileExists(atPath: companion) {
-                    effectiveProjectPath = companion
-                } else {
-                    throw NSError(
-                        domain: "XCodeTasks",
-                        code: 6,
-                        userInfo: [NSLocalizedDescriptionKey: "Could not find companion .xcodeproj for workspace '\(ws)'."]
-                    )
-                }
-            } else {
-                throw NSError(
-                    domain: "XCodeTasks",
-                    code: 7,
-                    userInfo: [NSLocalizedDescriptionKey: "No Xcode project found in current directory or ios/ subdirectory."]
-                )
-            }
-        }
+    ) throws -> UpdateBuildNumberResult {
+        let effectiveProjectPath = try resolveProjectPath(
+            projectPath: input.projectPath,
+            workspacePath: input.workspacePath,
+            in: directory
+        )
 
         let projectPath = Path(effectiveProjectPath)
         let xcodeProj = try XcodeProj(path: projectPath)
         let pbxproj = xcodeProj.pbxproj
+        let projectDirectory = URL(fileURLWithPath: effectiveProjectPath).deletingLastPathComponent()
 
-        var modifiedTargets: [String] = []
-
-        // 1. Update project-level build configurations if no target filter specified
-        if input.targets == nil || input.targets?.isEmpty == true {
-            if let projectConfigList = pbxproj.projects.first?.buildConfigurationList {
-                for config in projectConfigList.buildConfigurations {
-                    if let configFilter = input.configurations, !configFilter.isEmpty {
-                        guard configFilter.contains(config.name) else { continue }
-                    }
-                    config.buildSettings["CURRENT_PROJECT_VERSION"] = input.buildNumber
-                    if let version = input.version {
-                        config.buildSettings["MARKETING_VERSION"] = version
-                    }
-                }
-            }
-        }
-
-        // 2. Update target-level build configurations
-        let targetsToUpdate: [PBXTarget]
+        let targetsToUpdate: [PBXNativeTarget]
         if let filterNames = input.targets, !filterNames.isEmpty {
             targetsToUpdate = pbxproj.nativeTargets.filter { filterNames.contains($0.name) }
         } else {
             targetsToUpdate = pbxproj.nativeTargets.filter { isDistributableTarget($0) }
         }
 
+        var updatedTargets: [String] = []
+        var modifiedPlists: [URL: (originalData: Data, shouldPersist: Bool)] = [:]
+
         for target in targetsToUpdate {
             guard let configList = target.buildConfigurationList else { continue }
+            let canPersistNormalization = hasCurrentProjectVersion(
+                target: target,
+                project: pbxproj.projects.first,
+                projectDir: projectDirectory
+            )
             var targetModified = false
 
             for config in configList.buildConfigurations {
@@ -1487,71 +1479,136 @@ public enum XCodeTasks {
                     guard configFilter.contains(config.name) else { continue }
                 }
 
-                config.buildSettings["CURRENT_PROJECT_VERSION"] = input.buildNumber
-                if let version = input.version {
-                    config.buildSettings["MARKETING_VERSION"] = version
+                guard let plistUrl = resolveInfoPlistURL(config: config, projectDirectory: projectDirectory) else {
+                    continue
                 }
-                syncInfoPlist(
-                    config: config,
-                    projectDirectory: URL(fileURLWithPath: effectiveProjectPath).deletingLastPathComponent(),
-                    buildNumber: input.buildNumber,
-                    version: input.version
-                )
-                targetModified = true
+
+                if modifiedPlists[plistUrl] != nil {
+                    if !canPersistNormalization {
+                        modifiedPlists[plistUrl]?.shouldPersist = false
+                    }
+                    continue
+                }
+
+                if let originalData = syncInfoPlist(at: plistUrl) {
+                    modifiedPlists[plistUrl] = (originalData: originalData, shouldPersist: canPersistNormalization)
+                    targetModified = true
+                }
             }
 
             if targetModified {
-                modifiedTargets.append(target.name)
+                updatedTargets.append(target.name)
             }
         }
 
-        try xcodeProj.writePBXProj(path: projectPath, override: true, outputSettings: PBXOutputSettings())
-        return modifiedTargets
+        var normalizedInfoPlists: [URL] = []
+        var temporaryBackups: [URL: Data] = [:]
+        for (url, entry) in modifiedPlists.sorted(by: { $0.key.path < $1.key.path }) {
+            if entry.shouldPersist {
+                normalizedInfoPlists.append(url)
+            } else {
+                temporaryBackups[url] = entry.originalData
+            }
+        }
+
+        return UpdateBuildNumberResult(
+            updatedTargets: updatedTargets,
+            normalizedInfoPlists: normalizedInfoPlists,
+            temporaryBackups: temporaryBackups
+        )
     }
 
-    /// Updates `CFBundleVersion` / `CFBundleShortVersionString` in the Info.plist referenced by `INFOPLIST_FILE`
-    /// only when they contain literal values. Values referencing build settings (e.g. `$(CURRENT_PROJECT_VERSION)`)
-    /// are left untouched. The plist is edited as text to preserve formatting; binary plists are skipped.
-    private static func syncInfoPlist(
-        config: XCBuildConfiguration,
-        projectDirectory: URL,
-        buildNumber: String,
-        version: String?
-    ) {
-        guard var plistRef = config.buildSettings["INFOPLIST_FILE"] as? String, !plistRef.isEmpty else { return }
+    private static func stringSettingValue(_ value: Any?) -> String? {
+        if let str = value as? String {
+            let trimmed = str.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+        if let int = value as? Int {
+            return String(int)
+        }
+        if let double = value as? Double {
+            return String(double)
+        }
+        return nil
+    }
+
+    private static func hasCurrentProjectVersion(
+        target: PBXNativeTarget,
+        project: PBXProject?,
+        projectDir: URL
+    ) -> Bool {
+        guard let targetConfigs = target.buildConfigurationList?.buildConfigurations, !targetConfigs.isEmpty else {
+            return false
+        }
+
+        return targetConfigs.allSatisfy { targetConfig in
+            var settings: [String: String] = [:]
+
+            func mergeBuildSettings(_ rawSettings: BuildSettings) {
+                for (key, value) in rawSettings {
+                    if let rawString = value as? String {
+                        let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if trimmed.isEmpty {
+                            settings.removeValue(forKey: key)
+                        } else if trimmed != "$(inherited)" && trimmed != "${inherited}" {
+                            settings[key] = trimmed
+                        }
+                    } else if let str = stringSettingValue(value) {
+                        settings[key] = str
+                    }
+                }
+            }
+
+            if let projConfig = project?.buildConfigurationList?.buildConfigurations.first(where: { $0.name == targetConfig.name }) {
+                loadXcconfigSettings(into: &settings, baseConfig: projConfig.baseConfiguration, projectDir: projectDir)
+                mergeBuildSettings(projConfig.buildSettings)
+            }
+
+            loadXcconfigSettings(into: &settings, baseConfig: targetConfig.baseConfiguration, projectDir: projectDir)
+            mergeBuildSettings(targetConfig.buildSettings)
+
+            guard let resolved = getResolvedSettingFromMap(key: "CURRENT_PROJECT_VERSION", settings: settings) else {
+                return false
+            }
+            return !resolved.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
+    private static func resolveInfoPlistURL(config: XCBuildConfiguration, projectDirectory: URL) -> URL? {
+        guard var plistRef = config.buildSettings["INFOPLIST_FILE"] as? String, !plistRef.isEmpty else { return nil }
 
         for variable in ["SRCROOT", "PROJECT_DIR"] {
             plistRef = plistRef
                 .replacingOccurrences(of: "$(\(variable))", with: projectDirectory.path)
                 .replacingOccurrences(of: "${\(variable)}", with: projectDirectory.path)
         }
-        guard !plistRef.contains("$") else { return }
+        guard !plistRef.contains("$") else { return nil }
 
-        let plistUrl = plistRef.hasPrefix("/")
+        return (plistRef.hasPrefix("/")
             ? URL(fileURLWithPath: plistRef)
             : projectDirectory.appendingPathComponent(plistRef)
+        ).standardizedFileURL
+    }
 
-        guard var content = try? String(contentsOf: plistUrl, encoding: .utf8) else { return }
-        let original = content
+    /// Replaces a literal `CFBundleVersion` value in `Info.plist` with `$(CURRENT_PROJECT_VERSION)` and returns
+    /// the original raw file bytes. Values already referencing build settings (`$(...)` / `${...}`) and binary plists are skipped.
+    private static func syncInfoPlist(at plistUrl: URL) -> Data? {
+        guard let originalData = try? Data(contentsOf: plistUrl),
+              var content = String(data: originalData, encoding: .utf8) else { return nil }
 
-        func replaceLiteral(key: String, value: String) {
-            let pattern = "(<key>\(key)</key>\\s*<string>)([^<]*)(</string>)"
-            guard let regex = try? NSRegularExpression(pattern: pattern),
-                  let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-                  let valueRange = Range(match.range(at: 2), in: content) else { return }
-            let current = content[valueRange]
-            guard !current.contains("$(") && !current.contains("${") else { return }
-            content.replaceSubrange(valueRange, with: value)
+        let pattern = "(<key>CFBundleVersion</key>\\s*<string>)([^<]*)(</string>)"
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
+              let valueRange = Range(match.range(at: 2), in: content) else { return nil }
+
+        let current = content[valueRange]
+        guard !current.contains("$(") && !current.contains("${") else { return nil }
+
+        content.replaceSubrange(valueRange, with: "$(CURRENT_PROJECT_VERSION)")
+        guard (try? content.write(to: plistUrl, atomically: true, encoding: .utf8)) != nil else {
+            return nil
         }
-
-        replaceLiteral(key: "CFBundleVersion", value: buildNumber)
-        if let version {
-            replaceLiteral(key: "CFBundleShortVersionString", value: version)
-        }
-
-        if content != original {
-            try? content.write(to: plistUrl, atomically: true, encoding: .utf8)
-        }
+        return originalData
     }
 
     /// Reads the current `CURRENT_PROJECT_VERSION` (build number) and `MARKETING_VERSION` (version string)
@@ -1563,32 +1620,11 @@ public enum XCodeTasks {
         configuration: String? = nil,
         in directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     ) throws -> (version: String?, buildNumber: String?) {
-        let effectiveProjectPath: String
-        if let proj = projectPath, !proj.isEmpty {
-            effectiveProjectPath = proj
-        } else {
-            let detected = autoDetect(in: directory)
-            if let proj = detected.project {
-                effectiveProjectPath = proj
-            } else if let ws = workspacePath ?? detected.workspace {
-                let companion = URL(fileURLWithPath: ws).deletingPathExtension().appendingPathExtension("xcodeproj").path
-                if FileManager.default.fileExists(atPath: companion) {
-                    effectiveProjectPath = companion
-                } else {
-                    throw NSError(
-                        domain: "XCodeTasks",
-                        code: 6,
-                        userInfo: [NSLocalizedDescriptionKey: "Could not find companion .xcodeproj for workspace '\(ws)'."]
-                    )
-                }
-            } else {
-                throw NSError(
-                    domain: "XCodeTasks",
-                    code: 7,
-                    userInfo: [NSLocalizedDescriptionKey: "No Xcode project found in current directory or ios/ subdirectory."]
-                )
-            }
-        }
+        let effectiveProjectPath = try resolveProjectPath(
+            projectPath: projectPath,
+            workspacePath: workspacePath,
+            in: directory
+        )
 
         let xcodeProj = try XcodeProj(path: Path(effectiveProjectPath))
         let pbxproj = xcodeProj.pbxproj
@@ -1604,8 +1640,8 @@ public enum XCodeTasks {
                 : configList.buildConfigurations.first(where: { $0.name == "Release" }) ?? configList.buildConfigurations.first
 
             if let config = config {
-                let buildNumber = config.buildSettings["CURRENT_PROJECT_VERSION"] as? String
-                let version = config.buildSettings["MARKETING_VERSION"] as? String
+                let buildNumber = stringSettingValue(config.buildSettings["CURRENT_PROJECT_VERSION"])
+                let version = stringSettingValue(config.buildSettings["MARKETING_VERSION"])
                 if buildNumber != nil || version != nil {
                     return (version: version, buildNumber: buildNumber)
                 }
@@ -1619,8 +1655,8 @@ public enum XCodeTasks {
                 : projConfigList.buildConfigurations.first(where: { $0.name == "Release" }) ?? projConfigList.buildConfigurations.first
 
             if let config = config {
-                let buildNumber = config.buildSettings["CURRENT_PROJECT_VERSION"] as? String
-                let version = config.buildSettings["MARKETING_VERSION"] as? String
+                let buildNumber = stringSettingValue(config.buildSettings["CURRENT_PROJECT_VERSION"])
+                let version = stringSettingValue(config.buildSettings["MARKETING_VERSION"])
                 return (version: version, buildNumber: buildNumber)
             }
         }

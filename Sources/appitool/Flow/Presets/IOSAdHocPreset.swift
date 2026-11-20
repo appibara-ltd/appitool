@@ -150,6 +150,8 @@ struct IOSAdHocPreset: FlowPreset {
             isDryRun: context.isDryRun
         )
 
+        try IOSPresetHelpers.backupProjectPbxproj(context: context)
+
         let results = try XCodeTasks.configureManualSigning(input, in: context.projectDirectory)
 
         if results.isEmpty {
@@ -167,32 +169,14 @@ struct IOSAdHocPreset: FlowPreset {
             }
         }
 
-        // Increment build number based on Firebase (or current project buildNumber) and update Xcode project
+        // Compute next build number based on Firebase (or current project buildNumber) and normalize Info.plist if needed
         let baseBuildStr = context.metadata["firebase_build_number"] ?? context.buildNumber
-        if let baseBuildStr = baseBuildStr, let baseBuild = Int(baseBuildStr) {
-            let nextBuildNumber = String(baseBuild + 1)
-            let prevDisplay =
-                context.buildNumber != nil
-                ? "\(context.buildNumber!) (Firebase: \(baseBuildStr))" : baseBuildStr
-            Log(
-                "🔢 Incrementing build number: \(prevDisplay.bold) -> \(nextBuildNumber.bold.green)"
-                    .dim)
-
-            if !context.isDryRun {
-                try XCodeTasks.updateBuildNumber(
-                    .init(
-                        projectPath: context.xcodeProjectPath,
-                        workspacePath: context.workspacePath,
-                        buildNumber: nextBuildNumber,
-                        version: context.version,
-                        configurations: [configuration]
-                    ),
-                    in: context.projectDirectory
-                )
-            }
-
-            context.buildNumber = nextBuildNumber
-        }
+        try IOSPresetHelpers.prepareIOSBuildNumber(
+            context: &context,
+            baseBuildStr: baseBuildStr,
+            sourceLabel: "Firebase",
+            configuration: configuration
+        )
     }
 
     func build(context: inout FlowContext) async throws {
@@ -201,6 +185,10 @@ struct IOSAdHocPreset: FlowPreset {
         if context.isDryRun {
             Log("🟡 Dry-run enabled: skipping xcodebuild archive/export.".yellow)
             return
+        }
+
+        defer {
+            IOSPresetHelpers.restoreTemporaryFiles(context: context)
         }
 
         let target = context.targetName ?? context.scheme ?? "app"
@@ -226,6 +214,7 @@ struct IOSAdHocPreset: FlowPreset {
                 outputDirectory: outputDir,
                 outputName: outputName,
                 derivedDataPath: derivedData,
+                buildNumber: context.buildNumber,
                 exportMethod: .adHoc,
                 exportTeamId: context.teamId,
                 signingStyle: profiles.isEmpty ? nil : .manual,

@@ -76,6 +76,8 @@ struct FlowContext: Sendable {
 
     // Pre-release state
     var changelog: String?
+    var releaseNotesFrom: String?
+    var releaseNotesLocale: String = "en-US"
 
     /// Standardized release tag name (`🍏_<version>_<buildNumber>[_adhoc]` or `🤖_<version>_<buildNumber>[_adhoc]`).
     var releaseTagName: String? {
@@ -130,6 +132,7 @@ struct FlowContext: Sendable {
     // Build configuration
     var silent: Bool = false
     var waitForProcessing: Bool = true
+    let fileRestorer: TemporaryFileRestorer
 
     init(
         platform: Platform,
@@ -160,8 +163,12 @@ struct FlowContext: Sendable {
         kokonoPublicKey: String? = nil,
         preset: (any FlowPreset)? = nil,
         androidFormat: GradleTask.BuildFormat? = nil,
+        changelog: String? = nil,
+        releaseNotesFrom: String? = nil,
+        releaseNotesLocale: String = "en-US",
         silent: Bool = false,
         waitForProcessing: Bool = true,
+        fileRestorer: TemporaryFileRestorer = TemporaryFileRestorer(),
     ) {
         self.platform = platform
         self.distribution = distribution
@@ -192,7 +199,11 @@ struct FlowContext: Sendable {
         self.kokonoPublicKey = kokonoPublicKey
         self.preset = preset
         self.androidFormat = androidFormat
+        self.changelog = changelog
+        self.releaseNotesFrom = releaseNotesFrom
+        self.releaseNotesLocale = releaseNotesLocale
         self.silent = silent
         self.waitForProcessing = waitForProcessing
+        self.fileRestorer = fileRestorer
     }
 }

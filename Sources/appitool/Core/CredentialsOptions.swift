@@ -326,3 +326,26 @@ struct MatchOptions: ParsableArguments, Sendable {
         )
     }
 }
+
+/// Reusable CLI options for flow release notes overrides.
+struct ReleaseNotesOptions: ParsableArguments, Sendable {
+    @Option(name: .long, help: "Custom release notes text (bypasses Git commit generation).")
+    var releaseNotes: String?
+
+    @Option(name: .long, help: "Starting Git tag or commit reference for release notes generation (overrides auto-tag detection).")
+    var notesFrom: String?
+
+    @Option(name: .long, help: "Locale/language code for store release notes (e.g., en-US, tr-TR; defaults to en-US).")
+    var notesLocale: String?
+
+    func resolve() -> (releaseNotes: String?, notesFrom: String?, notesLocale: String) {
+        let trimmedNotes = releaseNotes?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedFrom = notesFrom?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedLocale = notesLocale?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (
+            releaseNotes: trimmedNotes?.isEmpty == false ? trimmedNotes : nil,
+            notesFrom: trimmedFrom?.isEmpty == false ? trimmedFrom : nil,
+            notesLocale: trimmedLocale?.isEmpty == false ? trimmedLocale! : "en-US"
+        )
+    }
+}

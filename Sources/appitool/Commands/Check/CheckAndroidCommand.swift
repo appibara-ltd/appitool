@@ -24,11 +24,7 @@ struct CheckAndroidCommand: BaseCommand {
     func execute() async throws {
         var targetPackageName = packageName
         if targetPackageName == nil || targetPackageName?.isEmpty == true {
-            if AndroidTasks.hasAndroidProject() {
-                if let resolved = try? AndroidTasks.getAndroidIdentifiers() {
-                    targetPackageName = resolved.applicationId ?? resolved.packageName
-                }
-            }
+            targetPackageName = AndroidTasks.resolvePackageName()
         }
 
         switch distribution {

@@ -153,7 +153,8 @@ struct AndroidInternalPreset: FlowPreset {
                 track: "internal",
                 releaseStatus: .completed,
                 releaseName: releaseName,
-                releaseNotes: context.changelog
+                releaseNotes: context.changelog,
+                releaseNotesLanguage: context.releaseNotesLocale
             )
         )
 

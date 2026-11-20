@@ -27,12 +27,14 @@ struct FlowAndroidCommand: BaseCommand {
     @OptionGroup var googleCredentials: GoogleCredentialsOptions
     @OptionGroup var matchOptions: MatchStorageOptions
     @OptionGroup var notificationOptions: NotificationOptions
+    @OptionGroup var releaseNotesOptions: ReleaseNotesOptions
 
     @Flag(name: .long, inversion: .prefixedNo, help: "Suppress xcodebuild standard output and logs.")
     var silent: Bool = true
 
     func execute() async throws {
         let notifications = notificationOptions.resolve()
+        let resolvedNotes = releaseNotesOptions.resolve()
         let resolvedPackageName = packageName ?? EnvLoader.value(for: "GOOGLE_PACKAGE_NAME")
         let resolvedFirebaseAppId = firebaseAppId ?? EnvLoader.value(for: "FIREBASE_ANDROID_APP_ID")
         let resolvedGoogleKey = googleCredentials.resolveKey()
@@ -64,6 +66,9 @@ struct FlowAndroidCommand: BaseCommand {
             kokonoPublicKey: notifications.kokonoPublicKey,
             preset: preset,
             androidFormat: resolvedFormat,
+            changelog: resolvedNotes.releaseNotes,
+            releaseNotesFrom: resolvedNotes.notesFrom,
+            releaseNotesLocale: resolvedNotes.notesLocale,
             silent: silent
         )
 

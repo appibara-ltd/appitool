@@ -278,7 +278,7 @@ struct UploadToGooglePlayConsoleTask: Task {
         if let packageName = input.packageName, !packageName.isEmpty {
             return packageName
         }
-        if let detected = try? AndroidTasks.getAndroidIdentifiers().packageName, !detected.isEmpty {
+        if let detected = AndroidTasks.resolvePackageName() {
             return detected
         }
         throw UploadToGooglePlayConsoleError.missingPackageName

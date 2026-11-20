@@ -88,7 +88,10 @@ public enum AndroidTasks {
         if let regex = try? NSRegularExpression(pattern: nsPattern),
            let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
            let range = Range(match.range(at: 1), in: content) {
-            namespace = String(content[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let candidate = String(content[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !candidate.isEmpty && !candidate.contains("$") {
+                namespace = candidate
+            }
         }
 
         // Match defaultConfig applicationId, versionName, and versionCode
@@ -101,7 +104,10 @@ public enum AndroidTasks {
             if let appRegex = try? NSRegularExpression(pattern: appIdPattern),
                let appMatch = appRegex.firstMatch(in: defaultConfigContent, range: NSRange(defaultConfigContent.startIndex..., in: defaultConfigContent)),
                let appRange = Range(appMatch.range(at: 1), in: defaultConfigContent) {
-                applicationId = String(defaultConfigContent[appRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let candidate = String(defaultConfigContent[appRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !candidate.isEmpty && !candidate.contains("$") {
+                    applicationId = candidate
+                }
             }
 
             // Match versionName in defaultConfig (supports direct string, assignment, or ternary like: project.hasProperty('versionName') ? ... : "1.0.0")
@@ -128,7 +134,7 @@ public enum AndroidTasks {
                let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
                let range = Range(match.range(at: 1), in: content) {
                 let candidate = String(content[range]).trimmingCharacters(in: .whitespacesAndNewlines)
-                if !candidate.contains("$") {
+                if !candidate.isEmpty && !candidate.contains("$") {
                     applicationId = candidate
                 }
             }
@@ -206,13 +212,10 @@ public enum AndroidTasks {
 
     /// Parses package name from `AndroidManifest.xml` content.
     public static func parseAndroidManifest(content: String) -> String? {
-        let pattern = #"package\s*=\s*["']([^"']+)["']"#
-        if let regex = try? NSRegularExpression(pattern: pattern),
-           let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-           let range = Range(match.range(at: 1), in: content) {
-            return String(content[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let pkg = firstRegexMatch(#"package\s*=\s*["']([^"']+)["']"#, in: content), !pkg.isEmpty else {
+            return nil
         }
-        return nil
+        return pkg
     }
 
     /// Resolves Android identifiers: namespace, applicationId, packageName, and product flavors.
@@ -286,6 +289,71 @@ public enum AndroidTasks {
             versionCode: versionCode,
             flavors: flavors
         )
+    }
+
+    /// Resolves the Android package name (prioritizing `applicationId`, then `namespace`, then `AndroidManifest.xml` `package`).
+    public static func resolvePackageName(
+        in workspaceRoot: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) -> String? {
+        guard let identifiers = try? getAndroidIdentifiers(workspaceRoot: workspaceRoot) else {
+            return nil
+        }
+        let candidate = identifiers.applicationId ?? identifiers.packageName
+        return (candidate?.isEmpty == false) ? candidate : nil
+    }
+
+    /// Attempts to extract the user-facing application name from Android resource files or project configuration.
+    public static func resolveAppName(
+        in workspaceRoot: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) -> String? {
+        let fm = FileManager.default
+        let basePath = workspaceRoot.path
+        let androidDir = findAndroidRoot(in: workspaceRoot)?.path
+            ?? (fm.fileExists(atPath: "\(basePath)/app") ? basePath : "\(basePath)/android")
+
+        // 1. Check strings.xml
+        let stringsPath = "\(androidDir)/app/src/main/res/values/strings.xml"
+        if let content = try? String(contentsOfFile: stringsPath, encoding: .utf8),
+           let name = firstRegexMatch(#"<string\s+name=["']app_name["']>([^<]+)</string>"#, in: content),
+           !name.isEmpty {
+            return name
+        }
+
+        // 2. Check settings.gradle / settings.gradle.kts
+        for settingsFile in ["settings.gradle", "settings.gradle.kts"] {
+            let settingsPath = "\(androidDir)/\(settingsFile)"
+            if let content = try? String(contentsOfFile: settingsPath, encoding: .utf8),
+               let name = firstRegexMatch(#"rootProject\.name\s*=\s*['"]([^'"]+)['"]"#, in: content),
+               !name.isEmpty {
+                return name
+            }
+        }
+
+        // 3. Check app.json (e.g. React Native / Expo)
+        let rootDir = fm.fileExists(atPath: "\(basePath)/android")
+            ? basePath
+            : workspaceRoot.deletingLastPathComponent().path
+        let appJsonPath = "\(rootDir)/app.json"
+        if let data = try? Data(contentsOf: URL(fileURLWithPath: appJsonPath)),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            if let displayName = json["displayName"] as? String, !displayName.isEmpty {
+                return displayName
+            }
+            if let name = json["name"] as? String, !name.isEmpty {
+                return name
+            }
+        }
+
+        return nil
+    }
+
+    private static func firstRegexMatch(_ pattern: String, in content: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
+              let range = Range(match.range(at: 1), in: content) else {
+            return nil
+        }
+        return String(content[range]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Model containing dynamically evaluated Android app information from Gradle.

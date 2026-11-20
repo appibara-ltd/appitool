@@ -110,3 +110,13 @@ Used by `flow ios` and `flow android`.
 | `--slack-url <url>` | `SLACK_URL` | Slack incoming webhook URL |
 | `--kokono-url <url>` | `KOKONO_URL` | KokoNo notification webhook URL |
 | `--kokono-public-key <key>` | `KOKONO_E2E_PUBLIC_KEY` (ignored if `--kokono-url` flag is explicitly passed) | KokoNo E2E encryption public key |
+
+### `ReleaseNotesOptions`
+
+Used by `flow ios` and `flow android`.
+
+| Flag | Default | Description |
+|:---|:---|:---|
+| `--release-notes <text>` | — | Custom release notes text (bypasses Git commit generation) |
+| `--notes-from <ref>` | — | Starting Git tag or commit reference for release notes generation (overrides auto-tag detection) |
+| `--notes-locale <locale>` | `en-US` | Locale/language code for store release notes (e.g. `en-US`, `tr-TR`) |

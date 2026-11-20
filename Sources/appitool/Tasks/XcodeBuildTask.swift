@@ -59,6 +59,9 @@ public struct XcodeBuildTask: Task {
         /// Code signing identity override (e.g., "Apple Distribution: ...").
         public let codesigningIdentity: String?
 
+        /// Build number override passed via CURRENT_PROJECT_VERSION=<value> during archive.
+        public let buildNumber: String?
+
         /// Distribution method used for generating export options plist. Defaults to `.appStore`.
         public let exportMethod: ExportMethod
 
@@ -100,6 +103,7 @@ public struct XcodeBuildTask: Task {
             clean: Bool = false,
             allowProvisioningUpdates: Bool = false,
             codesigningIdentity: String? = nil,
+            buildNumber: String? = nil,
             exportMethod: ExportMethod = .appStore,
             exportTeamId: String? = nil,
             signingStyle: SigningStyle? = nil,
@@ -123,6 +127,7 @@ public struct XcodeBuildTask: Task {
             self.clean = clean
             self.allowProvisioningUpdates = allowProvisioningUpdates
             self.codesigningIdentity = codesigningIdentity
+            self.buildNumber = buildNumber
             self.exportMethod = exportMethod
             self.exportTeamId = exportTeamId
             self.signingStyle = signingStyle
@@ -547,7 +552,11 @@ public struct XcodeBuildTask: Task {
 
     // MARK: - Archive Execution
 
-    private func executeArchive(input: Input, scheme: String, archivePath: String) async throws {
+    internal static func buildArchiveArguments(
+        input: Input,
+        scheme: String,
+        archivePath: String
+    ) -> [String] {
         var arguments: [String] = []
 
         if let workspace = input.workspace {
@@ -581,11 +590,20 @@ public struct XcodeBuildTask: Task {
             arguments.append("CODE_SIGN_IDENTITY=\(identity)")
         }
 
+        if let buildNumber = input.buildNumber, !buildNumber.isEmpty {
+            arguments.append("CURRENT_PROJECT_VERSION=\(buildNumber)")
+        }
+
         if input.allowProvisioningUpdates {
             arguments.append("-allowProvisioningUpdates")
         }
 
         arguments.append(contentsOf: input.xcargs)
+        return arguments
+    }
+
+    private func executeArchive(input: Input, scheme: String, archivePath: String) async throws {
+        let arguments = Self.buildArchiveArguments(input: input, scheme: scheme, archivePath: archivePath)
 
         if !input.silent {
             Log("🔨 ".bold + "Compiling Xcode archive: \(scheme) (\(input.configuration))...".dim)

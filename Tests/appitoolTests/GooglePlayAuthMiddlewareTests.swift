@@ -4,6 +4,7 @@ import HTTPTypes
 import OpenAPIRuntime
 import CryptoExtras
 @testable import appitool
+import GoogleServices
 
 // MARK: - Mock URL Protocol for Google OAuth Endpoint
 
