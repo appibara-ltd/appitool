@@ -140,10 +140,10 @@ Automated release pipeline that runs all 7 stages sequentially.
 
 ```bash
 # Run release flow for iOS (TestFlight / App Store)
-appitool flow ios -b com.example.app -d appstore
+appitool flow ios -d appstore
 
 # Run release flow for Android (Ad-Hoc via Firebase)
-appitool flow android -p com.example.app -d adhoc
+appitool flow android -d adhoc
 
 # Dry run: Validate configuration and simulate execution without mutations
 appitool flow ios --dry-run

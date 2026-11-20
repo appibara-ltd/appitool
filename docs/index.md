@@ -58,10 +58,10 @@ appitool status
 
 ```bash
 # Run automated iOS release flow for App Store / TestFlight
-appitool flow ios -b com.example.app -d appstore
+appitool flow ios -d appstore
 
 # Run automated Android release flow via Firebase App Distribution
-appitool flow android -p com.example.app -d adhoc
+appitool flow android -d adhoc
 
 # Simulate and validate configuration without mutating files or uploading
 appitool flow ios --dry-run
