@@ -4,12 +4,12 @@
 
 ## How Match Works
 
-1. **Clone Git Storage (`GitStorage`)**: Clones the target Git repository branch (shallow clone when in `readonly` / `sync` mode) into a temporary directory under `~/.appitool/match/<UUID>` and cleans it up in `defer`. If the requested branch does not yet exist on the remote, `appitool` creates an isolated orphan branch (matching Fastlane Match behavior).
+1. **Clone Git Storage (`GitStorage`)**: Clones the target Git repository branch (shallow clone when in `readonly` / `sync` mode) into a temporary directory under `~/.appitool/match/<UUID>` and cleans it up in `defer`. Authenticates HTTPS URLs via token injection and SSH URLs (`git@...` / `ssh://...`) via `GIT_SSH_COMMAND` using a temporary `0600` key file resolved from `MATCH_GIT_TOKEN` (file path, raw PEM, or Base64), cleaned up on exit. If the requested branch does not yet exist on the remote, `appitool` creates an isolated orphan branch (matching Fastlane Match behavior).
 2. **Decrypt Assets (`MatchEncryption`)**: Decrypts certificates, provisioning profiles, and Android keystores in-place using `MATCH_PASSWORD`.
 3. **Sync / Prune / Nuke / Add**:
    - **iOS**: Validates certificates and profiles against Apple Developer Portal (when App Store Connect API credentials are supplied), creates missing/expired assets when writable, imports `.p12` certificates into a dedicated macOS Keychain, and installs `.mobileprovision` / `.provisionprofile` files for Xcode.
    - **Android**: Resolves `<packageName>.keystore` (or `.jks` / `.p12`) and `<packageName>.json` credential metadata, or encrypts and pushes a new keystore when adding.
-4. **Re-encrypt & Push**: Encrypts modified assets using Match V2 (`AES-256-GCM`) and commits/pushes changes back to the remote Git repository.
+4. **Re-encrypt & Push**: Encrypts modified assets using Match V2 (`AES-256-GCM`), commits with `-c commit.gpgsign=false` so global signing configs never prompt interactively, and pushes changes back to the remote Git repository.
 
 ---
 

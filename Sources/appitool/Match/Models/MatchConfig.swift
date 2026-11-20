@@ -135,7 +135,7 @@ public struct MatchConfig: Sendable {
     /// Git branch name (defaults to "master").
     public let gitBranch: String
 
-    /// Optional Git authentication token (Personal Access Token) for HTTPS cloning.
+    /// Optional Git authentication credential: HTTPS Personal Access Token or SSH private/deploy key (file path, raw PEM, or Base64).
     public let gitToken: String?
 
     /// Provisioning profile distribution type.

@@ -83,7 +83,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 |:---|:---|:---|
 | `MATCH_GIT_URL` | Git repository URL for certificates/profiles/keystores | Required for Match |
 | `MATCH_GIT_BRANCH` | Git branch name | `master` |
-| `MATCH_GIT_TOKEN` | HTTPS Git Personal Access Token | Falls back to `GITHUB_TOKEN` |
+| `MATCH_GIT_TOKEN` | HTTPS Git Personal Access Token or SSH private/deploy key (file path, raw PEM, or Base64) | Falls back to `GITHUB_TOKEN` |
 | `MATCH_PASSWORD` | Passphrase for AES-256 encryption/decryption | Required for Match |
 | `MATCH_KEYCHAIN_NAME` | Custom macOS keychain name or path | `appitool` |
 | `MATCH_KEYCHAIN_PASSWORD` | Password used to create/unlock custom keychain | `appipass` |

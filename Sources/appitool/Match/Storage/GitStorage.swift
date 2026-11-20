@@ -3,9 +3,11 @@ import Foundation
 /// Manages Git repository operations for Match certificates and profiles storage.
 public final class GitStorage: Sendable {
     public let workingDirectory: String
+    let sshKeyPath: String?
     private let gitUrl: String
     private let gitBranch: String
     private let gitToken: String?
+    private let sshKeyContent: String?
     private let shallowClone: Bool
     private let silent: Bool
 
@@ -27,6 +29,16 @@ public final class GitStorage: Sendable {
             .appendingPathComponent("match")
             .appendingPathComponent(UUID().uuidString).path
         self.workingDirectory = baseDir
+
+        let resolvedSSHKey = Self.isSSHGitUrl(gitUrl) ? Self.resolveSSHPrivateKey(from: gitToken) : nil
+        self.sshKeyContent = resolvedSSHKey
+        self.sshKeyPath = resolvedSSHKey != nil ? "\(baseDir).ssh_key" : nil
+    }
+
+    deinit {
+        if let sshKeyPath {
+            try? FileManager.default.removeItem(atPath: sshKeyPath)
+        }
     }
 
     /// Clones the remote git repository into `workingDirectory`.
@@ -41,7 +53,10 @@ public final class GitStorage: Sendable {
 
         // 1. Check if the target branch exists on the remote (matching Fastlane match behavior)
         let (lsExit, lsOut) = try await runGit(args: ["ls-remote", "--heads", authenticatedUrl, gitBranch], in: nil)
-        let branchExistsOnRemote = (lsExit == 0 && lsOut.contains("refs/heads/\(gitBranch)"))
+        guard lsExit == 0 else {
+            throw MatchError.gitCloneFailed(lsOut.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        let branchExistsOnRemote = lsOut.contains("refs/heads/\(gitBranch)")
 
         if branchExistsOnRemote {
             var cloneArgs = ["clone"]
@@ -126,9 +141,11 @@ public final class GitStorage: Sendable {
         }
 
         // Commit with explicit author to avoid failures on headless CI environments
+        // Disable signing so global SSH/GPG commit signing in ~/.gitconfig does not prompt interactively
         let commitArgs = [
             "-c", "user.name=appitool",
             "-c", "user.email=tool@appibara.com",
+            "-c", "commit.gpgsign=false",
             "commit",
             "-m", commitMessage
         ]
@@ -150,10 +167,13 @@ public final class GitStorage: Sendable {
         }
     }
 
-    /// Safely cleans up the local temporary workspace directory and its parent if empty.
+    /// Safely cleans up the local temporary workspace directory, any temporary SSH key file, and its parent if empty.
     public func cleanup() {
         let fm = FileManager.default
         try? fm.removeItem(atPath: workingDirectory)
+        if let sshKeyPath {
+            try? fm.removeItem(atPath: sshKeyPath)
+        }
 
         let matchDir = URL(fileURLWithPath: workingDirectory).deletingLastPathComponent()
         if let contents = try? fm.contentsOfDirectory(atPath: matchDir.path), contents.isEmpty {
@@ -161,15 +181,15 @@ public final class GitStorage: Sendable {
         }
     }
 
-    // MARK: - Private Helpers
+    // MARK: - Authentication & Process Helpers
 
-    private func resolveAuthenticatedGitUrl() -> String {
+    func resolveAuthenticatedGitUrl() -> String {
         guard let token = gitToken, !token.isEmpty else {
             return gitUrl
         }
 
         // If HTTPS url (e.g., https://github.com/owner/repo.git), inject personal access token
-        if gitUrl.hasPrefix("https://") {
+        if gitUrl.hasPrefix("https://"), Self.resolveSSHPrivateKey(from: token) == nil {
             let withoutScheme = String(gitUrl.dropFirst("https://".count))
             // Check if credentials are not already in the URL
             if !withoutScheme.contains("@"), let slashIndex = withoutScheme.firstIndex(of: "/") {
@@ -181,8 +201,143 @@ public final class GitStorage: Sendable {
         return gitUrl
     }
 
+    func prepareSSHKeyIfNeeded() throws {
+        guard let sshKeyContent, let sshKeyPath else { return }
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: sshKeyPath) {
+            let parentDir = URL(fileURLWithPath: sshKeyPath).deletingLastPathComponent().path
+            try fm.createDirectory(atPath: parentDir, withIntermediateDirectories: true)
+            let created = fm.createFile(
+                atPath: sshKeyPath,
+                contents: Data(sshKeyContent.utf8),
+                attributes: [.posixPermissions: 0o600]
+            )
+            guard created else {
+                throw MatchError.gitOperationFailed("Failed to write temporary SSH private key file.")
+            }
+            try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: sshKeyPath)
+        }
+    }
+
+    func gitEnvironment() -> [String: String] {
+        var env = ["GIT_TERMINAL_PROMPT": "0"]
+        if let sshKeyPath {
+            env["GIT_SSH_COMMAND"] = "ssh -i \(Self.shellSingleQuote(sshKeyPath)) -o IdentitiesOnly=yes -o IdentityAgent=none -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+        }
+        return env
+    }
+
+    static func isSSHGitUrl(_ url: String) -> Bool {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        if trimmed.hasPrefix("ssh://") {
+            return true
+        }
+        if trimmed.contains("://")
+            || trimmed.hasPrefix("/")
+            || trimmed.hasPrefix("./")
+            || trimmed.hasPrefix("../")
+            || trimmed.hasPrefix("~")
+        {
+            return false
+        }
+        guard let colonIndex = trimmed.firstIndex(of: ":") else {
+            return false
+        }
+        let hostPart = trimmed[..<colonIndex]
+        let pathPart = trimmed[trimmed.index(after: colonIndex)...]
+        return hostPart.count > 1 && !hostPart.contains("/") && !pathPart.isEmpty
+    }
+
+    static func resolveSSHPrivateKey(from raw: String?, allowFilePath: Bool = true) -> String? {
+        guard let raw else { return nil }
+        var trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        if trimmed.count >= 2,
+           (trimmed.hasPrefix("\"") && trimmed.hasSuffix("\"")) || (trimmed.hasPrefix("'") && trimmed.hasSuffix("'"))
+        {
+            trimmed = String(trimmed.dropFirst().dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        guard !trimmed.isEmpty else { return nil }
+
+        if allowFilePath && !trimmed.contains("\n") && !trimmed.contains("-----BEGIN") {
+            var filePath = trimmed
+            if filePath.hasPrefix("~/") || filePath.hasPrefix("~\\") {
+                let subpath = String(filePath.dropFirst(2))
+                filePath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(subpath).path
+            }
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: filePath, isDirectory: &isDirectory),
+               !isDirectory.boolValue,
+               let fileContent = try? String(contentsOfFile: filePath, encoding: .utf8)
+            {
+                return resolveSSHPrivateKey(from: fileContent, allowFilePath: false)
+            }
+        }
+
+        let unescaped = unescapeLiteralNewlines(trimmed)
+        if isPEMPrivateKey(unescaped) {
+            return normalizePEMPrivateKey(unescaped)
+        }
+
+        let base64Candidate = trimmed
+            .filter { !$0.isWhitespace }
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        guard !base64Candidate.isEmpty, base64Candidate.count % 4 != 1 else {
+            return nil
+        }
+        let remainder = base64Candidate.count % 4
+        let paddedBase64 = remainder == 0
+            ? base64Candidate
+            : base64Candidate + String(repeating: "=", count: 4 - remainder)
+
+        if let decodedData = Data(base64Encoded: paddedBase64),
+           let decodedString = String(data: decodedData, encoding: .utf8)
+        {
+            let decodedUnescaped = unescapeLiteralNewlines(decodedString)
+            if isPEMPrivateKey(decodedUnescaped) {
+                return normalizePEMPrivateKey(decodedUnescaped)
+            }
+        }
+
+        return nil
+    }
+
+    static func shellSingleQuote(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    // MARK: - Private Helpers
+
+    private static func unescapeLiteralNewlines(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "\\r\\n", with: "\n")
+            .replacingOccurrences(of: "\\n", with: "\n")
+            .replacingOccurrences(of: "\\r", with: "\n")
+    }
+
+    private static func isPEMPrivateKey(_ value: String) -> Bool {
+        value.contains("-----BEGIN") && value.contains("PRIVATE KEY-----") && value.contains("-----END")
+    }
+
+    private static func normalizePEMPrivateKey(_ value: String) -> String {
+        let normalizedLineEndings = value
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalizedLineEndings + "\n"
+    }
+
     private func runGit(args: [String], in directory: String?) async throws -> (Int32, String) {
-        let result = try await ProcessRunner.git(args, in: directory, combineOutput: true)
+        try prepareSSHKeyIfNeeded()
+        let result = try await ProcessRunner.git(
+            args,
+            in: directory,
+            environment: gitEnvironment(),
+            combineOutput: true
+        )
         return (result.exitCode, result.stdout)
     }
 }

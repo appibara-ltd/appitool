@@ -13,5 +13,5 @@ appitool status
 ```text
 Tool: appitool
 Purpose: A unified CLI utility for Apple App Store Connect and Google Play operations.
-Version: 0.9.5
+Version: 0.9.6
 ```

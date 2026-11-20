@@ -221,7 +221,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 |:---|:---|:---|
 | `MATCH_GIT_URL` | Git repository URL for certificates/profiles/keystores | Required for Match |
 | `MATCH_GIT_BRANCH` | Git branch name | `master` |
-| `MATCH_GIT_TOKEN` | HTTPS Git Personal Access Token | Falls back to `GITHUB_TOKEN` |
+| `MATCH_GIT_TOKEN` | HTTPS Git Personal Access Token or SSH private/deploy key (file path, raw PEM, or Base64) | Falls back to `GITHUB_TOKEN` |
 | `MATCH_PASSWORD` | Passphrase for AES-256 encryption/decryption | Required for Match |
 | `MATCH_KEYCHAIN_NAME` | Custom macOS keychain name or path | `appitool` |
 | `MATCH_KEYCHAIN_PASSWORD` | Password used to create/unlock custom keychain | `appipass` |
@@ -399,12 +399,12 @@ Choosing a platform (`ios` / `android`) and distribution (`appstore`, `adhoc`, `
 
 ## How Match Works
 
-1. **Clone Git Storage (`GitStorage`)**: Clones the target Git repository branch (shallow clone when in `readonly` / `sync` mode) into a temporary directory under `~/.appitool/match/<UUID>` and cleans it up in `defer`. If the requested branch does not yet exist on the remote, `appitool` creates an isolated orphan branch (matching Fastlane Match behavior).
+1. **Clone Git Storage (`GitStorage`)**: Clones the target Git repository branch (shallow clone when in `readonly` / `sync` mode) into a temporary directory under `~/.appitool/match/<UUID>` and cleans it up in `defer`. Authenticates HTTPS URLs via token injection and SSH URLs (`git@...` / `ssh://...`) via `GIT_SSH_COMMAND` using a temporary `0600` key file resolved from `MATCH_GIT_TOKEN` (file path, raw PEM, or Base64), cleaned up on exit. If the requested branch does not yet exist on the remote, `appitool` creates an isolated orphan branch (matching Fastlane Match behavior).
 2. **Decrypt Assets (`MatchEncryption`)**: Decrypts certificates, provisioning profiles, and Android keystores in-place using `MATCH_PASSWORD`.
 3. **Sync / Prune / Nuke / Add**:
    - **iOS**: Validates certificates and profiles against Apple Developer Portal (when App Store Connect API credentials are supplied), creates missing/expired assets when writable, imports `.p12` certificates into a dedicated macOS Keychain, and installs `.mobileprovision` / `.provisionprofile` files for Xcode.
    - **Android**: Resolves `<packageName>.keystore` (or `.jks` / `.p12`) and `<packageName>.json` credential metadata, or encrypts and pushes a new keystore when adding.
-4. **Re-encrypt & Push**: Encrypts modified assets using Match V2 (`AES-256-GCM`) and commits/pushes changes back to the remote Git repository.
+4. **Re-encrypt & Push**: Encrypts modified assets using Match V2 (`AES-256-GCM`), commits with `-c commit.gpgsign=false` so global signing configs never prompt interactively, and pushes changes back to the remote Git repository.
 
 ---
 
@@ -569,7 +569,7 @@ Used by `match android`, `flow android`, and `build android` (and embedded in `M
 |:---|:---|:---|
 | `--match-git-url <url>` | `MATCH_GIT_URL` | Match Git repository URL |
 | `--match-git-branch <branch>` | `MATCH_GIT_BRANCH` (default: `master`) | Git branch name |
-| `--match-git-token <token>` | `MATCH_GIT_TOKEN`, `GITHUB_TOKEN` | Git Personal Access Token |
+| `--match-git-token <token>` | `MATCH_GIT_TOKEN`, `GITHUB_TOKEN` | Git HTTPS PAT or SSH private/deploy key (file path, PEM, or Base64) |
 | `--match-password <pass>` | `MATCH_PASSWORD` | AES decryption/encryption passphrase |
 
 ### `MatchOptions`
@@ -1676,5 +1676,5 @@ appitool status
 ```text
 Tool: appitool
 Purpose: A unified CLI utility for Apple App Store Connect and Google Play operations.
-Version: 0.9.5
+Version: 0.9.6
 ```

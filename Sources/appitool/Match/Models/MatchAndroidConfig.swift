@@ -18,7 +18,7 @@ public struct MatchAndroidConfig: Sendable {
     /// Git branch name (defaults to "master").
     public let gitBranch: String
 
-    /// Optional Git authentication token (Personal Access Token).
+    /// Optional Git authentication credential: HTTPS Personal Access Token or SSH private/deploy key (file path, raw PEM, or Base64).
     public let gitToken: String?
 
     /// Passphrase used to decrypt and encrypt repository assets (AES-256).

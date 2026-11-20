@@ -232,7 +232,7 @@ struct MatchStorageOptions: ParsableArguments, Sendable {
     @Option(name: .long, help: "Git branch name for Match storage (defaults to MATCH_GIT_BRANCH in .env or 'master').")
     var matchGitBranch: String?
 
-    @Option(name: .long, help: "Git authentication token for Match storage (defaults to MATCH_GIT_TOKEN or GITHUB_TOKEN in .env).")
+    @Option(name: .long, help: "Git authentication token or SSH private/deploy key (HTTPS PAT, or SSH key as file path, raw PEM, or Base64; defaults to MATCH_GIT_TOKEN or GITHUB_TOKEN in .env).")
     var matchGitToken: String?
 
     @Option(name: .long, help: "Passphrase for Match AES encryption/decryption (defaults to MATCH_PASSWORD in .env).")

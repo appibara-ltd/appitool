@@ -221,12 +221,14 @@ enum ProcessRunner {
     static func git(
         _ arguments: [String],
         in workingDirectory: String? = nil,
+        environment: [String: String]? = nil,
         combineOutput: Bool = false
     ) async throws -> Output {
         try await run(
             "git",
             arguments: ["-c", "core.askPass=", "-c", "credential.helper="] + arguments,
             workingDirectory: workingDirectory,
+            environment: environment,
             combineOutput: combineOutput
         )
     }
