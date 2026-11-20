@@ -7,6 +7,12 @@ const __dirname = path.dirname(__filename);
 const docsRoot = path.resolve(__dirname, '..');
 const publicDir = path.join(docsRoot, 'public');
 
+// Absolute site URL (GitHub Pages project site); keep in sync with `base` in .vitepress/config.mts.
+const SITE_URL = 'https://appibara-ltd.github.io/appitool';
+
+// Rewrites root-relative Markdown links/images (`](/path)`) to absolute site URLs.
+const absolutizeLinks = (md) => md.replace(/\]\(\/(?!\/)/g, `](${SITE_URL}/`);
+
 const sections = [
   {
     title: 'Guide',
@@ -94,7 +100,8 @@ function generate() {
     '> A unified CLI utility and release orchestration engine for Apple App Store Connect, Developer Portal, Google Play Console, Firebase App Distribution/Auth, and Fastlane-compatible Match code signing.',
     '',
     '- Source & Repository: https://github.com/appibara-ltd/appitool',
-    '- Full Consolidated Context: [/llms-full.txt](/llms-full.txt)',
+    `- Documentation: ${SITE_URL}/`,
+    `- Full Consolidated Context: [llms-full.txt](${SITE_URL}/llms-full.txt)`,
     '',
   ];
 
@@ -118,12 +125,12 @@ function generate() {
       const raw = fs.readFileSync(fullPath, 'utf8');
       const clean = stripFrontmatter(raw);
       const slug = file.replace(/\.md$/, '');
-      const urlPath = `/${section.dir}/${slug}`;
+      const urlPath = `${SITE_URL}/${section.dir}/${slug}`;
       const title = extractTitle(clean, slug);
       const summary = extractSummary(clean);
 
       llmsLines.push(`- [${title}](${urlPath})${summary ? `: ${summary}` : ''}`);
-      fullParts.push('---', '', `<!-- source: ${section.dir}/${file} -->`, '', clean, '');
+      fullParts.push('---', '', `<!-- source: ${section.dir}/${file} -->`, '', absolutizeLinks(clean), '');
     }
 
     llmsLines.push('');
@@ -132,7 +139,7 @@ function generate() {
   llmsLines.push(
     '## AI Context Files',
     '',
-    '- [Full Documentation Context](/llms-full.txt): Complete single-file Markdown export of all guides and command references.',
+    `- [Full Documentation Context](${SITE_URL}/llms-full.txt): Complete single-file Markdown export of all guides and command references.`,
     ''
   );
 
