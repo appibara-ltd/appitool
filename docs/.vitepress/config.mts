@@ -1,26 +1,21 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitepress';
-import { ensureTransparentAssets } from '../scripts/process-assets.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-void __dirname;
-
-ensureTransparentAssets();
+// GitHub Pages project site: https://appibara-ltd.github.io/appitool/
+const base = '/appitool/';
 
 export default defineConfig({
   title: 'appitool',
   description: 'A unified CLI utility and release orchestration engine for Apple App Store Connect and Google Play operations.',
+  base,
   cleanUrls: true,
   lastUpdated: true,
 
   head: [
     ['meta', { name: 'theme-color', content: '#0891b2' }],
-    ['link', { rel: 'icon', type: 'image/png', href: '/logo.png' }],
-    ['meta', { property: 'og:image', content: '/banner.png' }],
-    ['link', { rel: 'alternate', type: 'text/plain', title: 'LLM Context Index', href: '/llms.txt' }],
-    ['link', { rel: 'alternate', type: 'text/plain', title: 'LLM Full Documentation', href: '/llms-full.txt' }],
+    ['link', { rel: 'icon', type: 'image/png', href: `${base}logo.png` }],
+    ['meta', { property: 'og:image', content: `${base}banner.png` }],
+    ['link', { rel: 'alternate', type: 'text/plain', title: 'LLM Context Index', href: `${base}llms.txt` }],
+    ['link', { rel: 'alternate', type: 'text/plain', title: 'LLM Full Documentation', href: `${base}llms-full.txt` }],
   ],
 
   themeConfig: {

@@ -14,6 +14,3 @@ DerivedData/
 docs/node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
-docs/public/logo.png
-docs/public/banner.png
-

@@ -7,6 +7,7 @@ A unified CLI utility and release orchestration engine for Apple App Store Conne
 [![Swift](https://img.shields.io/badge/Swift-6.4-orange.svg?style=flat)](https://swift.org)
 [![Platform](https://img.shields.io/badge/Platform-macOS%2013%2B%20%7C%20Linux-blue.svg?style=flat)](https://apple.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat)](LICENSE)
+[![Docs](https://img.shields.io/badge/Docs-appibara--ltd.github.io%2Fappitool-0891b2.svg?style=flat)](https://appibara-ltd.github.io/appitool/)
 
 ---
 
