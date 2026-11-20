@@ -170,4 +170,34 @@ struct MatchOptionsTests {
         #expect(required.gitToken == "tok")
         #expect(required.password == "secret")
     }
+
+    @Test("MatchStorageOptions.resolve follows token fallback precedence: CLI > MATCH_GIT_TOKEN > GITHUB_TOKEN > GH_TOKEN")
+    func matchStorageTokenFallbackPrecedence() throws {
+        let keys = ["MATCH_GIT_TOKEN", "GITHUB_TOKEN", "GH_TOKEN"]
+        let originals = Dictionary(uniqueKeysWithValues: keys.map { ($0, EnvLoader.value(for: $0) ?? "") })
+        defer {
+            for (key, value) in originals {
+                EnvLoader.setEnvironmentVariable(key: key, value: value, overwrite: true)
+            }
+        }
+
+        for key in keys {
+            EnvLoader.setEnvironmentVariable(key: key, value: "", overwrite: true)
+        }
+
+        let noCliOption = try MatchStorageOptions.parse([])
+        #expect(noCliOption.resolve().gitToken == nil)
+
+        EnvLoader.setEnvironmentVariable(key: "GH_TOKEN", value: "gh_tok", overwrite: true)
+        #expect(noCliOption.resolve().gitToken == "gh_tok")
+
+        EnvLoader.setEnvironmentVariable(key: "GITHUB_TOKEN", value: "github_tok", overwrite: true)
+        #expect(noCliOption.resolve().gitToken == "github_tok")
+
+        EnvLoader.setEnvironmentVariable(key: "MATCH_GIT_TOKEN", value: "match_tok", overwrite: true)
+        #expect(noCliOption.resolve().gitToken == "match_tok")
+
+        let withCliOption = try MatchStorageOptions.parse(["--match-git-token", "cli_tok"])
+        #expect(withCliOption.resolve().gitToken == "cli_tok")
+    }
 }

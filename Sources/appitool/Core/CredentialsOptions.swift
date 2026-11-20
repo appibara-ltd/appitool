@@ -232,7 +232,7 @@ struct MatchStorageOptions: ParsableArguments, Sendable {
     @Option(name: .long, help: "Git branch name for Match storage (defaults to MATCH_GIT_BRANCH in .env or 'master').")
     var matchGitBranch: String?
 
-    @Option(name: .long, help: "Git authentication token or SSH private/deploy key (HTTPS PAT, or SSH key as file path, raw PEM, or Base64; defaults to MATCH_GIT_TOKEN or GITHUB_TOKEN in .env).")
+    @Option(name: .long, help: "Git authentication token or SSH private/deploy key (HTTPS PAT, or SSH key as file path, raw PEM, or Base64; defaults to MATCH_GIT_TOKEN, GITHUB_TOKEN, or GH_TOKEN in .env).")
     var matchGitToken: String?
 
     @Option(name: .long, help: "Passphrase for Match AES encryption/decryption (defaults to MATCH_PASSWORD in .env).")
@@ -247,7 +247,10 @@ struct MatchStorageOptions: ParsableArguments, Sendable {
     ) {
         let resolvedGitUrl = matchGitUrl ?? EnvLoader.value(for: "MATCH_GIT_URL")
         let resolvedGitBranch = matchGitBranch ?? EnvLoader.value(for: "MATCH_GIT_BRANCH") ?? "master"
-        let resolvedGitToken = matchGitToken ?? EnvLoader.value(for: "MATCH_GIT_TOKEN") ?? EnvLoader.value(for: "GITHUB_TOKEN")
+        let resolvedGitToken = matchGitToken
+            ?? EnvLoader.value(for: "MATCH_GIT_TOKEN")
+            ?? EnvLoader.value(for: "GITHUB_TOKEN")
+            ?? EnvLoader.value(for: "GH_TOKEN")
         let resolvedPassword = matchPassword ?? EnvLoader.value(for: "MATCH_PASSWORD")
         return (
             gitUrl: resolvedGitUrl?.isEmpty == false ? resolvedGitUrl : nil,

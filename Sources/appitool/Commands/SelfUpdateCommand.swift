@@ -194,10 +194,12 @@ struct SelfUpdateCommand: BaseCommand {
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
             let body = String(data: data, encoding: .utf8) ?? ""
-            if statusCode == 404 && githubToken == nil {
-                Log("🔴 Error: Release not found on GitHub (HTTP 404).".red)
-                Log("   If the repository is private, please set the GITHUB_TOKEN environment variable:".yellow)
+            if (statusCode == 403 || statusCode == 429) && githubToken == nil {
+                Log("🔴 Error: GitHub API rate limit exceeded (HTTP \(statusCode)).".red)
+                Log("   Set GITHUB_TOKEN (or GH_TOKEN) to authenticate API requests:".yellow)
                 Log("   export GITHUB_TOKEN=\"ghp_...\"".dim)
+            } else if statusCode == 404 {
+                Log("🔴 Error: Release not found on GitHub (HTTP 404).".red)
             } else {
                 Log("🔴 Error: Failed to fetch latest release from GitHub (HTTP \(statusCode)): \(body)".red)
             }

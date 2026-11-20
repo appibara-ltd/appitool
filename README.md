@@ -33,9 +33,9 @@ A unified CLI utility and release orchestration engine for Apple App Store Conne
 curl -fsSL https://raw.githubusercontent.com/appibara-ltd/appitool/main/install.sh | bash
 ```
 
-> **Private Repository Access:** If installing from a private repository, provide a GitHub personal access token:
+> **GitHub API Rate Limits (Optional):** In CI or shared networks, pass `GITHUB_TOKEN` (or `GH_TOKEN`) to avoid unauthenticated API rate limits:
 > ```bash
-> curl -fsSL -H "Authorization: Bearer $(gh auth token)" https://raw.githubusercontent.com/appibara-ltd/appitool/main/install.sh | GITHUB_TOKEN=$(gh auth token) bash
+> curl -fsSL https://raw.githubusercontent.com/appibara-ltd/appitool/main/install.sh | GITHUB_TOKEN=$(gh auth token) bash
 > ```
 
 The installer automatically places the executable in `/usr/local/bin` (or `~/.local/bin`) and ensures it is available in your shell `$PATH`.

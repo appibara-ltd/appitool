@@ -83,7 +83,7 @@ Used by `match android`, `flow android`, and `build android` (and embedded in `M
 |:---|:---|:---|
 | `--match-git-url <url>` | `MATCH_GIT_URL` | Match Git repository URL |
 | `--match-git-branch <branch>` | `MATCH_GIT_BRANCH` (default: `master`) | Git branch name |
-| `--match-git-token <token>` | `MATCH_GIT_TOKEN`, `GITHUB_TOKEN` | Git HTTPS PAT or SSH private/deploy key (file path, PEM, or Base64) |
+| `--match-git-token <token>` | `MATCH_GIT_TOKEN`, `GITHUB_TOKEN`, `GH_TOKEN` | Git HTTPS PAT or SSH private/deploy key (file path, PEM, or Base64) |
 | `--match-password <pass>` | `MATCH_PASSWORD` | AES decryption/encryption passphrase |
 
 ### `MatchOptions`
@@ -94,7 +94,7 @@ Includes `MatchStorageOptions` and adds Apple/iOS signing options. Used by `matc
 |:---|:---|:---|
 | `--match-git-url <url>` | `MATCH_GIT_URL` | Inherited from `MatchStorageOptions` |
 | `--match-git-branch <branch>` | `MATCH_GIT_BRANCH` (default: `master`) | Inherited from `MatchStorageOptions` |
-| `--match-git-token <token>` | `MATCH_GIT_TOKEN`, `GITHUB_TOKEN` | Inherited from `MatchStorageOptions` |
+| `--match-git-token <token>` | `MATCH_GIT_TOKEN`, `GITHUB_TOKEN`, `GH_TOKEN` | Inherited from `MatchStorageOptions` |
 | `--match-password <pass>` | `MATCH_PASSWORD` | Inherited from `MatchStorageOptions` |
 | `--keychain-name <name>` | `MATCH_KEYCHAIN_NAME` (default: `appitool`) | Custom macOS keychain name or path |
 | `--keychain-password <pass>` | `MATCH_KEYCHAIN_PASSWORD` (default: `appipass`) | Keychain unlock password |

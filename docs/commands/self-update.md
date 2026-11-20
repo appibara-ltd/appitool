@@ -12,7 +12,7 @@ Checks GitHub Releases (`appibara-ltd/appitool`) for a newer semantic version an
 4. Downloads the archive and `checksums.txt`, verifies the SHA256 digest, extracts `appitool`, and atomically swaps the executable (with rollback on failure).
 
 > [!TIP]
-> If the release repository is private or you hit GitHub API rate limits, export `GITHUB_TOKEN` (or `GH_TOKEN`) or configure `GITHUB_TOKEN` in `.env`.
+> If you hit GitHub API rate limits (e.g., in CI or shared networks), export `GITHUB_TOKEN` (or `GH_TOKEN`) or configure `GITHUB_TOKEN` in `.env`.
 
 ## Synopsis
 

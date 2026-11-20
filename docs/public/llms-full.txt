@@ -39,13 +39,12 @@ The installer:
 3. Verifies the SHA256 checksum.
 4. Installs the binary to `/usr/local/bin/appitool` (if writable) or `~/.local/bin/appitool` (automatically updating `~/.zshrc`, `~/.bash_profile`, `~/.bashrc`, or `~/.config/fish/config.fish`).
 
-### Installing from a Private Repository
+### Avoiding GitHub API Rate Limits (Optional)
 
-If the repository is private, pass a GitHub Personal Access Token via `GITHUB_TOKEN` (or `GH_TOKEN`):
+In CI or shared networks, pass a GitHub Personal Access Token via `GITHUB_TOKEN` (or `GH_TOKEN`) to avoid unauthenticated GitHub API rate limits:
 
 ```bash
-curl -fsSL -H "Authorization: Bearer $(gh auth token)" \
-  https://raw.githubusercontent.com/appibara-ltd/appitool/main/install.sh | GITHUB_TOKEN=$(gh auth token) bash
+curl -fsSL https://raw.githubusercontent.com/appibara-ltd/appitool/main/install.sh | GITHUB_TOKEN=$(gh auth token) bash
 ```
 
 ### Build from Source
@@ -221,7 +220,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 |:---|:---|:---|
 | `MATCH_GIT_URL` | Git repository URL for certificates/profiles/keystores | Required for Match |
 | `MATCH_GIT_BRANCH` | Git branch name | `master` |
-| `MATCH_GIT_TOKEN` | HTTPS Git Personal Access Token or SSH private/deploy key (file path, raw PEM, or Base64) | Falls back to `GITHUB_TOKEN` |
+| `MATCH_GIT_TOKEN` | HTTPS Git Personal Access Token or SSH private/deploy key (file path, raw PEM, or Base64) | Falls back to `GITHUB_TOKEN`, then `GH_TOKEN` |
 | `MATCH_PASSWORD` | Passphrase for AES-256 encryption/decryption | Required for Match |
 | `MATCH_KEYCHAIN_NAME` | Custom macOS keychain name or path | `appitool` |
 | `MATCH_KEYCHAIN_PASSWORD` | Password used to create/unlock custom keychain | `appipass` |
@@ -240,8 +239,8 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 
 | Variable | Description | Notes |
 |:---|:---|:---|
-| `GITHUB_TOKEN` | GitHub PAT for private release downloads & Match fallback | Falls back to `GH_TOKEN` in `self-update` |
-| `GH_TOKEN` | Secondary fallback token in `self-update` | Checked if `GITHUB_TOKEN` is unset |
+| `GITHUB_TOKEN` | Optional GitHub PAT to avoid API rate limits in `self-update` & Match HTTPS PAT fallback | Falls back to `GH_TOKEN` |
+| `GH_TOKEN` | Secondary fallback token in `self-update` & Match | Checked if `GITHUB_TOKEN` is unset |
 
 ---
 
@@ -569,7 +568,7 @@ Used by `match android`, `flow android`, and `build android` (and embedded in `M
 |:---|:---|:---|
 | `--match-git-url <url>` | `MATCH_GIT_URL` | Match Git repository URL |
 | `--match-git-branch <branch>` | `MATCH_GIT_BRANCH` (default: `master`) | Git branch name |
-| `--match-git-token <token>` | `MATCH_GIT_TOKEN`, `GITHUB_TOKEN` | Git HTTPS PAT or SSH private/deploy key (file path, PEM, or Base64) |
+| `--match-git-token <token>` | `MATCH_GIT_TOKEN`, `GITHUB_TOKEN`, `GH_TOKEN` | Git HTTPS PAT or SSH private/deploy key (file path, PEM, or Base64) |
 | `--match-password <pass>` | `MATCH_PASSWORD` | AES decryption/encryption passphrase |
 
 ### `MatchOptions`
@@ -580,7 +579,7 @@ Includes `MatchStorageOptions` and adds Apple/iOS signing options. Used by `matc
 |:---|:---|:---|
 | `--match-git-url <url>` | `MATCH_GIT_URL` | Inherited from `MatchStorageOptions` |
 | `--match-git-branch <branch>` | `MATCH_GIT_BRANCH` (default: `master`) | Inherited from `MatchStorageOptions` |
-| `--match-git-token <token>` | `MATCH_GIT_TOKEN`, `GITHUB_TOKEN` | Inherited from `MatchStorageOptions` |
+| `--match-git-token <token>` | `MATCH_GIT_TOKEN`, `GITHUB_TOKEN`, `GH_TOKEN` | Inherited from `MatchStorageOptions` |
 | `--match-password <pass>` | `MATCH_PASSWORD` | Inherited from `MatchStorageOptions` |
 | `--keychain-name <name>` | `MATCH_KEYCHAIN_NAME` (default: `appitool`) | Custom macOS keychain name or path |
 | `--keychain-password <pass>` | `MATCH_KEYCHAIN_PASSWORD` (default: `appipass`) | Keychain unlock password |
@@ -1629,7 +1628,7 @@ Checks GitHub Releases (`appibara-ltd/appitool`) for a newer semantic version an
 4. Downloads the archive and `checksums.txt`, verifies the SHA256 digest, extracts `appitool`, and atomically swaps the executable (with rollback on failure).
 
 > [!TIP]
-> If the release repository is private or you hit GitHub API rate limits, export `GITHUB_TOKEN` (or `GH_TOKEN`) or configure `GITHUB_TOKEN` in `.env`.
+> If you hit GitHub API rate limits (e.g., in CI or shared networks), export `GITHUB_TOKEN` (or `GH_TOKEN`) or configure `GITHUB_TOKEN` in `.env`.
 
 ## Synopsis
 

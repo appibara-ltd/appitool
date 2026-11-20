@@ -30,13 +30,12 @@ The installer:
 3. Verifies the SHA256 checksum.
 4. Installs the binary to `/usr/local/bin/appitool` (if writable) or `~/.local/bin/appitool` (automatically updating `~/.zshrc`, `~/.bash_profile`, `~/.bashrc`, or `~/.config/fish/config.fish`).
 
-### Installing from a Private Repository
+### Avoiding GitHub API Rate Limits (Optional)
 
-If the repository is private, pass a GitHub Personal Access Token via `GITHUB_TOKEN` (or `GH_TOKEN`):
+In CI or shared networks, pass a GitHub Personal Access Token via `GITHUB_TOKEN` (or `GH_TOKEN`) to avoid unauthenticated GitHub API rate limits:
 
 ```bash
-curl -fsSL -H "Authorization: Bearer $(gh auth token)" \
-  https://raw.githubusercontent.com/appibara-ltd/appitool/main/install.sh | GITHUB_TOKEN=$(gh auth token) bash
+curl -fsSL https://raw.githubusercontent.com/appibara-ltd/appitool/main/install.sh | GITHUB_TOKEN=$(gh auth token) bash
 ```
 
 ### Build from Source

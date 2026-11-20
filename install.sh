@@ -50,9 +50,9 @@ echo "   🔄 Fetching latest release information..."
 RELEASE_JSON="$(curl -fsSL ${AUTH_HEADER[@]+"${AUTH_HEADER[@]}"} -H "Accept: application/vnd.github.v3+json" "$GITHUB_API" 2>/dev/null || true)"
 
 if [ -z "$RELEASE_JSON" ] || echo "$RELEASE_JSON" | grep -q '"message": *"Not Found"'; then
-    echo "🔴 Error: Could not fetch releases from GitHub (404 Not Found)." >&2
+    echo "🔴 Error: Could not fetch releases from GitHub." >&2
     if [ -z "$TOKEN" ]; then
-        echo "   If this repository is private, please export GITHUB_TOKEN before running:" >&2
+        echo "   If you hit GitHub API rate limits, export GITHUB_TOKEN (or GH_TOKEN) and retry:" >&2
         echo "   export GITHUB_TOKEN=\"ghp_...\"" >&2
     fi
     exit 1
