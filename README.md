@@ -2,10 +2,10 @@
   <img src="banner.png" alt="appitool" width="100%" />
 </p>
 
-A unified CLI utility and release orchestration engine for Apple App Store Connect and Google Play operations.
+A unified CLI utility and release orchestration engine for Apple App Store Connect, Apple Developer Portal, Google Play Console, Firebase App Distribution, Firebase Authentication, and Git-backed code signing.
 
 [![Swift](https://img.shields.io/badge/Swift-6.4-orange.svg?style=flat)](https://swift.org)
-[![Platform](https://img.shields.io/badge/Platform-macOS%2013%2B-blue.svg?style=flat)](https://apple.com)
+[![Platform](https://img.shields.io/badge/Platform-macOS%2013%2B%20%7C%20Linux-blue.svg?style=flat)](https://apple.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat)](LICENSE)
 
 ---
@@ -16,6 +16,9 @@ A unified CLI utility and release orchestration engine for Apple App Store Conne
 - **Unified Store API Client:** OpenAPI-generated clients for Apple App Store Connect and Google Play Developer APIs.
 - **Multi-Track Distribution:** Deploy seamlessly to TestFlight, App Store, Google Play (Internal, Alpha, Beta, Production), and Firebase App Distribution.
 - **Smart Notifications:** Real-time webhook dispatches to Slack and KokoNo with end-to-end (E2E) encryption support.
+- **Git-Backed Code Signing (`match`):** Encrypted sync of iOS certificates/profiles and Android keystores via a private Git repository.
+- **Store & Firebase Management:** Manage App Store Connect identifiers, capabilities, profiles, certificates, devices, and Firebase App Distribution releases, groups, and Auth users.
+- **Release Notes:** Categorized Markdown release notes generated from Git conventional commits.
 - **Built-in Self-Update:** Upgrade the CLI in-place on demand via `appitool self-update` with SHA256 checksum verification.
 - **Dry-Run Mode:** Validate configurations, credentials, and stage workflows without triggering builds or mutating remote state.
 
@@ -23,7 +26,7 @@ A unified CLI utility and release orchestration engine for Apple App Store Conne
 
 ## Installation
 
-### One-Line Quick Install (macOS Apple Silicon)
+### One-Line Quick Install (macOS Apple Silicon, Linux x86_64 / arm64)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/appibara-ltd/appitool/main/install.sh | bash
@@ -111,7 +114,26 @@ KOKONO_E2E_PUBLIC_KEY=your_optional_public_key
 
 ## Commands & Usage
 
-### 1. `appitool flow`
+Run `appitool --help` or `appitool <command> --help` to inspect live options. Full reference: [`docs/commands/`](docs/commands/overview.md).
+
+| Command | Subcommands | Description |
+|:---|:---|:---|
+| `flow` | `ios`, `android` | Runs the automated 7-stage release orchestration pipeline. |
+| `build` | `ios`, `android` | Compiles and packages iOS (`.xcarchive`/`.ipa`) and Android (`.aab`/`.apk`) artifacts. |
+| `check` | `ios`, `android` | Queries remote store/distribution metadata and latest build numbers. |
+| `match` | `ios` *(default)*, `android` | Syncs, prunes, nukes, or adds Git-encrypted certificates, profiles, and keystores. |
+| `apple` | 16 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, and devices. |
+| `firebase` | 8 subcommands | Manages Firebase App Distribution releases/groups and Firebase Auth users. |
+| `inspect` | — | Inspects local iOS bundle IDs and Android `applicationId`/`namespace`/flavors (supports `--json`). |
+| `clean` | — | Cleans cached build outputs and Xcode DerivedData under `~/.appitool`. |
+| `notes` | — | Generates categorized Markdown release notes from Git conventional commits. |
+| `kokono` | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |
+| `self-update` | — | Checks GitHub Releases and updates the binary with SHA256 verification. |
+| `status` | — | Displays the tool name, purpose, and active version. |
+
+Distribution values for `-d, --distribution` (`flow`, `build`, `check`): `appstore`, `adhoc`, `development`.
+
+### `flow`
 
 Automated release pipeline that runs all 7 stages sequentially.
 
@@ -138,55 +160,58 @@ appitool flow ios --dry-run
 | **06** | `release` | Uploads binary to TestFlight, Google Play tracks, or Firebase. |
 | **07** | `postrelease` | Dispatches success alerts (Slack, KokoNo) and prints execution summary. |
 
-For detailed architectural specifications, refer to [Flow.md](Flow.md).
+For detailed architectural specifications, see [Flow Architecture](docs/guide/flow-architecture.md).
 
----
-
-### 2. `appitool check`
-
-Verifies store credentials, API connectivity, and application registration.
+### `check`
 
 ```bash
-# Check iOS credentials and bundle ID status
 appitool check ios -b com.example.app
-
-# Check Android Google Play API service account permissions
 appitool check android -p com.example.app
 ```
 
----
-
-### 3. `appitool build`
-
-Compiles platform binaries directly.
+### `build`
 
 ```bash
-# Build iOS archive (.ipa)
-appitool build ios -b com.example.app -d appstore
-
-# Build Android App Bundle (.aab)
+appitool build ios -d appstore
 appitool build android -p com.example.app -d appstore
 ```
 
----
-
-### 4. `appitool kokono`
-
-Dispatches alerts to the KokoNo notification webhook with optional end-to-end encryption.
+### `match`
 
 ```bash
-# Send plain notification
-appitool kokono -m "Build completed successfully."
+appitool match ios appstore
+appitool match ios adhoc --readonly -a "com.example.app,com.example.app.widget"
+appitool match ios prune all
+appitool match android
+```
 
-# Send encrypted notification
+See [Code Signing (Match)](docs/guide/code-signing-match.md).
+
+### `apple` / `firebase`
+
+```bash
+appitool apple list-apps -b com.example.app
+appitool apple delete-identifier -a com.example.app
+appitool firebase list-releases --platform ios -l 10
+appitool firebase create-group -a qa-team -n "QA Team"
+```
+
+### `inspect` / `clean` / `notes`
+
+```bash
+appitool inspect -p ios -c Release --json
+appitool clean --derived-data --dry-run
+appitool notes -f v0.8.0 -t v0.9.0 -o CHANGELOG_DRAFT.md
+```
+
+### `kokono`
+
+```bash
+appitool kokono -m "Build completed successfully."
 appitool kokono -m "Confidential deployment completed." -e "your_public_key"
 ```
 
----
-
-### 5. `appitool status`
-
-Displays tool metadata, purpose, and active version:
+### `status`
 
 ```bash
 appitool status
