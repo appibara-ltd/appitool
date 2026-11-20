@@ -5,7 +5,7 @@ Checks GitHub Releases (`appibara-ltd/appitool`) for a newer semantic version an
 ## How It Works
 
 1. Queries `https://api.github.com/repos/appibara-ltd/appitool/releases/latest`.
-2. Compares the remote tag (`SemanticVersion`) against the running binary's version (`0.9.1`).
+2. Compares the remote tag (`SemanticVersion`) against the running binary's version.
 3. Selects the matching archive for the current OS & CPU architecture:
    - `appitool-darwin-arm64.tar.gz` (or `universal`)
    - `appitool-linux-x86_64.tar.gz` / `appitool-linux-arm64.tar.gz`

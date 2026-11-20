@@ -1,6 +1,6 @@
 # Command Overview
 
-`appitool` (`v0.9.1`) is built with Swift ArgumentParser. Run `appitool --help` (or `-h`) or `appitool <command> --help` at any level to inspect live options, or `appitool --version` to print the installed version.
+`appitool` is built with Swift ArgumentParser. Run `appitool --help` (or `-h`) or `appitool <command> --help` at any level to inspect live options, or `appitool --version` to print the installed version.
 
 ## Complete Command Tree
 

@@ -93,7 +93,7 @@ function generate() {
   const llmsLines = [
     '# appitool',
     '',
-    '> A unified CLI utility and release orchestration engine (v0.9.1) for Apple App Store Connect, Developer Portal, Google Play Console, Firebase App Distribution/Auth, and Fastlane-compatible Match code signing.',
+    '> A unified CLI utility and release orchestration engine for Apple App Store Connect, Developer Portal, Google Play Console, Firebase App Distribution/Auth, and Fastlane-compatible Match code signing.',
     '',
     '- Source & Repository: https://github.com/appibara-ltd/appitool',
     '- Full Consolidated Context: [/llms-full.txt](/llms-full.txt)',
@@ -103,7 +103,7 @@ function generate() {
   const fullParts = [
     '# appitool — Complete CLI Documentation',
     '',
-    '> Unified CLI utility (v0.9.1) for Apple App Store Connect and Google Play operations.',
+    '> Unified CLI utility for Apple App Store Connect and Google Play operations.',
     '> Generated automatically from VitePress Markdown documentation.',
     '',
   ];

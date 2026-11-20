@@ -166,7 +166,7 @@ struct AppStoreServiceTests {
         }
     }
 
-    @Test("Client request through AppStoreService throws apiError on 400 response via AppStoreErrorMiddleware")
+    @Test("Raw client request wraps AppStoreErrorMiddleware error in ClientError on HTTP 400")
     func clientRequestThrowsOnHttpError() async throws {
         let key = generateTestKey()
         let errorJSON = """
@@ -191,8 +191,84 @@ struct AppStoreServiceTests {
             transport: mockTransport
         )
 
-        await #expect(throws: AppStoreServiceError.self) {
+        do {
             _ = try await service.client.apps_getCollection(.init())
+            Issue.record("Expected ClientError wrapping AppStoreServiceError on HTTP 400")
+        } catch let clientError as ClientError {
+            guard case .apiError(let status, let message) = clientError.underlyingError as? AppStoreServiceError else {
+                Issue.record("Expected underlying AppStoreServiceError.apiError, got \(clientError.underlyingError)")
+                return
+            }
+            #expect(status == 400)
+            #expect(message == "Bad Request (ENTITY_ERROR): Invalid parameter provided")
+        } catch {
+            Issue.record("Expected ClientError, got \(type(of: error)): \(error)")
+        }
+    }
+
+    @Test("AppStoreService methods unwrap ClientError and throw typed AppStoreServiceError directly")
+    func serviceMethodsThrowTypedAppStoreServiceErrorDirectly() async throws {
+        let key = generateTestKey()
+        let badRequestJSON = """
+        {
+            "errors": [
+                {
+                    "id": "ERR_1",
+                    "status": "400",
+                    "code": "ENTITY_ERROR",
+                    "title": "Bad Request",
+                    "detail": "Invalid parameter provided"
+                }
+            ]
+        }
+        """.data(using: .utf8)!
+
+        let service400 = try AppStoreService(
+            keyId: "TEST_KID_API",
+            issuerId: "TEST_ISS_API",
+            key: key.pemRepresentation,
+            transport: MockTransport(statusCode: .badRequest, responseBody: badRequestJSON)
+        )
+
+        do {
+            _ = try await service400.fetchApps()
+            Issue.record("Expected AppStoreServiceError.apiError on HTTP 400")
+        } catch AppStoreServiceError.apiError(let status, let message) {
+            #expect(status == 400)
+            #expect(message == "Bad Request (ENTITY_ERROR): Invalid parameter provided")
+        } catch {
+            Issue.record("Expected AppStoreServiceError, got \(type(of: error)): \(error)")
+        }
+
+        let serverErrorJSON = """
+        {
+            "errors": [
+                {
+                    "id": "ERR_500",
+                    "status": "500",
+                    "code": "INTERNAL_ERROR",
+                    "title": "Internal Server Error",
+                    "detail": "Temporary failure"
+                }
+            ]
+        }
+        """.data(using: .utf8)!
+
+        let service500 = try AppStoreService(
+            keyId: "TEST_KID_API",
+            issuerId: "TEST_ISS_API",
+            key: key.pemRepresentation,
+            transport: MockTransport(statusCode: .internalServerError, responseBody: serverErrorJSON)
+        )
+
+        do {
+            try await service500.commitBuildUploadFile(id: "file_1")
+            Issue.record("Expected AppStoreServiceError.apiError on HTTP 500")
+        } catch AppStoreServiceError.apiError(let status, let message) {
+            #expect(status == 500)
+            #expect(message == "Internal Server Error (INTERNAL_ERROR): Temporary failure")
+        } catch {
+            Issue.record("Expected AppStoreServiceError, got \(type(of: error)): \(error)")
         }
     }
 }

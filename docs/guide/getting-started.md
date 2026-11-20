@@ -2,7 +2,7 @@
 
 ![appitool](/banner.png)
 
-`appitool` (`v0.9.1`) is a unified Swift CLI utility and release orchestration engine for Apple App Store Connect, Apple Developer Portal, Google Play Console, Firebase App Distribution, Firebase Authentication, and Git-backed code signing.
+`appitool` is a unified Swift CLI utility and release orchestration engine for Apple App Store Connect, Apple Developer Portal, Google Play Console, Firebase App Distribution, Firebase Authentication, and Git-backed code signing.
 
 ## Requirements
 

@@ -1,6 +1,6 @@
 {
   "name": "appitool-docs",
-  "version": "0.9.1",
+  "version": "0.9.4",
   "private": true,
   "type": "module",
   "description": "VitePress documentation and AI/LLM context site for appitool CLI",

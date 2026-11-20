@@ -128,9 +128,11 @@ struct GetLatestBuildNumberTask: Task {
 
     private func fetchLatestTestFlightBuild(bundleId: String, service: AppStoreService) async throws -> LatestBuildInfo {
         // 1. Fetch App by bundle ID
-        let appsResponse = try await service.client.apps_getCollection(.init(
-            query: .init(filter_lbrack_bundleId_rbrack_: [bundleId])
-        ))
+        let appsResponse = try await service.execute {
+            try await service.client.apps_getCollection(.init(
+                query: .init(filter_lbrack_bundleId_rbrack_: [bundleId])
+            ))
+        }
 
         guard case .ok(let okApps) = appsResponse, case .json(let appsPayload) = okApps.body else {
             throw GetLatestBuildNumberError.apiError("Failed to fetch app details for bundle ID: \(bundleId)")
@@ -143,14 +145,16 @@ struct GetLatestBuildNumberTask: Task {
         let appId = app.id
 
         // 2. Fetch the latest build for this app sorted by upload date descending
-        let buildsResponse = try await service.client.builds_getCollection(.init(
-            query: .init(
-                filter_lbrack_app_rbrack_: [appId],
-                sort: [._hyphen_uploadedDate],
-                limit: 1,
-                include: [.preReleaseVersion]
-            )
-        ))
+        let buildsResponse = try await service.execute {
+            try await service.client.builds_getCollection(.init(
+                query: .init(
+                    filter_lbrack_app_rbrack_: [appId],
+                    sort: [._hyphen_uploadedDate],
+                    limit: 1,
+                    include: [.preReleaseVersion]
+                )
+            ))
+        }
 
         guard case .ok(let okBuilds) = buildsResponse, case .json(let buildsPayload) = okBuilds.body else {
             throw GetLatestBuildNumberError.apiError("Failed to fetch builds for App ID: \(appId)")

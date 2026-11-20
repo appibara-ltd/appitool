@@ -66,7 +66,7 @@ extension AppStoreService {
             )
         )
 
-        let response = try await client.buildUploads_createInstance(body: .json(payload))
+        let response = try await execute { try await client.buildUploads_createInstance(body: .json(payload)) }
         switch response {
         case .created(let created):
             guard case .json(let instance) = created.body else {
@@ -99,7 +99,7 @@ extension AppStoreService {
             )
         )
 
-        let response = try await client.buildUploadFiles_createInstance(body: .json(payload))
+        let response = try await execute { try await client.buildUploadFiles_createInstance(body: .json(payload)) }
         switch response {
         case .created(let created):
             guard case .json(let instance) = created.body else {
@@ -137,7 +137,7 @@ extension AppStoreService {
             )
         )
 
-        let response = try await client.buildUploadFiles_updateInstance(path: .init(id: id), body: .json(payload))
+        let response = try await execute { try await client.buildUploadFiles_updateInstance(path: .init(id: id), body: .json(payload)) }
         switch response {
         case .ok:
             return
@@ -148,7 +148,7 @@ extension AppStoreService {
 
     /// Fetches the current processing state of a build upload.
     package func fetchBuildUpload(id: String) async throws -> BuildUploadStatus {
-        let response = try await client.buildUploads_getInstance(path: .init(id: id))
+        let response = try await execute { try await client.buildUploads_getInstance(path: .init(id: id)) }
         switch response {
         case .ok(let ok):
             guard case .json(let instance) = ok.body else {
@@ -187,10 +187,12 @@ extension AppStoreService {
     }
 
     private func findBetaBuildLocalizationId(buildId: String, locale: String) async throws -> String? {
-        let response = try await client.builds_betaBuildLocalizations_getToManyRelated(
-            path: .init(id: buildId),
-            query: .init(limit: 200)
-        )
+        let response = try await execute {
+            try await client.builds_betaBuildLocalizations_getToManyRelated(
+                path: .init(id: buildId),
+                query: .init(limit: 200)
+            )
+        }
         switch response {
         case .ok(let ok):
             guard case .json(let collection) = ok.body else { return nil }
@@ -209,7 +211,7 @@ extension AppStoreService {
             )
         )
 
-        let response = try await client.betaBuildLocalizations_createInstance(body: .json(payload))
+        let response = try await execute { try await client.betaBuildLocalizations_createInstance(body: .json(payload)) }
         switch response {
         case .created:
             return
@@ -227,7 +229,7 @@ extension AppStoreService {
             )
         )
 
-        let response = try await client.betaBuildLocalizations_updateInstance(path: .init(id: id), body: .json(payload))
+        let response = try await execute { try await client.betaBuildLocalizations_updateInstance(path: .init(id: id), body: .json(payload)) }
         switch response {
         case .ok:
             return

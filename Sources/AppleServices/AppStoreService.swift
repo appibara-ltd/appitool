@@ -60,6 +60,19 @@ package struct AppStoreService: Sendable {
         )
     }
 
+    /// Executes an OpenAPI client operation and unwraps `AppStoreServiceError` thrown by `AppStoreErrorMiddleware`
+    /// from `OpenAPIRuntime.ClientError` so callers receive typed `AppStoreServiceError` directly.
+    package func execute<T>(_ operation: () async throws -> T) async throws -> T {
+        do {
+            return try await operation()
+        } catch let clientError as ClientError {
+            if let serviceError = clientError.underlyingError as? AppStoreServiceError {
+                throw serviceError
+            }
+            throw clientError
+        }
+    }
+
     // MARK: - Auto-Pagination Helper
 
     private func fetchNextPage<T: Decodable>(from urlString: String) async throws -> T {
@@ -130,10 +143,12 @@ package struct AppStoreService: Sendable {
         limit: Int? = nil
     ) async throws -> [Components.Schemas.Certificate] {
         let pageLimit = min(limit ?? 200, 200)
-        let response = try await client.certificates_getCollection(query: .init(
-            filter_lbrack_certificateType_rbrack_: types,
-            limit: pageLimit
-        ))
+        let response = try await execute {
+            try await client.certificates_getCollection(query: .init(
+                filter_lbrack_certificateType_rbrack_: types,
+                limit: pageLimit
+            ))
+        }
         guard case .ok(let okCert) = response, case .json(let certCollection) = okCert.body else {
             return []
         }
@@ -162,7 +177,7 @@ package struct AppStoreService: Sendable {
             )
         )
 
-        let response = try await client.certificates_createInstance(body: .json(createPayload))
+        let response = try await execute { try await client.certificates_createInstance(body: .json(createPayload)) }
         switch response {
         case .created(let createdResponse):
             guard case .json(let createdInstance) = createdResponse.body else {
@@ -176,7 +191,7 @@ package struct AppStoreService: Sendable {
 
     /// Deletes (revokes) a certificate on Apple Developer Portal.
     package func deleteCertificate(id: String) async throws -> Bool {
-        let response = try await client.certificates_deleteInstance(path: .init(id: id))
+        let response = try await execute { try await client.certificates_deleteInstance(path: .init(id: id)) }
         switch response {
         case .noContent:
             return true
@@ -195,10 +210,12 @@ package struct AppStoreService: Sendable {
         identifier: String? = nil
     ) async throws -> [Components.Schemas.BundleId] {
         let pageLimit = min(limit ?? 200, 200)
-        let response = try await client.bundleIds_getCollection(query: .init(
-            filter_lbrack_identifier_rbrack_: identifier.map { [$0] },
-            limit: pageLimit
-        ))
+        let response = try await execute {
+            try await client.bundleIds_getCollection(query: .init(
+                filter_lbrack_identifier_rbrack_: identifier.map { [$0] },
+                limit: pageLimit
+            ))
+        }
         guard case .ok(let okResponse) = response, case .json(let collection) = okResponse.body else {
             return []
         }
@@ -214,9 +231,11 @@ package struct AppStoreService: Sendable {
 
     /// Resolves an existing bundle ID or creates a new one on Apple Developer Portal.
     package func resolveOrCreateBundleId(bundleId: String) async throws -> String {
-        let response = try await client.bundleIds_getCollection(query: .init(
-            filter_lbrack_identifier_rbrack_: [bundleId]
-        ))
+        let response = try await execute {
+            try await client.bundleIds_getCollection(query: .init(
+                filter_lbrack_identifier_rbrack_: [bundleId]
+            ))
+        }
 
         if case .ok(let okResp) = response, case .json(let collection) = okResp.body {
             if let matched = collection.data.first(where: { $0.attributes?.identifier == bundleId && $0.attributes?.platform != .SERVICES })
@@ -248,7 +267,7 @@ package struct AppStoreService: Sendable {
             )
         )
 
-        let response = try await client.bundleIds_createInstance(body: .json(createPayload))
+        let response = try await execute { try await client.bundleIds_createInstance(body: .json(createPayload)) }
         switch response {
         case .created(let createdResp):
             guard case .json(let instance) = createdResp.body else {
@@ -285,7 +304,7 @@ package struct AppStoreService: Sendable {
             )
         )
 
-        let response = try await client.bundleIdCapabilities_createInstance(body: .json(createPayload))
+        let response = try await execute { try await client.bundleIdCapabilities_createInstance(body: .json(createPayload)) }
         switch response {
         case .created:
             return
@@ -296,7 +315,7 @@ package struct AppStoreService: Sendable {
 
     /// Fetches all enabled capabilities for a given bundle ID.
     package func fetchCapabilities(bundleIdPortalId: String) async throws -> [Components.Schemas.BundleIdCapability] {
-        let response = try await client.bundleIds_bundleIdCapabilities_getToManyRelated(path: .init(id: bundleIdPortalId))
+        let response = try await execute { try await client.bundleIds_bundleIdCapabilities_getToManyRelated(path: .init(id: bundleIdPortalId)) }
         switch response {
         case .ok(let okResp):
             guard case .json(let collection) = okResp.body else { return [] }
@@ -308,7 +327,7 @@ package struct AppStoreService: Sendable {
 
     /// Deletes a bundle identifier from Apple Developer Portal.
     package func deleteBundleId(id: String) async throws -> Bool {
-        let response = try await client.bundleIds_deleteInstance(path: .init(id: id))
+        let response = try await execute { try await client.bundleIds_deleteInstance(path: .init(id: id)) }
         switch response {
         case .noContent:
             return true
@@ -328,11 +347,13 @@ package struct AppStoreService: Sendable {
         name: String? = nil
     ) async throws -> [Components.Schemas.App] {
         let pageLimit = min(limit ?? 200, 200)
-        let response = try await client.apps_getCollection(query: .init(
-            filter_lbrack_name_rbrack_: name.map { [$0] },
-            filter_lbrack_bundleId_rbrack_: bundleId.map { [$0] },
-            limit: pageLimit
-        ))
+        let response = try await execute {
+            try await client.apps_getCollection(query: .init(
+                filter_lbrack_name_rbrack_: name.map { [$0] },
+                filter_lbrack_bundleId_rbrack_: bundleId.map { [$0] },
+                limit: pageLimit
+            ))
+        }
         guard case .ok(let okResponse) = response, case .json(let collection) = okResponse.body else {
             return []
         }
@@ -356,12 +377,14 @@ package struct AppStoreService: Sendable {
         limit: Int? = nil
     ) async throws -> [Components.Schemas.Device] {
         let pageLimit = min(limit ?? 200, 200)
-        let response = try await client.devices_getCollection(query: .init(
-            filter_lbrack_platform_rbrack_: platform.map { [$0] },
-            filter_lbrack_udid_rbrack_: udid.map { [$0] },
-            filter_lbrack_status_rbrack_: status.map { [$0] },
-            limit: pageLimit
-        ))
+        let response = try await execute {
+            try await client.devices_getCollection(query: .init(
+                filter_lbrack_platform_rbrack_: platform.map { [$0] },
+                filter_lbrack_udid_rbrack_: udid.map { [$0] },
+                filter_lbrack_status_rbrack_: status.map { [$0] },
+                limit: pageLimit
+            ))
+        }
         guard case .ok(let okResp) = response, case .json(let collection) = okResp.body else {
             return []
         }
@@ -422,7 +445,7 @@ package struct AppStoreService: Sendable {
             )
         )
 
-        let response = try await client.devices_createInstance(body: .json(requestBody))
+        let response = try await execute { try await client.devices_createInstance(body: .json(requestBody)) }
         switch response {
         case .created(let createdResp):
             guard case .json(let deviceResp) = createdResp.body else {
@@ -447,10 +470,12 @@ package struct AppStoreService: Sendable {
             )
         )
 
-        let response = try await client.devices_updateInstance(
-            path: .init(id: id),
-            body: .json(requestBody)
-        )
+        let response = try await execute {
+            try await client.devices_updateInstance(
+                path: .init(id: id),
+                body: .json(requestBody)
+            )
+        }
         switch response {
         case .ok(let okResp):
             guard case .json(let deviceResp) = okResp.body else {
@@ -502,10 +527,12 @@ package struct AppStoreService: Sendable {
         name: String? = nil
     ) async throws -> [Components.Schemas.Profile] {
         let pageLimit = min(limit ?? 200, 200)
-        let response = try await client.profiles_getCollection(query: .init(
-            filter_lbrack_name_rbrack_: name.map { [$0] },
-            limit: pageLimit
-        ))
+        let response = try await execute {
+            try await client.profiles_getCollection(query: .init(
+                filter_lbrack_name_rbrack_: name.map { [$0] },
+                limit: pageLimit
+            ))
+        }
         guard case .ok(let okProf) = response, case .json(let profCollection) = okProf.body else {
             return []
         }
@@ -543,7 +570,7 @@ package struct AppStoreService: Sendable {
         )
 
         var finalName = name
-        var response = try await client.profiles_createInstance(body: .json(createPayload))
+        var response = try await execute { try await client.profiles_createInstance(body: .json(createPayload)) }
 
         // Fastlane Match parity: If profile name is already taken (HTTP 409 Conflict),
         // retry creating with Unix timestamp appended to make the name globally unique
@@ -564,7 +591,7 @@ package struct AppStoreService: Sendable {
                     )
                 )
             )
-            response = try await client.profiles_createInstance(body: .json(retryPayload))
+            response = try await execute { try await client.profiles_createInstance(body: .json(retryPayload)) }
         }
 
         switch response {
@@ -585,7 +612,7 @@ package struct AppStoreService: Sendable {
 
     /// Deletes a provisioning profile on Apple Developer Portal.
     package func deleteProfile(id: String) async throws -> Bool {
-        let response = try await client.profiles_deleteInstance(path: .init(id: id))
+        let response = try await execute { try await client.profiles_deleteInstance(path: .init(id: id)) }
         switch response {
         case .noContent:
             return true
