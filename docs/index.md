@@ -17,7 +17,7 @@ hero:
       link: /commands/overview
     - theme: alt
       text: llms-full.txt (AI Context)
-      link: /appitool/llms-full.txt
+      link: /llms-full.txt
 
 features:
   - icon: 🌊

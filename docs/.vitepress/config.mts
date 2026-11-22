@@ -1,7 +1,8 @@
 import { defineConfig } from 'vitepress';
 
-// GitHub Pages project site: https://appibara-ltd.github.io/appitool/
-const base = '/appitool/';
+// Custom domain: https://appitool.appibara.com/
+const siteUrl = 'https://appitool.appibara.com';
+const base = '/';
 
 export default defineConfig({
   title: 'appitool',
@@ -9,11 +10,14 @@ export default defineConfig({
   base,
   cleanUrls: true,
   lastUpdated: true,
+  sitemap: {
+    hostname: siteUrl,
+  },
 
   head: [
     ['meta', { name: 'theme-color', content: '#0891b2' }],
     ['link', { rel: 'icon', type: 'image/png', href: `${base}logo.png` }],
-    ['meta', { property: 'og:image', content: `${base}banner.png` }],
+    ['meta', { property: 'og:image', content: `${siteUrl}/banner.png` }],
     ['link', { rel: 'alternate', type: 'text/plain', title: 'LLM Context Index', href: `${base}llms.txt` }],
     ['link', { rel: 'alternate', type: 'text/plain', title: 'LLM Full Documentation', href: `${base}llms-full.txt` }],
   ],

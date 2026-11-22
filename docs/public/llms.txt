@@ -3,32 +3,32 @@
 > A unified CLI utility and release orchestration engine for Apple App Store Connect, Developer Portal, Google Play Console, Firebase App Distribution/Auth, and Fastlane-compatible Match code signing.
 
 - Source & Repository: https://github.com/appibara-ltd/appitool
-- Documentation: https://appibara-ltd.github.io/appitool/
-- Full Consolidated Context: [llms-full.txt](https://appibara-ltd.github.io/appitool/llms-full.txt)
+- Documentation: https://appitool.appibara.com/
+- Full Consolidated Context: [llms-full.txt](https://appitool.appibara.com/llms-full.txt)
 
 ## Guide
 
-- [Getting Started](https://appibara-ltd.github.io/appitool/guide/getting-started): appitool is a unified Swift CLI utility and release orchestration engine for Apple App Store Connect, Apple Developer Portal, Google Play Console, Firebase App Distribution, Firebase Authentication, and Git-backed code signing.
-- [Configuration & `.env`](https://appibara-ltd.github.io/appitool/guide/configuration): appitool uses a strict, deterministic configuration model. Commands resolve CLI options with environment variable fallbacks, while internal tasks, services, and flow presets receive resolved values explicitly.
-- [Flow Architecture](https://appibara-ltd.github.io/appitool/guide/flow-architecture): appitool flow is an opinionated release orchestration engine inspired by Fastlane lanes. Every flow execution transitions sequentially through a standardized 7-stage lifecycle backed by a shared FlowContext and a strict error boundary in FlowRunner.
-- [Code Signing & Match](https://appibara-ltd.github.io/appitool/guide/code-signing-match): appitool match implements Git-backed encrypted storage for Apple signing assets and Android keystores, providing binary and encryption parity with **Fastlane Match**.
+- [Getting Started](https://appitool.appibara.com/guide/getting-started): appitool is a unified Swift CLI utility and release orchestration engine for Apple App Store Connect, Apple Developer Portal, Google Play Console, Firebase App Distribution, Firebase Authentication, and Git-backed code signing.
+- [Configuration & `.env`](https://appitool.appibara.com/guide/configuration): appitool uses a strict, deterministic configuration model. Commands resolve CLI options with environment variable fallbacks, while internal tasks, services, and flow presets receive resolved values explicitly.
+- [Flow Architecture](https://appitool.appibara.com/guide/flow-architecture): appitool flow is an opinionated release orchestration engine inspired by Fastlane lanes. Every flow execution transitions sequentially through a standardized 7-stage lifecycle backed by a shared FlowContext and a strict error boundary in FlowRunner.
+- [Code Signing & Match](https://appitool.appibara.com/guide/code-signing-match): appitool match implements Git-backed encrypted storage for Apple signing assets and Android keystores, providing binary and encryption parity with **Fastlane Match**.
 
 ## Commands
 
-- [Command Overview](https://appibara-ltd.github.io/appitool/commands/overview): appitool is built with Swift ArgumentParser. Run appitool --help (or -h) or appitool <command> --help at any level to inspect live options, or appitool --version to print the installed version.
-- [`appitool flow`](https://appibara-ltd.github.io/appitool/commands/flow): Executes the automated 7-stage release orchestration pipeline (setup → prebuild → build → postbuild → prerelease → release → postrelease) with centralized error handling and webhook alerts.
-- [`appitool build`](https://appibara-ltd.github.io/appitool/commands/build): Compiles and packages platform binaries directly without running the full 7-stage flow pipeline.
-- [`appitool check`](https://appibara-ltd.github.io/appitool/commands/check): Verifies store credentials, API connectivity, application registration, and retrieves the latest remote build version and build number.
-- [`appitool match`](https://appibara-ltd.github.io/appitool/commands/match): Synchronizes, prunes, nukes, or adds encrypted code signing certificates, provisioning profiles, and Android keystores stored in a Git repository. Fully compatible with Fastlane Match V1 (AES-256-CBC) and V2 (AES-256-GCM) encryption.
-- [`appitool apple`](https://appibara-ltd.github.io/appitool/commands/apple): Direct management of Apple App Store Connect and Apple Developer Portal resources via the App Store Connect OpenAPI client.
-- [`appitool firebase`](https://appibara-ltd.github.io/appitool/commands/firebase): Manages Firebase App Distribution releases and tester groups, as well as Firebase Authentication user accounts.
-- [`appitool inspect`](https://appibara-ltd.github.io/appitool/commands/inspect): Inspects local iOS (Xcode) and Android (Gradle) project files in a workspace and prints resolved bundle identifiers, targets, applicationId, namespace, package name, and product flavors.
-- [`appitool clean`](https://appibara-ltd.github.io/appitool/commands/clean): Scans ~/.appitool/ios and ~/.appitool/android and deletes previously built archives (.xcarchive, .ipa, .aab, .apk) and optional Xcode DerivedData directories. System folders such as ~/.appitool/android/keystores and tmp are preserved.
-- [`appitool notes`](https://appibara-ltd.github.io/appitool/commands/notes): Generates categorized Markdown release notes from Git commit history between two tags or revisions (git log --no-merges).
-- [`appitool kokono`](https://appibara-ltd.github.io/appitool/commands/kokono): Dispatches a push notification to a KokoNo webhook endpoint (?token=<token>), with optional end-to-end (E2E) encryption.
-- [`appitool self-update`](https://appibara-ltd.github.io/appitool/commands/self-update): Checks GitHub Releases (appibara-ltd/appitool) for a newer semantic version and upgrades the currently running appitool binary in place after verifying its SHA256 checksum against checksums.txt.
-- [`appitool status`](https://appibara-ltd.github.io/appitool/commands/status): Displays the CLI tool name, purpose, and compiled version.
+- [Command Overview](https://appitool.appibara.com/commands/overview): appitool is built with Swift ArgumentParser. Run appitool --help (or -h) or appitool <command> --help at any level to inspect live options, or appitool --version to print the installed version.
+- [`appitool flow`](https://appitool.appibara.com/commands/flow): Executes the automated 7-stage release orchestration pipeline (setup → prebuild → build → postbuild → prerelease → release → postrelease) with centralized error handling and webhook alerts.
+- [`appitool build`](https://appitool.appibara.com/commands/build): Compiles and packages platform binaries directly without running the full 7-stage flow pipeline.
+- [`appitool check`](https://appitool.appibara.com/commands/check): Verifies store credentials, API connectivity, application registration, and retrieves the latest remote build version and build number.
+- [`appitool match`](https://appitool.appibara.com/commands/match): Synchronizes, prunes, nukes, or adds encrypted code signing certificates, provisioning profiles, and Android keystores stored in a Git repository. Fully compatible with Fastlane Match V1 (AES-256-CBC) and V2 (AES-256-GCM) encryption.
+- [`appitool apple`](https://appitool.appibara.com/commands/apple): Direct management of Apple App Store Connect and Apple Developer Portal resources via the App Store Connect OpenAPI client.
+- [`appitool firebase`](https://appitool.appibara.com/commands/firebase): Manages Firebase App Distribution releases and tester groups, as well as Firebase Authentication user accounts.
+- [`appitool inspect`](https://appitool.appibara.com/commands/inspect): Inspects local iOS (Xcode) and Android (Gradle) project files in a workspace and prints resolved bundle identifiers, targets, applicationId, namespace, package name, and product flavors.
+- [`appitool clean`](https://appitool.appibara.com/commands/clean): Scans ~/.appitool/ios and ~/.appitool/android and deletes previously built archives (.xcarchive, .ipa, .aab, .apk) and optional Xcode DerivedData directories. System folders such as ~/.appitool/android/keystores and tmp are preserved.
+- [`appitool notes`](https://appitool.appibara.com/commands/notes): Generates categorized Markdown release notes from Git commit history between two tags or revisions (git log --no-merges).
+- [`appitool kokono`](https://appitool.appibara.com/commands/kokono): Dispatches a push notification to a KokoNo webhook endpoint (?token=<token>), with optional end-to-end (E2E) encryption.
+- [`appitool self-update`](https://appitool.appibara.com/commands/self-update): Checks GitHub Releases (appibara-ltd/appitool) for a newer semantic version and upgrades the currently running appitool binary in place after verifying its SHA256 checksum against checksums.txt.
+- [`appitool status`](https://appitool.appibara.com/commands/status): Displays the CLI tool name, purpose, and compiled version.
 
 ## AI Context Files
 
-- [Full Documentation Context](https://appibara-ltd.github.io/appitool/llms-full.txt): Complete single-file Markdown export of all guides and command references.
+- [Full Documentation Context](https://appitool.appibara.com/llms-full.txt): Complete single-file Markdown export of all guides and command references.

@@ -7,8 +7,8 @@ const __dirname = path.dirname(__filename);
 const docsRoot = path.resolve(__dirname, '..');
 const publicDir = path.join(docsRoot, 'public');
 
-// Absolute site URL (GitHub Pages project site); keep in sync with `base` in .vitepress/config.mts.
-const SITE_URL = 'https://appibara-ltd.github.io/appitool';
+// Absolute site URL (custom domain); keep in sync with `base` in .vitepress/config.mts.
+const SITE_URL = 'https://appitool.appibara.com';
 
 // Rewrites root-relative Markdown links/images (`](/path)`) to absolute site URLs.
 const absolutizeLinks = (md) => md.replace(/\]\(\/(?!\/)/g, `](${SITE_URL}/`);

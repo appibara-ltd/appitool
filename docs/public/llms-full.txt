@@ -9,7 +9,7 @@
 
 # Getting Started
 
-![appitool](https://appibara-ltd.github.io/appitool/banner.png)
+![appitool](https://appitool.appibara.com/banner.png)
 
 `appitool` is a unified Swift CLI utility and release orchestration engine for Apple App Store Connect, Apple Developer Portal, Google Play Console, Firebase App Distribution, Firebase Authentication, and Git-backed code signing.
 
@@ -84,7 +84,7 @@ appitool self-update
 appitool self-update --force
 ```
 
-See [`appitool self-update`](https://appibara-ltd.github.io/appitool/commands/self-update) for details.
+See [`appitool self-update`](https://appitool.appibara.com/commands/self-update) for details.
 
 ---
 
@@ -273,7 +273,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
     └── <UUID>/                  # Temporary Git clone working directory (auto-cleaned)
 ```
 
-Use [`appitool clean`](https://appibara-ltd.github.io/appitool/commands/clean) to inspect sizes and prune old build artifacts and iOS `derivedData` directories safely.
+Use [`appitool clean`](https://appitool.appibara.com/commands/clean) to inspect sizes and prune old build artifacts and iOS `derivedData` directories safely.
 
 ---
 
@@ -491,18 +491,18 @@ Notice the difference between standalone `appitool match ios` and `appitool flow
 
 | Command | Subcommands | Description |
 |:---|:---|:---|
-| [`flow`](https://appibara-ltd.github.io/appitool/commands/flow) | `ios`, `android` | Runs the automated 7-stage release orchestration pipeline. |
-| [`build`](https://appibara-ltd.github.io/appitool/commands/build) | `ios`, `android` | Compiles and packages iOS (`.xcarchive`/`.ipa`) and Android (`.aab`/`.apk`) artifacts directly. |
-| [`check`](https://appibara-ltd.github.io/appitool/commands/check) | `ios`, `android` | Queries remote store/distribution metadata and latest build numbers. |
-| [`match`](https://appibara-ltd.github.io/appitool/commands/match) | `ios` *(default)*, `android` | Syncs, prunes, nukes, or adds Git-encrypted certificates, profiles, and keystores. |
-| [`apple`](https://appibara-ltd.github.io/appitool/commands/apple) | 16 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, and devices. |
-| [`firebase`](https://appibara-ltd.github.io/appitool/commands/firebase) | 8 subcommands | Manages Firebase App Distribution releases/groups and Firebase Auth users. |
-| [`inspect`](https://appibara-ltd.github.io/appitool/commands/inspect) | — | Inspects local iOS bundle IDs and Android `applicationId`/`namespace`/flavors (supports `--json`). |
-| [`clean`](https://appibara-ltd.github.io/appitool/commands/clean) | — | Cleans cached build outputs and Xcode DerivedData under `~/.appitool`. |
-| [`notes`](https://appibara-ltd.github.io/appitool/commands/notes) | — | Generates categorized Markdown release notes from Git conventional commits. |
-| [`kokono`](https://appibara-ltd.github.io/appitool/commands/kokono) | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |
-| [`self-update`](https://appibara-ltd.github.io/appitool/commands/self-update) | — | Checks GitHub Releases and updates the `appitool` binary with SHA256 verification. |
-| [`status`](https://appibara-ltd.github.io/appitool/commands/status) | — | Displays the tool name, purpose, and active version. |
+| [`flow`](https://appitool.appibara.com/commands/flow) | `ios`, `android` | Runs the automated 7-stage release orchestration pipeline. |
+| [`build`](https://appitool.appibara.com/commands/build) | `ios`, `android` | Compiles and packages iOS (`.xcarchive`/`.ipa`) and Android (`.aab`/`.apk`) artifacts directly. |
+| [`check`](https://appitool.appibara.com/commands/check) | `ios`, `android` | Queries remote store/distribution metadata and latest build numbers. |
+| [`match`](https://appitool.appibara.com/commands/match) | `ios` *(default)*, `android` | Syncs, prunes, nukes, or adds Git-encrypted certificates, profiles, and keystores. |
+| [`apple`](https://appitool.appibara.com/commands/apple) | 16 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, and devices. |
+| [`firebase`](https://appitool.appibara.com/commands/firebase) | 8 subcommands | Manages Firebase App Distribution releases/groups and Firebase Auth users. |
+| [`inspect`](https://appitool.appibara.com/commands/inspect) | — | Inspects local iOS bundle IDs and Android `applicationId`/`namespace`/flavors (supports `--json`). |
+| [`clean`](https://appitool.appibara.com/commands/clean) | — | Cleans cached build outputs and Xcode DerivedData under `~/.appitool`. |
+| [`notes`](https://appitool.appibara.com/commands/notes) | — | Generates categorized Markdown release notes from Git conventional commits. |
+| [`kokono`](https://appitool.appibara.com/commands/kokono) | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |
+| [`self-update`](https://appitool.appibara.com/commands/self-update) | — | Checks GitHub Releases and updates the `appitool` binary with SHA256 verification. |
+| [`status`](https://appitool.appibara.com/commands/status) | — | Displays the tool name, purpose, and active version. |
 
 ---
 
@@ -621,7 +621,7 @@ appitool flow ios [options]
 appitool flow android [options]
 ```
 
-See [Flow Architecture](https://appibara-ltd.github.io/appitool/guide/flow-architecture) for full stage-by-stage details and preset behaviors.
+See [Flow Architecture](https://appitool.appibara.com/guide/flow-architecture) for full stage-by-stage details and preset behaviors.
 
 ---
 
@@ -646,11 +646,11 @@ Executes the automated release flow for iOS.
 | `--wait-processing` / `--no-wait-processing` | `true` (`--wait-processing`) | Wait for App Store Connect build processing to apply TestFlight release notes (use `--no-wait-processing` to return immediately after upload even when release notes were generated). |
 
 Plus shared option groups:
-- [`AppleCredentialsOptions`](https://appibara-ltd.github.io/appitool/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`)
-- [`GoogleCredentialsOptions`](https://appibara-ltd.github.io/appitool/commands/overview#googlecredentialsoptions) (`-g, --google-key`)
-- [`MatchOptions`](https://appibara-ltd.github.io/appitool/commands/overview#matchoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`, `--keychain-name`, `--keychain-password`, `--team-id`, `--readonly`)
-- [`NotificationOptions`](https://appibara-ltd.github.io/appitool/commands/overview#notificationoptions) (`--slack-url`, `--kokono-url`, `--kokono-public-key`)
-- [`ReleaseNotesOptions`](https://appibara-ltd.github.io/appitool/commands/overview#releasenotesoptions) (`--release-notes`, `--notes-from`, `--notes-locale`)
+- [`AppleCredentialsOptions`](https://appitool.appibara.com/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`)
+- [`GoogleCredentialsOptions`](https://appitool.appibara.com/commands/overview#googlecredentialsoptions) (`-g, --google-key`)
+- [`MatchOptions`](https://appitool.appibara.com/commands/overview#matchoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`, `--keychain-name`, `--keychain-password`, `--team-id`, `--readonly`)
+- [`NotificationOptions`](https://appitool.appibara.com/commands/overview#notificationoptions) (`--slack-url`, `--kokono-url`, `--kokono-public-key`)
+- [`ReleaseNotesOptions`](https://appitool.appibara.com/commands/overview#releasenotesoptions) (`--release-notes`, `--notes-from`, `--notes-locale`)
 
 ### Examples
 
@@ -686,10 +686,10 @@ Executes the automated release flow for Android.
 | `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or show (`--no-silent`) Gradle and Match output. |
 
 Plus shared option groups:
-- [`GoogleCredentialsOptions`](https://appibara-ltd.github.io/appitool/commands/overview#googlecredentialsoptions) (`-g, --google-key`)
-- [`MatchStorageOptions`](https://appibara-ltd.github.io/appitool/commands/overview#matchstorageoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`)
-- [`NotificationOptions`](https://appibara-ltd.github.io/appitool/commands/overview#notificationoptions) (`--slack-url`, `--kokono-url`, `--kokono-public-key`)
-- [`ReleaseNotesOptions`](https://appibara-ltd.github.io/appitool/commands/overview#releasenotesoptions) (`--release-notes`, `--notes-from`, `--notes-locale`)
+- [`GoogleCredentialsOptions`](https://appitool.appibara.com/commands/overview#googlecredentialsoptions) (`-g, --google-key`)
+- [`MatchStorageOptions`](https://appitool.appibara.com/commands/overview#matchstorageoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`)
+- [`NotificationOptions`](https://appitool.appibara.com/commands/overview#notificationoptions) (`--slack-url`, `--kokono-url`, `--kokono-public-key`)
+- [`ReleaseNotesOptions`](https://appitool.appibara.com/commands/overview#releasenotesoptions) (`--release-notes`, `--notes-from`, `--notes-locale`)
 
 ### Examples
 
@@ -746,7 +746,7 @@ Artifacts are written under `~/.appitool/ios/<MainTarget>/build/<yyyy_MM_dd_HH_m
 | `--silent` | `false` | Suppress `xcodebuild` stdout logs. |
 | `--xcodebuild-formatter <cmd>` | `XCODEBUILD_FORMATTER` or `xcbeautify --renderer github-actions` | Formatter command piped from `xcodebuild` output. |
 
-Plus [`AppleCredentialsOptions`](https://appibara-ltd.github.io/appitool/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`).
+Plus [`AppleCredentialsOptions`](https://appitool.appibara.com/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`).
 
 ### Examples
 
@@ -796,7 +796,7 @@ Artifacts are written under `~/.appitool/android/<Target>/build/<yyyy_MM_dd_HH_m
 | `--gradle-opts <opts>` | — | Custom JVM options passed via `GRADLE_OPTS` (automatically appends `-Dorg.gradle.daemon=false` if omitted). |
 | `--match` | `false` | Fetch signing keystore from Match Git repository. |
 
-Plus [`MatchStorageOptions`](https://appibara-ltd.github.io/appitool/commands/overview#matchstorageoptions).
+Plus [`MatchStorageOptions`](https://appitool.appibara.com/commands/overview#matchstorageoptions).
 
 ### Examples
 
@@ -843,7 +843,7 @@ Checks iOS application metadata and latest build information from Firebase App D
 | `-b, --bundle-id <id>` | Auto-detected from Xcode project | Target iOS bundle identifier. |
 | `--firebase-app-id <id>` | `FIREBASE_IOS_APP_ID` | Firebase App ID for iOS (used when `-d adhoc`). |
 
-Plus [`AppleCredentialsOptions`](https://appibara-ltd.github.io/appitool/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`) and [`GoogleCredentialsOptions`](https://appibara-ltd.github.io/appitool/commands/overview#googlecredentialsoptions) (`-g, --google-key`).
+Plus [`AppleCredentialsOptions`](https://appitool.appibara.com/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`) and [`GoogleCredentialsOptions`](https://appitool.appibara.com/commands/overview#googlecredentialsoptions) (`-g, --google-key`).
 
 ### Examples
 
@@ -875,7 +875,7 @@ Checks Android application metadata and latest build information from Firebase A
 | `-p, --package-name <name>` | Auto-detected from Android project | Target Android package name. |
 | `--firebase-app-id <id>` | `FIREBASE_ANDROID_APP_ID` | Firebase App ID for Android (used when `-d adhoc`). |
 
-Plus [`GoogleCredentialsOptions`](https://appibara-ltd.github.io/appitool/commands/overview#googlecredentialsoptions) (`-g, --google-key`).
+Plus [`GoogleCredentialsOptions`](https://appitool.appibara.com/commands/overview#googlecredentialsoptions) (`-g, --google-key`).
 
 ### Examples
 
@@ -933,8 +933,8 @@ Syncs, prunes, or nukes Apple certificates and provisioning profiles using Git s
 | `--silent` | `false` | Suppress verbose logging. |
 
 Plus shared option groups:
-- [`AppleCredentialsOptions`](https://appibara-ltd.github.io/appitool/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`)
-- [`MatchOptions`](https://appibara-ltd.github.io/appitool/commands/overview#matchoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`, `--keychain-name`, `--keychain-password`, `--team-id`, `--readonly`; `--readonly` defaults to `false` in `match ios`)
+- [`AppleCredentialsOptions`](https://appitool.appibara.com/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`)
+- [`MatchOptions`](https://appitool.appibara.com/commands/overview#matchoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`, `--keychain-name`, `--keychain-password`, `--team-id`, `--readonly`; `--readonly` defaults to `false` in `match ios`)
 
 ### Examples
 
@@ -976,7 +976,7 @@ Syncs an encrypted Android keystore (`.keystore`, `.jks`, `.p12`) from Git stora
 | `--key-password <pass>` | `ANDROID_KEY_PASSWORD` | Key password. |
 | `--silent` | `false` | Suppress verbose output. |
 
-Plus [`MatchStorageOptions`](https://appibara-ltd.github.io/appitool/commands/overview#matchstorageoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`).
+Plus [`MatchStorageOptions`](https://appitool.appibara.com/commands/overview#matchstorageoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`).
 
 ### Examples
 
@@ -1001,7 +1001,7 @@ appitool match android -p com.example.app -c release
 
 Direct management of Apple App Store Connect and Apple Developer Portal resources via the App Store Connect OpenAPI client.
 
-All `apple` subcommands accept [`AppleCredentialsOptions`](https://appibara-ltd.github.io/appitool/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`), falling back to `APPLE_KEY_ID`, `APPLE_ISSUER_ID`, and `APPLE_KEY` in `.env` / environment variables.
+All `apple` subcommands accept [`AppleCredentialsOptions`](https://appitool.appibara.com/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`), falling back to `APPLE_KEY_ID`, `APPLE_ISSUER_ID`, and `APPLE_KEY` in `.env` / environment variables.
 
 ## Synopsis
 
@@ -1310,7 +1310,7 @@ appitool firebase <subcommand> [options]
 
 ## App Distribution Commands
 
-All three release subcommands use [`FirebaseCredentialsOptions`](https://appibara-ltd.github.io/appitool/commands/overview#firebasecredentialsoptions) (`--firebase-app-id`, `--platform`, `-g, --google-key`, `-p, --project`).
+All three release subcommands use [`FirebaseCredentialsOptions`](https://appitool.appibara.com/commands/overview#firebasecredentialsoptions) (`--firebase-app-id`, `--platform`, `-g, --google-key`, `-p, --project`).
 
 ### `appitool firebase list-releases`
 
@@ -1365,7 +1365,7 @@ appitool firebase update-release \
 
 ### `appitool firebase list-groups`
 
-Uses [`FirebaseProjectOptions`](https://appibara-ltd.github.io/appitool/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `-p, --project`).
+Uses [`FirebaseProjectOptions`](https://appitool.appibara.com/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `-p, --project`).
 
 Lists tester groups registered in a Firebase project with alias, tester count, and release count.
 
@@ -1375,7 +1375,7 @@ Lists tester groups registered in a Firebase project with alias, tester count, a
 
 ### `appitool firebase create-group`
 
-Uses [`FirebaseProjectOptions`](https://appibara-ltd.github.io/appitool/commands/overview#firebaseprojectoptions).
+Uses [`FirebaseProjectOptions`](https://appitool.appibara.com/commands/overview#firebaseprojectoptions).
 
 Creates a new tester group (or returns the existing group if the alias already exists).
 
@@ -1392,7 +1392,7 @@ appitool firebase create-group -a qa-team -n "QA Team"
 
 ## Firebase Authentication Commands
 
-All user management subcommands use [`FirebaseProjectOptions`](https://appibara-ltd.github.io/appitool/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `-p, --project`).
+All user management subcommands use [`FirebaseProjectOptions`](https://appitool.appibara.com/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `-p, --project`).
 
 ### `appitool firebase list-users`
 
