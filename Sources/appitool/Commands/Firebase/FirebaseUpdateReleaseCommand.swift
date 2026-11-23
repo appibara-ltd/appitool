@@ -51,8 +51,8 @@ struct FirebaseUpdateReleaseCommand: BaseCommand {
         }
 
         // 2. Distribute to tester groups or emails if provided
-        let parsedGroups = testGroups?.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        let parsedEmails = testerEmails?.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        let parsedGroups = CLIValues.commaSeparatedOrNil(testGroups)
+        let parsedEmails = CLIValues.commaSeparatedOrNil(testerEmails)
 
         if (parsedGroups != nil && !parsedGroups!.isEmpty) || (parsedEmails != nil && !parsedEmails!.isEmpty) {
             let groupsDesc = parsedGroups?.joined(separator: ", ") ?? "none"

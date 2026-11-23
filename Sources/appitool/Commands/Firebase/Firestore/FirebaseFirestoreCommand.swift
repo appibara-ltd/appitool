@@ -36,13 +36,6 @@ struct FirestoreOptions: ParsableArguments, Sendable {
 }
 
 enum FirestoreCommandHelpers {
-    static func trimmedNonEmpty(_ raw: String?) -> String? {
-        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
-            return nil
-        }
-        return trimmed
-    }
-
     static func printJSON(_ value: FirestoreJSONValue) throws {
         print(try value.prettyJSONString())
     }

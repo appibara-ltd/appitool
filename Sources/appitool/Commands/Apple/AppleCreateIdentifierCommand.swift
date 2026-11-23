@@ -32,10 +32,7 @@ struct AppleCreateIdentifierCommand: BaseCommand {
 
         let service = try appleCredentials.requireService()
 
-        let capList: [String] = capabilities?
-            .components(separatedBy: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty } ?? []
+        let capList = CLIValues.commaSeparated(capabilities)
 
         Log("🚀 Registering App Identifier '\(targetIdentifier)' on Apple Developer Portal...".dim)
 

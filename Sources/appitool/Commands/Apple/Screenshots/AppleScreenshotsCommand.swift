@@ -44,21 +44,10 @@ struct AppleScreenshotAppOptions: ParsableArguments, Sendable {
     }
 
     func resolveBundleIdOrAppId() async -> (appId: String?, bundleId: String?) {
-        if let explicitAppId = AppleCommandHelpers.trimmedNonEmpty(appId) {
+        if let explicitAppId = CLIValues.trimmedNonEmpty(appId) {
             return (explicitAppId, nil)
         }
-        if let explicitBundleId = AppleCommandHelpers.trimmedNonEmpty(bundleId) {
-            return (nil, explicitBundleId)
-        }
-        if let envBundleId = AppleCommandHelpers.trimmedNonEmpty(EnvLoader.value(for: "APPLE_BUNDLE_ID")) {
-            return (nil, envBundleId)
-        }
-        if XCodeTasks.hasIosProject(),
-           let detected = try? await XCodeTasks.getIosIdentifiers(),
-           let detectedBundle = AppleCommandHelpers.trimmedNonEmpty(detected.bundleId) {
-            return (nil, detectedBundle)
-        }
-        return (nil, nil)
+        return (nil, await AppIdentifierResolver.iosBundleId(explicit: bundleId))
     }
 
     func resolveAppId(service: AppStoreService) async throws -> String {

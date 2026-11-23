@@ -42,13 +42,14 @@ struct FlowIOSCommand: BaseCommand {
     func execute() async throws {
         let notifications = notificationOptions.resolve()
         let resolvedNotes = releaseNotesOptions.resolve()
-        let resolvedBundleId = bundleId ?? EnvLoader.value(for: "APPLE_BUNDLE_ID")
+        // Project detection is left to the preset (scheme-aware), so only option → .env here.
+        let resolvedBundleId = await AppIdentifierResolver.iosBundleId(explicit: bundleId, detectFromProject: false)
         let resolvedScheme = scheme ?? EnvLoader.value(for: "XCODE_SCHEME")
         let resolvedConfiguration = configuration ?? EnvLoader.value(for: "XCODE_CONFIGURATION")
         let appleCreds = appleCredentials.resolve()
         let match = matchOptions.resolve()
         let resolvedTeamId = match.teamId
-        let resolvedFirebaseAppId = firebaseAppId ?? EnvLoader.value(for: "FIREBASE_IOS_APP_ID")
+        let resolvedFirebaseAppId = AppIdentifierResolver.firebaseAppId(explicit: firebaseAppId, platform: .ios)
         let resolvedGoogleKey = googleCredentials.resolveKey()
 
         let preset: (any FlowPreset) = {

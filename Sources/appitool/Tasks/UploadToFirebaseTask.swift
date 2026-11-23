@@ -68,13 +68,18 @@ struct UploadToFirebaseTask: Task {
         /// Optional individual tester email addresses.
         let testerEmails: [String]?
 
+        /// When `true`, each entry in `testGroups` is created if missing (or matched by alias/display name)
+        /// before upload, and distribution uses the groups' actual aliases.
+        let ensureGroupsExist: Bool
+
         init(
             binaryPath: String,
             firebaseAppId: String,
             service: FirebaseService,
             releaseNotes: String? = nil,
             testGroups: [String]? = nil,
-            testerEmails: [String]? = nil
+            testerEmails: [String]? = nil,
+            ensureGroupsExist: Bool = false
         ) {
             self.binaryPath = binaryPath
             self.firebaseAppId = firebaseAppId
@@ -82,6 +87,7 @@ struct UploadToFirebaseTask: Task {
             self.releaseNotes = releaseNotes
             self.testGroups = testGroups
             self.testerEmails = testerEmails
+            self.ensureGroupsExist = ensureGroupsExist
         }
 
         /// Convenience initializer accepting a single test group alias.
@@ -91,7 +97,8 @@ struct UploadToFirebaseTask: Task {
             service: FirebaseService,
             releaseNotes: String? = nil,
             testGroup: String?,
-            testerEmails: [String]? = nil
+            testerEmails: [String]? = nil,
+            ensureGroupsExist: Bool = false
         ) {
             self.init(
                 binaryPath: binaryPath,
@@ -99,7 +106,8 @@ struct UploadToFirebaseTask: Task {
                 service: service,
                 releaseNotes: releaseNotes,
                 testGroups: testGroup.flatMap { $0.isEmpty ? nil : [$0] },
-                testerEmails: testerEmails
+                testerEmails: testerEmails,
+                ensureGroupsExist: ensureGroupsExist
             )
         }
     }
@@ -117,6 +125,9 @@ struct UploadToFirebaseTask: Task {
         guard ["apk", "aab", "ipa"].contains(ext) else {
             throw UploadToFirebaseError.unsupportedFileType(binaryUrl.pathExtension)
         }
+
+        // 0. Optionally ensure tester groups exist (before upload, so a group error doesn't leave a stray release)
+        let groupAliases = try await resolveGroupAliases(input)
 
         // 1. Upload binary via FirebaseService
         Log("📤 Uploading \(binaryUrl.lastPathComponent) to Firebase App Distribution...".dim)
@@ -144,15 +155,15 @@ struct UploadToFirebaseTask: Task {
         }
 
         // 3. Distribute release to test groups and/or testers via FirebaseService
-        let hasGroups = input.testGroups != nil && input.testGroups?.isEmpty == false
-        let hasTesters = input.testerEmails != nil && input.testerEmails?.isEmpty == false
+        let hasGroups = groupAliases?.isEmpty == false
+        let hasTesters = input.testerEmails?.isEmpty == false
 
         if hasGroups || hasTesters {
-            let groupsDisplay = input.testGroups?.joined(separator: ", ") ?? "none"
+            let groupsDisplay = groupAliases?.joined(separator: ", ") ?? "none"
             Log("👥 Distributing release to groups: [\(groupsDisplay)]...".dim)
             try await input.service.distribute(
                 releaseName: releaseResourceName,
-                groupAliases: input.testGroups,
+                groupAliases: groupAliases,
                 testerEmails: input.testerEmails
             )
             Log("🟢 Distributed release successfully.".green)
@@ -166,5 +177,23 @@ struct UploadToFirebaseTask: Task {
             firebaseConsoleUri: release.firebaseConsoleUri,
             testingUri: release.testingUri
         )
+    }
+
+    /// Returns the group aliases to distribute to. With `ensureGroupsExist`, creates or matches each group and
+    /// uses its actual alias from the resource name (`projects/.../groups/{alias}`), falling back to the input alias.
+    private func resolveGroupAliases(_ input: Input) async throws -> [String]? {
+        guard input.ensureGroupsExist, let groups = input.testGroups, !groups.isEmpty else {
+            return input.testGroups
+        }
+        Log("👥 Ensuring tester group(s) exist: [\(groups.joined(separator: ", "))]...".dim)
+        var resolved: [String] = []
+        for group in groups {
+            let existing = try await input.service.createOrGetGroup(
+                project: input.firebaseAppId,
+                groupAlias: group
+            )
+            resolved.append(existing.name?.components(separatedBy: "/").last ?? group)
+        }
+        return resolved
     }
 }

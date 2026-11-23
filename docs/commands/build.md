@@ -64,7 +64,7 @@ Artifacts are written under `~/.appitool/android/<Target>/build/<version>_<build
 `build android` resolves signing credentials in the following order:
 1. Base64 keystore via `--keystore-base64` / `ANDROID_KEYSTORE` (decoded temporarily into `~/.appitool/android/keystores/<packageName>.keystore` and removed automatically after build).
 2. Local keystore file via `--keystore-path` / `ANDROID_KEYSTORE_PATH`.
-3. Match Git repository if `--match` is passed (or if `MATCH_GIT_URL` and `MATCH_PASSWORD` are set when no local keystore path was provided).
+3. Match Git repository if `--match` is passed (or if `MATCH_GIT_URL` and `MATCH_PASSWORD` are set when no local keystore path was provided). If the Match lookup is attempted and fails — or `--match` is passed without Match storage configured — the build stops with an error instead of producing an unsigned artifact.
 
 ### Options
 

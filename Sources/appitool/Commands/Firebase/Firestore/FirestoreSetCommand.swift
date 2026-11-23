@@ -28,8 +28,8 @@ struct FirestoreSetCommand: BaseCommand {
     var json: Bool = false
 
     func execute() async throws {
-        let inlineData = FirestoreCommandHelpers.trimmedNonEmpty(data)
-        let filePathRaw = FirestoreCommandHelpers.trimmedNonEmpty(file)
+        let inlineData = CLIValues.trimmedNonEmpty(data)
+        let filePathRaw = CLIValues.trimmedNonEmpty(file)
 
         if (inlineData != nil) == (filePathRaw != nil) {
             throw CommandError("Provide exactly one of --data <json> or -f, --file <path>.")

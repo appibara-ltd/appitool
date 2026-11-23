@@ -35,6 +35,11 @@
 - Commands partitioned into platform-specific subcommands (e.g., `ios` and `android`) must be grouped into a dedicated subdirectory inside `Sources/appitool/Commands/` named after the root command (e.g., `Commands/Build/` for `BuildCommand.swift`, `BuildIOSCommand.swift`, `BuildAndroidCommand.swift`, and `Commands/Check/` for `CheckCommand.swift`, `CheckIOSCommand.swift`, `CheckAndroidCommand.swift`).
 - Standalone commands without platform subcommands remain directly under `Sources/appitool/Commands/`.
 
+# Flow Preset Structure Conventions
+- Flow presets are grouped by platform under `Sources/appitool/Flow/Presets/`: `iOS/` (iOS presets + `IOSPresetHelpers.swift`), `Android/` (Android presets + `AndroidPresetHelpers.swift`), and `Shared/` (cross-platform helpers such as `FirebasePresetHelpers.swift`). `FlowPreset.swift` stays at the `Presets/` root.
+- Each helper type lives in exactly one file named after the type (no `+Suffix` split files), organized with `// MARK: - <Stage>: <Topic>` sections in pipeline order (Setup → Prebuild → Build → Release).
+- Stage logic shared by presets belongs in the platform helper; presets only supply what differs (profile type, remote build-number source, export method/format, release destination). Presets must never call CLI commands; reuse Tasks/Services instead.
+
 # Documentation Synchronization Rules (STRICT)
 - Documentation under `docs/` MUST NEVER become outdated. Every code change that affects CLI behavior, options, environment variables, architecture, or workflows MUST update the corresponding documentation in the same task before finishing.
 - **Commands & Subcommands**: Whenever a command or subcommand is added, renamed, modified, or removed:

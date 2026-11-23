@@ -21,14 +21,8 @@ struct GooglePlayAppOptions: ParsableArguments, Sendable {
     var packageName: String?
 
     func requirePackageName() throws -> String {
-        if let explicit = packageName?.trimmingCharacters(in: .whitespacesAndNewlines), !explicit.isEmpty {
-            return explicit
-        }
-        if let envName = EnvLoader.value(for: "GOOGLE_PACKAGE_NAME"), !envName.isEmpty {
-            return envName
-        }
-        if let detected = AndroidTasks.resolvePackageName()?.trimmingCharacters(in: .whitespacesAndNewlines), !detected.isEmpty {
-            return detected
+        if let resolved = AppIdentifierResolver.androidPackageName(explicit: packageName) {
+            return resolved
         }
         throw ValidationError(
             "Missing Android package name. Provide --package-name, set GOOGLE_PACKAGE_NAME in .env, or run inside an Android project."

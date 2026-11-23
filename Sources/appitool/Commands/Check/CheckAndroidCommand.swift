@@ -22,17 +22,11 @@ struct CheckAndroidCommand: BaseCommand {
     var googleCredentials: GoogleCredentialsOptions
 
     func execute() async throws {
-        var targetPackageName = packageName
-        if targetPackageName == nil || targetPackageName?.isEmpty == true {
-            targetPackageName = EnvLoader.value(for: "GOOGLE_PACKAGE_NAME")
-        }
-        if targetPackageName == nil || targetPackageName?.isEmpty == true {
-            targetPackageName = AndroidTasks.resolvePackageName()
-        }
+        let targetPackageName = AppIdentifierResolver.androidPackageName(explicit: packageName)
 
         switch distribution {
         case .adhoc:
-            guard let resolvedAppId = firebaseAppId ?? EnvLoader.value(for: "FIREBASE_ANDROID_APP_ID"), !resolvedAppId.isEmpty else {
+            guard let resolvedAppId = AppIdentifierResolver.firebaseAppId(explicit: firebaseAppId, platform: .android) else {
                 throw CommandError("Missing Firebase App ID for Android. Provide --firebase-app-id or configure FIREBASE_ANDROID_APP_ID in .env.")
             }
 

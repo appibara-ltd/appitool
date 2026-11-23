@@ -26,7 +26,7 @@ Checks iOS application metadata and latest build information from Firebase App D
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
 | `-d, --distribution <method>` | `adhoc` | Distribution method: `adhoc`, `development`, or `appstore`. |
-| `-b, --bundle-id <id>` | Auto-detected from Xcode project | Target iOS bundle identifier. |
+| `-b, --bundle-id <id>` | `APPLE_BUNDLE_ID` or auto-detected from Xcode project | Target iOS bundle identifier. |
 | `--firebase-app-id <id>` | `FIREBASE_IOS_APP_ID` | Firebase App ID for iOS (used when `-d adhoc`). |
 
 Plus [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`) and [`GoogleCredentialsOptions`](/commands/overview#googlecredentialsoptions) (`-g, --google-key`).

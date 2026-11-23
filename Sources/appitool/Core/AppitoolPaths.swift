@@ -42,6 +42,13 @@ package enum AppitoolPaths {
             .appendingPathComponent(folderName)
     }
 
+    /// Android artifact base name shared by `build android` and flow presets:
+    /// `<Target>_[<flavor>_]<buildType>` (build type lowercased, e.g. `MyApp_staging_release`).
+    static func androidArtifactName(target: String, flavor: String?, buildType: String) -> String {
+        let flavorSuffix = CLIValues.trimmedNonEmpty(flavor).map { "\($0)_" } ?? ""
+        return "\(target)_\(flavorSuffix)\(buildType.lowercased())"
+    }
+
     /// Builds a filesystem-safe tag folder name (`<version>_<buildNumber>[_adhoc|_development]`)
     /// when both `version` and `buildNumber` are resolved non-empty literal values.
     /// Returns `nil` when either value is missing, blank, or contains an unresolved variable reference (`$`).

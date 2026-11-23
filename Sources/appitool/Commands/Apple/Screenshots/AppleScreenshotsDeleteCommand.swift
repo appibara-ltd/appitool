@@ -33,9 +33,9 @@ struct AppleScreenshotsDeleteCommand: DestructiveCommand {
     var dryRun: Bool = false
 
     func execute() async throws {
-        let trimmedId = AppleCommandHelpers.trimmedNonEmpty(id)
-        let trimmedLocale = AppleCommandHelpers.trimmedNonEmpty(locale)
-        let trimmedType = AppleCommandHelpers.trimmedNonEmpty(type)
+        let trimmedId = CLIValues.trimmedNonEmpty(id)
+        let trimmedLocale = CLIValues.trimmedNonEmpty(locale)
+        let trimmedType = CLIValues.trimmedNonEmpty(type)
 
         if all && trimmedId != nil {
             throw CommandError("Cannot combine --all with --id.")

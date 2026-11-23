@@ -57,7 +57,7 @@ Uploads an `.apk`, `.aab`, or `.ipa` binary to Firebase App Distribution, waits 
 |:---|:---|
 | `--binary <path>` | Path to `.apk`, `.aab`, or `.ipa` binary (**Required**). |
 | `--release-notes <text>` | Release notes text for testers. |
-| `--test-groups <aliases>` | Comma-separated tester group aliases (e.g. `'internal,qa'`). |
+| `--test-groups <aliases>` | Comma-separated tester group aliases (e.g. `'internal,qa'`). Missing groups are created automatically before upload. |
 | `--tester-emails <emails>` | Comma-separated tester email addresses. |
 
 ```bash

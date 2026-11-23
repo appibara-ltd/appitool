@@ -60,7 +60,7 @@ struct AppleScreenshotsUploadCommand: BaseCommand {
             Log("\n🟡 [Dry Run] App Store Connect Screenshot Upload Preview".yellow.bold)
             Log("  • Target App:   ".cyan + targetLabel)
             Log("  • Platform:     ".cyan + parsedPlatform.rawValue)
-            if let v = AppleCommandHelpers.trimmedNonEmpty(app.appVersion) {
+            if let v = CLIValues.trimmedNonEmpty(app.appVersion) {
                 Log("  • Version:      ".cyan + v)
             }
             if let sourceRoot {

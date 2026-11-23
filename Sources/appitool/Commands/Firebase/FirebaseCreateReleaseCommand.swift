@@ -28,8 +28,8 @@ struct FirebaseCreateReleaseCommand: BaseCommand {
         let service = try credentials.requireService()
         let appId = try credentials.requireAppId()
 
-        let parsedGroups = testGroups?.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        let parsedEmails = testerEmails?.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        let parsedGroups = CLIValues.commaSeparatedOrNil(testGroups)
+        let parsedEmails = CLIValues.commaSeparatedOrNil(testerEmails)
 
         let task = UploadToFirebaseTask()
         let result = try await task.run(
@@ -39,7 +39,8 @@ struct FirebaseCreateReleaseCommand: BaseCommand {
                 service: service,
                 releaseNotes: releaseNotes,
                 testGroups: parsedGroups,
-                testerEmails: parsedEmails
+                testerEmails: parsedEmails,
+                ensureGroupsExist: true
             )
         )
 

@@ -22,30 +22,11 @@ struct AndroidInternalPreset: FlowPreset {
 
         try await AndroidPresetHelpers.setupAndroidProject(context: &context)
 
+        // Resolve the release keystore via Match when configured (fails loudly on errors)
+        try await AndroidPresetHelpers.resolveMatchKeystore(context: &context)
+
         guard let googleKey = context.googleKey, !googleKey.isEmpty else { return }
         guard let packageName = context.bundleId, !packageName.isEmpty else { return }
-
-        // 3. Resolve signing keystore via Match if available
-        if context.androidSigningConfig == nil,
-           let gitUrl = context.matchGitUrl,
-           let password = context.matchPassword {
-            Log("🔐 Resolving Android release keystore from Match storage...".dim)
-            let matchConfig = MatchAndroidConfig(
-                gitUrl: gitUrl,
-                gitBranch: context.matchGitBranch ?? "master",
-                gitToken: context.matchGitToken,
-                password: password,
-                action: .sync,
-                packageName: packageName,
-                buildType: .release,
-                silent: context.silent
-            )
-            if let result = try? await MatchRunner().runAndroid(matchConfig) {
-                context.androidSigningConfig = result.signingConfig
-                context.androidSigningTempUrl = result.tempUrl
-                Log("   ✓ Resolved signing keystore for '\(packageName)' from Match".green)
-            }
-        }
 
         if let service = try? GooglePlayService(key: googleKey) {
             if let buildInfo = try? await GetLatestBuildNumberTask().run(
@@ -66,58 +47,16 @@ struct AndroidInternalPreset: FlowPreset {
     }
 
     func prebuild(context: inout FlowContext) async throws {
-        Log("🔧 Resolving latest Google Play versionCode and bumping build...".dim)
-        let baseCodeStr = context.metadata["googleplay_version_code"] ?? context.buildNumber
-        if let baseCodeStr, let baseCode = Int(baseCodeStr) {
-            let nextCode = String(baseCode + 1)
-            Log("🔢 Incrementing versionCode: \(baseCodeStr.bold) -> \(nextCode.bold.green)".dim)
-            context.buildNumber = nextCode
-        }
+        AndroidPresetHelpers.bumpVersionCode(
+            context: &context,
+            remoteVersionCode: context.metadata["googleplay_version_code"],
+            sourceLabel: "Google Play"
+        )
     }
 
     func build(context: inout FlowContext) async throws {
-        let taskName = GradleTask.resolveTaskName(format: .aab, buildType: "release", flavor: context.androidFlavor)
-        Log("🔨 Running Gradle \(taskName) to produce Android App Bundle (AAB)...".dim)
-
-        if context.isDryRun {
-            Log("🟡 Dry-run enabled: skipping Gradle build.".yellow)
-            return
-        }
-
-        let projectDir = AndroidTasks.findAndroidRoot(in: context.projectDirectory)?.path ?? context.projectDirectory.path
-
-        var properties: [String: String] = [:]
-        if let versionCode = context.buildNumber {
-            properties["versionCode"] = versionCode
-        }
-        if let versionName = context.version {
-            properties["versionName"] = versionName
-        }
-
-        let targetName = context.targetName ?? context.bundleId ?? "AndroidApp"
-        let outputDir = AppitoolPaths.buildDirectory(platform: "android", target: targetName, name: context.buildDirectoryName).path
-        let artifactName = AndroidPresetHelpers.artifactName(targetName: targetName, flavor: context.androidFlavor)
-
-        let output = try await GradleTask().run(
-            .init(
-                projectDirectory: projectDir,
-                buildType: "release",
-                flavor: context.androidFlavor,
-                format: .aab,
-                outputDirectory: outputDir,
-                artifactName: artifactName,
-                signing: context.androidSigningConfig,
-                properties: properties,
-                silent: context.silent
-            )
-        )
-
-        if let aabPath = output.aabPath {
-            let aabUrl = URL(fileURLWithPath: aabPath)
-            context.artifactPaths.append(aabUrl)
-            context.metadata["aab_path"] = aabPath
-            Log("📦 Produced Android App Bundle: \(aabUrl.lastPathComponent)".green.bold)
-        }
+        // Google Play requires an App Bundle (`flow android -d appstore --format apk` is rejected up front).
+        try await AndroidPresetHelpers.build(context: &context, format: .aab)
     }
 
     func release(context: inout FlowContext) async throws {

@@ -2,6 +2,65 @@ import Testing
 import ArgumentParser
 @testable import appitool
 
+@Test func testFlowAndroidRejectsApkForAppStore() throws {
+    #expect(throws: (any Error).self) {
+        _ = try appitool.parseAsRoot(["flow", "android", "-d", "appstore", "--format", "apk"])
+    }
+    let adhocApk = try #require(
+        try appitool.parseAsRoot(["flow", "android", "-d", "adhoc", "--format", "apk"]) as? FlowAndroidCommand
+    )
+    #expect(adhocApk.format == .apk)
+    let appstoreAab = try #require(
+        try appitool.parseAsRoot(["flow", "android", "-d", "appstore", "--format", "aab"]) as? FlowAndroidCommand
+    )
+    #expect(appstoreAab.format == .aab)
+}
+
+@Test func testBuildNumberPolicyUsesMaxOfRemoteAndLocalPlusOne() {
+    #expect(BuildNumberPolicy.next(remote: "41", local: "10") == .init(value: "42", base: 41))
+    // Local was bumped manually but never uploaded: never go below it.
+    #expect(BuildNumberPolicy.next(remote: "41", local: "50") == .init(value: "51", base: 50))
+    #expect(BuildNumberPolicy.next(remote: nil, local: "7") == .init(value: "8", base: 7))
+    #expect(BuildNumberPolicy.next(remote: "7", local: nil) == .init(value: "8", base: 7))
+    // Non-integer values (e.g. unresolved `$(VAR)`) are ignored.
+    #expect(BuildNumberPolicy.next(remote: " 12 ", local: "$(CURRENT_PROJECT_VERSION)") == .init(value: "13", base: 12))
+    #expect(BuildNumberPolicy.next(remote: nil, local: "abc") == nil)
+    #expect(BuildNumberPolicy.next(remote: nil, local: nil) == nil)
+}
+
+@Test func testAndroidBumpVersionCodeUsesMax() {
+    var context = FlowContext(platform: .android, distribution: .adhoc)
+    context.buildNumber = "20"
+    AndroidPresetHelpers.bumpVersionCode(context: &context, remoteVersionCode: "15", sourceLabel: "Firebase")
+    #expect(context.buildNumber == "21")
+
+    context.buildNumber = "3"
+    AndroidPresetHelpers.bumpVersionCode(context: &context, remoteVersionCode: "15", sourceLabel: "Google Play")
+    #expect(context.buildNumber == "16")
+}
+
+@Test func testAndroidMatchKeystoreIsSkippedWhenNotConfiguredAndFailsWithoutPackageName() async throws {
+    var unconfigured = FlowContext(platform: .android, distribution: .adhoc)
+    try await AndroidPresetHelpers.resolveMatchKeystore(context: &unconfigured)
+    #expect(unconfigured.androidSigningConfig == nil)
+
+    var missingPackage = FlowContext(
+        platform: .android,
+        distribution: .adhoc,
+        matchGitUrl: "https://example.com/certs.git",
+        matchPassword: "secret"
+    )
+    await #expect(throws: AndroidPresetHelpers.MatchKeystoreError.self) {
+        try await AndroidPresetHelpers.resolveMatchKeystore(context: &missingPackage)
+    }
+}
+
+@Test func testAndroidArtifactNaming() {
+    #expect(AppitoolPaths.androidArtifactName(target: "MyApp", flavor: nil, buildType: "Release") == "MyApp_release")
+    #expect(AppitoolPaths.androidArtifactName(target: "MyApp", flavor: "staging", buildType: "release") == "MyApp_staging_release")
+    #expect(AppitoolPaths.androidArtifactName(target: "MyApp", flavor: "  ", buildType: "Debug") == "MyApp_debug")
+}
+
 @Test func testStatusCommandConfiguration() async throws {
     #expect(StatusCommand.configuration.commandName == "status")
     #expect(StatusCommand.configuration.abstract == "Displays the tool name, purpose, and version.")

@@ -39,8 +39,8 @@ struct FirestoreListCommand: BaseCommand {
             databaseId: databaseId,
             collectionPath: path,
             pageSize: max(1, limit),
-            pageToken: FirestoreCommandHelpers.trimmedNonEmpty(pageToken),
-            orderBy: FirestoreCommandHelpers.trimmedNonEmpty(orderBy)
+            pageToken: CLIValues.trimmedNonEmpty(pageToken),
+            orderBy: CLIValues.trimmedNonEmpty(orderBy)
         )
 
         if json {

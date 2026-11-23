@@ -24,8 +24,8 @@ struct AppleDeleteUserCommand: DestructiveCommand {
     var username: String?
 
     func execute() async throws {
-        let targetId = AppleCommandHelpers.trimmedNonEmpty(id)
-        let targetUsername = AppleCommandHelpers.trimmedNonEmpty(username)
+        let targetId = CLIValues.trimmedNonEmpty(id)
+        let targetUsername = CLIValues.trimmedNonEmpty(username)
         guard targetId != nil || targetUsername != nil else {
             throw CommandError("Missing target user. Provide --id or --username.")
         }

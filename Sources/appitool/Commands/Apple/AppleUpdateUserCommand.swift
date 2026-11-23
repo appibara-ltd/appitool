@@ -31,14 +31,14 @@ struct AppleUpdateUserCommand: BaseCommand {
     var provisioningAllowed: Bool?
 
     func execute() async throws {
-        let targetId = AppleCommandHelpers.trimmedNonEmpty(id)
-        let targetUsername = AppleCommandHelpers.trimmedNonEmpty(username)
+        let targetId = CLIValues.trimmedNonEmpty(id)
+        let targetUsername = CLIValues.trimmedNonEmpty(username)
         guard targetId != nil || targetUsername != nil else {
             throw CommandError("Missing target user. Provide --id or --username.")
         }
 
-        let parsedRoles = AppleCommandHelpers.trimmedNonEmpty(roles).map { AppleCommandHelpers.parseCommaSeparated($0) }
-        let rawApps = AppleCommandHelpers.trimmedNonEmpty(visibleApps).map { AppleCommandHelpers.parseCommaSeparated($0) }
+        let parsedRoles = CLIValues.trimmedNonEmpty(roles).map { CLIValues.commaSeparated($0) }
+        let rawApps = CLIValues.trimmedNonEmpty(visibleApps).map { CLIValues.commaSeparated($0) }
         guard parsedRoles != nil || rawApps != nil || allAppsVisible != nil || provisioningAllowed != nil else {
             throw CommandError("Nothing to update. Provide --roles, --visible-apps, --all-apps-visible/--no-all-apps-visible, or --provisioning-allowed/--no-provisioning-allowed.")
         }

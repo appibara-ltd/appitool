@@ -24,8 +24,8 @@ struct AppleCancelInvitationCommand: DestructiveCommand {
     var email: String?
 
     func execute() async throws {
-        let targetId = AppleCommandHelpers.trimmedNonEmpty(id)
-        let targetEmail = AppleCommandHelpers.trimmedNonEmpty(email)
+        let targetId = CLIValues.trimmedNonEmpty(id)
+        let targetEmail = CLIValues.trimmedNonEmpty(email)
         guard targetId != nil || targetEmail != nil else {
             throw CommandError("Missing target invitation. Provide --id or -e, --email.")
         }

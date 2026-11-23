@@ -21,7 +21,7 @@ struct AppleScreenshotsListCommand: BaseCommand {
 
     func execute() async throws {
         let parsedPlatform = try app.parsedPlatform()
-        let parsedType = try AppleCommandHelpers.trimmedNonEmpty(type).map {
+        let parsedType = try CLIValues.trimmedNonEmpty(type).map {
             try AppleTypeMapper.parseScreenshotDisplayType($0)
         }
         let service = try app.requireService()
@@ -42,7 +42,7 @@ struct AppleScreenshotsListCommand: BaseCommand {
         Log("   Using version \(versionLabel) [ID: \(version.id), State: \(stateLabel)]".dim)
 
         let localizations: [Components.Schemas.AppStoreVersionLocalization]
-        if let targetLocale = AppleCommandHelpers.trimmedNonEmpty(locale) {
+        if let targetLocale = CLIValues.trimmedNonEmpty(locale) {
             let loc = try await service.resolveVersionLocalization(versionId: version.id, locale: targetLocale)
             localizations = [loc]
         } else {

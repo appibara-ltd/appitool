@@ -28,6 +28,18 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 
 ## Environment Variables Reference
 
+### Identifier Resolution Order
+
+App identifiers are resolved the same way by every command: **CLI option → `.env` variable → local project detection**.
+
+| Identifier | CLI Option | `.env` Variable | Project Detection |
+|:---|:---|:---|:---|
+| iOS bundle ID | `-b, --bundle-id` | `APPLE_BUNDLE_ID` | Main target bundle ID from the local Xcode project |
+| Android package name | `--package-name` | `GOOGLE_PACKAGE_NAME` | `applicationId` / `namespace` from the local Android project |
+| Firebase App ID | `--firebase-app-id` | `FIREBASE_IOS_APP_ID` / `FIREBASE_ANDROID_APP_ID` (by platform) | — |
+
+> `flow ios` and `flow android` skip the generic project detection here because their presets detect identifiers themselves (scheme- and flavor-aware).
+
 ### Apple App Store Connect & Developer Portal
 
 | Variable | Description | Example / Default |

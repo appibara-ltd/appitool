@@ -35,11 +35,18 @@ struct FlowAndroidCommand: BaseCommand {
     @Flag(name: .long, inversion: .prefixedNo, help: "Suppress xcodebuild standard output and logs.")
     var silent: Bool = true
 
+    func validate() throws {
+        if distribution == .appstore, format == .apk {
+            throw ValidationError("Google Play requires an Android App Bundle for appstore distribution. Use --format aab (the default) or -d adhoc/development for APK builds.")
+        }
+    }
+
     func execute() async throws {
         let notifications = notificationOptions.resolve()
         let resolvedNotes = releaseNotesOptions.resolve()
-        let resolvedPackageName = packageName ?? EnvLoader.value(for: "GOOGLE_PACKAGE_NAME")
-        let resolvedFirebaseAppId = firebaseAppId ?? EnvLoader.value(for: "FIREBASE_ANDROID_APP_ID")
+        // Project detection is left to the preset (flavor-aware), so only option → .env here.
+        let resolvedPackageName = AppIdentifierResolver.androidPackageName(explicit: packageName, detectFromProject: false)
+        let resolvedFirebaseAppId = AppIdentifierResolver.firebaseAppId(explicit: firebaseAppId, platform: .android)
         let resolvedGoogleKey = googleCredentials.resolveKey()
         let resolvedFormat = format ?? (distribution == .appstore ? .aab : .apk)
         let resolvedFlavor = (flavor ?? EnvLoader.value(for: "ANDROID_FLAVOR"))?

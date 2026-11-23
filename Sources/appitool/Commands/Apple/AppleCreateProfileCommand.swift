@@ -42,7 +42,7 @@ struct AppleCreateProfileCommand: BaseCommand {
             throw CommandError("Bundle ID cannot be empty.")
         }
 
-        let deviceList = deviceIds?.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        let deviceList = CLIValues.commaSeparatedOrNil(deviceIds)
 
         Log("🔍 Resolving App Identifier '\(cleanBundleId)' and resources on Apple Developer Portal...".dim)
 

@@ -23,7 +23,7 @@ struct AppleListUsersCommand: BaseCommand {
 
     func execute() async throws {
         let service = try appleCredentials.requireService()
-        let roleFilters = AppleCommandHelpers.parseCommaSeparated(roles)
+        let roleFilters = CLIValues.commaSeparated(roles)
 
         Log("🔍 Fetching team users from App Store Connect...".dim)
         let users = try await service.fetchUsers(
@@ -33,7 +33,7 @@ struct AppleListUsersCommand: BaseCommand {
         )
 
         if users.isEmpty {
-            if let filter = AppleCommandHelpers.trimmedNonEmpty(username) ?? AppleCommandHelpers.trimmedNonEmpty(roles) {
+            if let filter = CLIValues.trimmedNonEmpty(username) ?? CLIValues.trimmedNonEmpty(roles) {
                 Log("No users matching '\(filter)' found in App Store Connect.".yellow)
             } else {
                 Log("No users found in App Store Connect.".yellow)

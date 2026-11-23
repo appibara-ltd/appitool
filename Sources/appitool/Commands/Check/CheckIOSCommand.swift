@@ -13,7 +13,7 @@ struct CheckIOSCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Distribution method (adhoc, development, appstore). Defaults to adhoc.")
     var distribution: BuildCommand.Distribution = .adhoc
 
-    @Option(name: .shortAndLong, help: "Target iOS bundle identifier (defaults to main target bundle ID from project).")
+    @Option(name: .shortAndLong, help: "Target iOS bundle identifier (defaults to APPLE_BUNDLE_ID in .env or main target bundle ID from local Xcode project).")
     var bundleId: String?
 
     @Option(name: .long, help: "Firebase App ID for iOS (defaults to FIREBASE_IOS_APP_ID in .env).")
@@ -26,18 +26,11 @@ struct CheckIOSCommand: BaseCommand {
     var googleCredentials: GoogleCredentialsOptions
 
     func execute() async throws {
-        var targetBundleId = bundleId
-        if targetBundleId == nil || targetBundleId?.isEmpty == true {
-            if XCodeTasks.hasIosProject() {
-                if let resolved = try? await XCodeTasks.getIosIdentifiers() {
-                    targetBundleId = resolved.bundleId
-                }
-            }
-        }
+        let targetBundleId = await AppIdentifierResolver.iosBundleId(explicit: bundleId)
 
         switch distribution {
         case .adhoc:
-            guard let resolvedAppId = firebaseAppId ?? EnvLoader.value(for: "FIREBASE_IOS_APP_ID"), !resolvedAppId.isEmpty else {
+            guard let resolvedAppId = AppIdentifierResolver.firebaseAppId(explicit: firebaseAppId, platform: .ios) else {
                 throw CommandError("Missing Firebase App ID for iOS. Provide --firebase-app-id or configure FIREBASE_IOS_APP_ID in .env.")
             }
 

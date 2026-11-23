@@ -93,7 +93,7 @@ struct FirebaseProjectOptions: ParsableArguments, Sendable {
         if let envProj = EnvLoader.value(for: "FIREBASE_PROJECT_ID") ?? EnvLoader.value(for: "GOOGLE_PROJECT_ID"), !envProj.isEmpty {
             return envProj
         }
-        if let appId = fallbackAppId ?? EnvLoader.value(for: "FIREBASE_IOS_APP_ID") ?? EnvLoader.value(for: "FIREBASE_ANDROID_APP_ID"), appId.contains(":") {
+        if let appId = AppIdentifierResolver.firebaseAppId(explicit: fallbackAppId, platform: nil), appId.contains(":") {
             let segments = appId.split(separator: ":")
             if segments.count >= 2 {
                 return String(segments[1])
@@ -175,19 +175,7 @@ struct FirebaseCredentialsOptions: ParsableArguments, Sendable {
 
     /// Resolves the Firebase App ID from option or environment, targeting iOS or Android.
     func resolveAppId(for platform: Platform? = nil) -> String? {
-        if let firebaseAppId, !firebaseAppId.isEmpty {
-            return firebaseAppId
-        }
-        let targetPlatform = platform ?? self.platform
-
-        switch targetPlatform {
-        case .ios:
-            return EnvLoader.value(for: "FIREBASE_IOS_APP_ID")
-        case .android:
-            return EnvLoader.value(for: "FIREBASE_ANDROID_APP_ID")
-        case nil:
-            return EnvLoader.value(for: "FIREBASE_IOS_APP_ID") ?? EnvLoader.value(for: "FIREBASE_ANDROID_APP_ID")
-        }
+        AppIdentifierResolver.firebaseAppId(explicit: firebaseAppId, platform: platform ?? self.platform)
     }
 
     /// Resolves the Firebase project identifier (project number or project ID).

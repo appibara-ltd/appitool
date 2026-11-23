@@ -23,7 +23,7 @@ struct AppleListInvitationsCommand: BaseCommand {
 
     func execute() async throws {
         let service = try appleCredentials.requireService()
-        let roleFilters = AppleCommandHelpers.parseCommaSeparated(roles)
+        let roleFilters = CLIValues.commaSeparated(roles)
 
         Log("🔍 Fetching pending user invitations from App Store Connect...".dim)
         let invitations = try await service.fetchUserInvitations(
@@ -33,7 +33,7 @@ struct AppleListInvitationsCommand: BaseCommand {
         )
 
         if invitations.isEmpty {
-            if let filter = AppleCommandHelpers.trimmedNonEmpty(email) ?? AppleCommandHelpers.trimmedNonEmpty(roles) {
+            if let filter = CLIValues.trimmedNonEmpty(email) ?? CLIValues.trimmedNonEmpty(roles) {
                 Log("No pending user invitations matching '\(filter)' found in App Store Connect.".yellow)
             } else {
                 Log("No pending user invitations found in App Store Connect.".yellow)

@@ -34,13 +34,13 @@ struct AppleInviteUserCommand: BaseCommand {
     var provisioningAllowed: Bool?
 
     func execute() async throws {
-        let parsedRoles = AppleCommandHelpers.parseCommaSeparated(roles)
+        let parsedRoles = CLIValues.commaSeparated(roles)
         guard !parsedRoles.isEmpty else {
             throw CommandError("At least one role is required. Provide -r, --roles <roles>.")
         }
 
         let service = try appleCredentials.requireService()
-        let rawApps = AppleCommandHelpers.parseCommaSeparated(visibleApps)
+        let rawApps = CLIValues.commaSeparated(visibleApps)
         let resolvedAppIds = rawApps.isEmpty ? [] : try await service.resolveAppIds(rawApps)
 
         Log("✉️  Sending App Store Connect team invitation to '\(email)'...".dim)

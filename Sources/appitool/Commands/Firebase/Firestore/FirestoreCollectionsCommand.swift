@@ -26,7 +26,7 @@ struct FirestoreCollectionsCommand: BaseCommand {
 
     func execute() async throws {
         let (service, projectId, databaseId) = try firestore.resolveServiceAndProject()
-        let parentPath = FirestoreCommandHelpers.trimmedNonEmpty(path)
+        let parentPath = CLIValues.trimmedNonEmpty(path)
 
         if !json {
             let scope = parentPath.map { "document '\($0)'" } ?? "database '\(databaseId)' root"
@@ -38,7 +38,7 @@ struct FirestoreCollectionsCommand: BaseCommand {
             databaseId: databaseId,
             documentPath: parentPath,
             pageSize: max(1, limit),
-            pageToken: FirestoreCommandHelpers.trimmedNonEmpty(pageToken)
+            pageToken: CLIValues.trimmedNonEmpty(pageToken)
         )
 
         if json {

@@ -76,13 +76,7 @@ struct BuildAndroidCommand: BaseCommand {
         // 2. Resolve package name (applicationId) & target app name
         let projectURL = URL(fileURLWithPath: resolvedProjectDir)
         let androidIdentifiers = try? AndroidTasks.getAndroidIdentifiers(workspaceRoot: projectURL)
-        let detectedPackageName: String? = {
-            let candidate = androidIdentifiers?.applicationId ?? androidIdentifiers?.packageName
-            return (candidate?.isEmpty == false) ? candidate : nil
-        }()
-        let resolvedPackageName = packageName
-            ?? EnvLoader.value(for: "GOOGLE_PACKAGE_NAME")
-            ?? detectedPackageName
+        let resolvedPackageName = AppIdentifierResolver.androidPackageName(explicit: packageName, projectRoot: projectURL)
 
         let appName = AndroidTasks.resolveAppName(in: projectURL)
         let mainTarget: String
@@ -151,8 +145,11 @@ struct BuildAndroidCommand: BaseCommand {
             name: buildTagName
         ).path
 
-        let flavorSuffix = (resolvedFlavor?.isEmpty == false) ? "\(resolvedFlavor!)_" : ""
-        let artifactBaseName = "\(mainTarget)_\(flavorSuffix)\(resolvedBuildType.lowercased())"
+        let artifactBaseName = AppitoolPaths.androidArtifactName(
+            target: mainTarget,
+            flavor: resolvedFlavor,
+            buildType: resolvedBuildType
+        )
 
         // 6. Execute GradleTask
         let task = GradleTask()
@@ -239,30 +236,40 @@ struct BuildAndroidCommand: BaseCommand {
             )
         }
 
-        // Fallback: Resolve via Match if enabled or configured
+        // Fallback: Resolve via Match when requested (--match) or configured (MATCH_GIT_URL + MATCH_PASSWORD).
+        // Failures are fatal so a release is never silently built unsigned.
         if storeFilePath == nil {
             let match = matchOptions.resolve()
-            if (self.match || (match.gitUrl != nil && match.password != nil)),
-               let gitUrl = match.gitUrl,
-               let matchPassword = match.password,
-               let targetPackage = packageName {
-                let matchConfig = MatchAndroidConfig(
-                    gitUrl: gitUrl,
-                    gitBranch: match.gitBranch,
-                    gitToken: match.gitToken,
-                    password: matchPassword,
-                    action: .sync,
-                    packageName: targetPackage,
-                    buildType: (buildType.lowercased() == "debug") ? .debug : .release,
-                    alias: alias,
-                    storePassword: storePassword,
-                    keyPassword: keyPass,
-                    silent: silent
-                )
-                if let result = try? await MatchRunner().runAndroid(matchConfig) {
-                    tempKeystoreUrl = result.tempUrl
-                    return result.signingConfig
-                }
+            let isConfigured = CLIValues.trimmedNonEmpty(match.gitUrl) != nil && CLIValues.trimmedNonEmpty(match.password) != nil
+            guard self.match || isConfigured else { return nil }
+
+            guard let gitUrl = CLIValues.trimmedNonEmpty(match.gitUrl),
+                  let matchPassword = CLIValues.trimmedNonEmpty(match.password) else {
+                throw CommandError("--match requires Match storage. Provide --match-git-url and --match-password or set MATCH_GIT_URL and MATCH_PASSWORD in .env.")
+            }
+            guard let targetPackage = CLIValues.trimmedNonEmpty(packageName) else {
+                throw CommandError("Cannot resolve the signing keystore from Match without a package name. Provide --package-name, set GOOGLE_PACKAGE_NAME in .env, or run inside an Android project.")
+            }
+
+            let matchConfig = MatchAndroidConfig(
+                gitUrl: gitUrl,
+                gitBranch: match.gitBranch,
+                gitToken: match.gitToken,
+                password: matchPassword,
+                action: .sync,
+                packageName: targetPackage,
+                buildType: (buildType.lowercased() == "debug") ? .debug : .release,
+                alias: alias,
+                storePassword: storePassword,
+                keyPassword: keyPass,
+                silent: silent
+            )
+            do {
+                let result = try await MatchRunner().runAndroid(matchConfig)
+                tempKeystoreUrl = result.tempUrl
+                return result.signingConfig
+            } catch {
+                throw CommandError("Failed to resolve the signing keystore for '\(targetPackage)' from Match: \(error.localizedDescription)")
             }
         }
 

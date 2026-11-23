@@ -34,21 +34,6 @@ struct AppleCommand: AsyncParsableCommand {
 }
 
 enum AppleCommandHelpers {
-    static func trimmedNonEmpty(_ raw: String?) -> String? {
-        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
-            return nil
-        }
-        return trimmed
-    }
-
-    static func parseCommaSeparated(_ raw: String?) -> [String] {
-        guard let raw else { return [] }
-        return raw
-            .components(separatedBy: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-    }
-
     static func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium

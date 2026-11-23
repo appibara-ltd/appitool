@@ -38,12 +38,8 @@ struct MatchAndroidCommand: BaseCommand {
         let storage = try matchOptions.require()
 
         // 5. Resolve Package Name
-        let resolvedPackageName = packageName
-            ?? EnvLoader.value(for: "GOOGLE_PACKAGE_NAME")
-            ?? AndroidTasks.resolvePackageName()
-
-        guard let targetPackage = resolvedPackageName, !targetPackage.isEmpty else {
-            throw CommandError("Missing package name. Provide --package-name or configure GOOGLE_PACKAGE_NAME in .env.")
+        guard let targetPackage = AppIdentifierResolver.androidPackageName(explicit: packageName) else {
+            throw CommandError("Missing package name. Provide --package-name, set GOOGLE_PACKAGE_NAME in .env, or run inside an Android project.")
         }
 
         // 6. Resolve Build Type

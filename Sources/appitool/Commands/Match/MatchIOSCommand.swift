@@ -124,7 +124,7 @@ struct MatchIOSCommand: BaseCommand {
         // 8. Resolve App Identifiers
         var resolvedIdentifiers: [String]
         if let explicit = identifiers, !explicit.isEmpty {
-            resolvedIdentifiers = explicit.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            resolvedIdentifiers = CLIValues.commaSeparated(explicit)
         } else {
             resolvedIdentifiers = []
         }
