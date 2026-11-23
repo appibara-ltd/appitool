@@ -23,3 +23,7 @@ filter:
     - /v1/betaBuildLocalizations
     - /v1/betaBuildLocalizations/{id}
     - /v1/builds/{id}/betaBuildLocalizations
+    - /v1/users
+    - /v1/users/{id}
+    - /v1/userInvitations
+    - /v1/userInvitations/{id}

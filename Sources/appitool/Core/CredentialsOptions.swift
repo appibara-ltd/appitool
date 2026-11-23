@@ -123,6 +123,25 @@ struct FirebaseProjectOptions: ParsableArguments, Sendable {
         }
         return project
     }
+
+    /// Resolves the string Google Cloud / Firebase `project_id` required by Cloud Firestore,
+    /// checking `-p/--project`, `FIREBASE_PROJECT_ID` / `GOOGLE_PROJECT_ID`, and the Service Account JSON `project_id`.
+    func requireProjectId(fallbackServiceProjectId: String?) throws -> String {
+        if let explicit = project?.trimmingCharacters(in: .whitespacesAndNewlines), !explicit.isEmpty {
+            return explicit
+        }
+        if let envProj = EnvLoader.value(for: "FIREBASE_PROJECT_ID") ?? EnvLoader.value(for: "GOOGLE_PROJECT_ID"),
+           !envProj.isEmpty {
+            return envProj
+        }
+        if let saProjectId = fallbackServiceProjectId?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !saProjectId.isEmpty {
+            return saProjectId
+        }
+        throw ValidationError(
+            "Missing Firebase project ID. Provide -p, --project, set FIREBASE_PROJECT_ID in .env, or use a Service Account JSON containing project_id."
+        )
+    }
 }
 
 /// Reusable CLI options and environment resolution for Firebase application-level operations (e.g. releases).

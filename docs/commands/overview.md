@@ -10,8 +10,8 @@
 | [`build`](/commands/build) | `ios`, `android` | Compiles and packages iOS (`.xcarchive`/`.ipa`) and Android (`.aab`/`.apk`) artifacts directly. |
 | [`check`](/commands/check) | `ios`, `android` | Queries remote store/distribution metadata and latest build numbers. |
 | [`match`](/commands/match) | `ios` *(default)*, `android` | Syncs, prunes, nukes, or adds Git-encrypted certificates, profiles, and keystores. |
-| [`apple`](/commands/apple) | 16 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, and devices. |
-| [`firebase`](/commands/firebase) | 8 subcommands | Manages Firebase App Distribution releases/groups and Firebase Auth users. |
+| [`apple`](/commands/apple) | 22 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, devices, team users, and user invitations. |
+| [`firebase`](/commands/firebase) | 9 subcommands | Manages Firebase App Distribution releases/groups, Firebase Auth users, and Cloud Firestore collections/documents. |
 | [`inspect`](/commands/inspect) | — | Inspects local iOS bundle IDs and Android `applicationId`/`namespace`/flavors (supports `--json`). |
 | [`clean`](/commands/clean) | — | Cleans cached build outputs and Xcode DerivedData under `~/.appitool`. |
 | [`notes`](/commands/notes) | — | Generates categorized Markdown release notes from Git conventional commits. |
@@ -57,7 +57,7 @@ Used by `flow ios`, `flow android`, `check ios`, `check android`, and `FirebaseP
 
 ### `FirebaseProjectOptions`
 
-Used by `firebase list-groups`, `create-group`, `list-users`, `delete-user`, and `export-users`.
+Used by `firebase list-groups`, `create-group`, `list-users`, `delete-user`, `export-users`, and `firestore <collections|list|get|set|delete|query>` (note: `firestore` falls back to the `project_id` in `GOOGLE_KEY` rather than parsing `FIREBASE_*_APP_ID`).
 
 | Flag | `.env` Fallback | Description |
 |:---|:---|:---|

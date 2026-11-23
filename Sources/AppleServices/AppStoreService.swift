@@ -106,7 +106,7 @@ package struct AppStoreService: Sendable {
     }
 
     /// Generic pagination helper that accumulates items until `limit` is reached or no next link exists.
-    private func paginate<Item, Page: Decodable>(
+    func paginate<Item, Page: Decodable>(
         initialItems: [Item],
         initialNext: String?,
         limit: Int?,

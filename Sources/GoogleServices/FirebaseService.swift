@@ -99,12 +99,15 @@ package struct FirebaseService: Sendable {
     }
 
     package let authMiddleware: any ClientMiddleware
+    package let urlSession: URLSession
 
     package init(
         authMiddleware: any ClientMiddleware,
-        transport: any ClientTransport = Self.sharedTransport
+        transport: any ClientTransport = Self.sharedTransport,
+        urlSession: URLSession = .shared
     ) throws {
         self.authMiddleware = authMiddleware
+        self.urlSession = urlSession
         let unescapeMiddleware = PathUnescapeMiddleware()
         let middlewares: [any ClientMiddleware] = [unescapeMiddleware, authMiddleware]
 
@@ -138,7 +141,7 @@ package struct FirebaseService: Sendable {
             scope: "https://www.googleapis.com/auth/cloud-platform",
             urlSession: urlSession
         )
-        try self.init(authMiddleware: authMiddleware, transport: transport)
+        try self.init(authMiddleware: authMiddleware, transport: transport, urlSession: urlSession)
     }
 
     /// Instantiates `FirebaseService` using an explicitly provided Google Cloud Service Account key (`googleKey`).

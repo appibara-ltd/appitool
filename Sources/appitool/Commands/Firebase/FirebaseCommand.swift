@@ -4,7 +4,7 @@ import Foundation
 struct FirebaseCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "firebase",
-        abstract: "Manage and query Firebase App Distribution releases, tester groups, and Auth users.",
+        abstract: "Manage Firebase App Distribution releases/groups, Auth users, and Cloud Firestore.",
         subcommands: [
             FirebaseListReleasesCommand.self,
             FirebaseListGroupsCommand.self,
@@ -14,6 +14,7 @@ struct FirebaseCommand: AsyncParsableCommand {
             FirebaseCreateGroupCommand.self,
             FirebaseCreateReleaseCommand.self,
             FirebaseUpdateReleaseCommand.self,
+            FirebaseFirestoreCommand.self,
         ]
     )
 }

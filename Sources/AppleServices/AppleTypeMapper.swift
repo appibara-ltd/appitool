@@ -342,4 +342,94 @@ package struct AppleTypeMapper: Sendable {
             return nil
         }
     }
+
+    // MARK: - User Roles
+
+    /// Assignable App Store Connect user roles (excluding `ACCOUNT_HOLDER`, which cannot be assigned via API).
+    package static let supportedUserRoles: [String] = [
+        "admin",
+        "app-manager",
+        "developer",
+        "finance",
+        "sales",
+        "marketing",
+        "customer-support",
+        "access-to-reports",
+        "create-apps",
+        "cloud-managed-developer-id",
+        "cloud-managed-app-distribution",
+        "generate-individual-keys",
+    ]
+
+    /// Parses a CLI user role string (kebab-case, snake_case, uppercase, or convenience alias) into a `UserRole`.
+    package static func parseUserRole(_ raw: String) throws -> Components.Schemas.UserRole {
+        let normalized = raw
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "-", with: "_")
+            .replacingOccurrences(of: " ", with: "_")
+            .uppercased()
+
+        let resolvedRaw: String
+        switch normalized {
+        case "SUPPORT":
+            resolvedRaw = "CUSTOMER_SUPPORT"
+        case "REPORTS":
+            resolvedRaw = "ACCESS_TO_REPORTS"
+        default:
+            resolvedRaw = normalized
+        }
+
+        guard let role = Components.Schemas.UserRole(rawValue: resolvedRaw) else {
+            throw AppStoreServiceError.invalidResponse(
+                "Unsupported user role '\(raw)'. Supported: \(supportedUserRoles.joined(separator: ", "))."
+            )
+        }
+        return role
+    }
+
+    /// Parses and deduplicates a list of CLI user role strings while preserving order.
+    package static func parseUserRoles(_ rawList: [String]) throws -> [Components.Schemas.UserRole] {
+        var result: [Components.Schemas.UserRole] = []
+        var seen = Set<String>()
+
+        for raw in rawList {
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let role = try parseUserRole(trimmed)
+            if seen.insert(role.rawValue).inserted {
+                result.append(role)
+            }
+        }
+
+        guard !result.isEmpty else {
+            throw AppStoreServiceError.invalidResponse("At least one user role is required.")
+        }
+        return result
+    }
+
+    /// Parses a CLI user role string into the query filter enum for `GET /v1/users`.
+    package static func parseUserRoleQueryFilter(
+        _ raw: String
+    ) throws -> Operations.users_getCollection.Input.Query.filter_lbrack_roles_rbrack_PayloadPayload {
+        let role = try parseUserRole(raw)
+        guard let filterRole = Operations.users_getCollection.Input.Query.filter_lbrack_roles_rbrack_PayloadPayload(rawValue: role.rawValue) else {
+            throw AppStoreServiceError.invalidResponse(
+                "Unsupported user role filter '\(raw)'."
+            )
+        }
+        return filterRole
+    }
+
+    /// Parses a CLI user role string into the query filter enum for `GET /v1/userInvitations`.
+    package static func parseUserInvitationRoleQueryFilter(
+        _ raw: String
+    ) throws -> Operations.userInvitations_getCollection.Input.Query.filter_lbrack_roles_rbrack_PayloadPayload {
+        let role = try parseUserRole(raw)
+        guard let filterRole = Operations.userInvitations_getCollection.Input.Query.filter_lbrack_roles_rbrack_PayloadPayload(rawValue: role.rawValue) else {
+            throw AppStoreServiceError.invalidResponse(
+                "Unsupported user invitation role filter '\(raw)'."
+            )
+        }
+        return filterRole
+    }
 }

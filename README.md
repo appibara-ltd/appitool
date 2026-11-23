@@ -18,7 +18,7 @@ A unified CLI utility and release orchestration engine for Apple App Store Conne
 - **Multi-Track Distribution:** Deploy seamlessly to TestFlight, App Store, Google Play (Internal, Alpha, Beta, Production), and Firebase App Distribution.
 - **Smart Notifications:** Real-time webhook dispatches to Slack and KokoNo with end-to-end (E2E) encryption support.
 - **Git-Backed Code Signing (`match`):** Encrypted sync of iOS certificates/profiles and Android keystores via a private Git repository.
-- **Store & Firebase Management:** Manage App Store Connect identifiers, capabilities, profiles, certificates, devices, and Firebase App Distribution releases, groups, and Auth users.
+- **Store & Firebase Management:** Manage App Store Connect identifiers, capabilities, profiles, certificates, devices, team users, Firebase App Distribution releases/groups, Auth users, and Cloud Firestore.
 - **Release Notes:** Categorized Markdown release notes generated from Git conventional commits.
 - **Built-in Self-Update:** Upgrade the CLI in-place on demand via `appitool self-update` with SHA256 checksum verification.
 - **Dry-Run Mode:** Validate configurations, credentials, and stage workflows without triggering builds or mutating remote state.
@@ -123,8 +123,8 @@ Run `appitool --help` or `appitool <command> --help` to inspect live options. Fu
 | `build` | `ios`, `android` | Compiles and packages iOS (`.xcarchive`/`.ipa`) and Android (`.aab`/`.apk`) artifacts. |
 | `check` | `ios`, `android` | Queries remote store/distribution metadata and latest build numbers. |
 | `match` | `ios` *(default)*, `android` | Syncs, prunes, nukes, or adds Git-encrypted certificates, profiles, and keystores. |
-| `apple` | 16 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, and devices. |
-| `firebase` | 8 subcommands | Manages Firebase App Distribution releases/groups and Firebase Auth users. |
+| `apple` | 22 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, devices, team users, and invitations. |
+| `firebase` | 9 subcommands | Manages Firebase App Distribution releases/groups, Firebase Auth users, and Cloud Firestore. |
 | `inspect` | — | Inspects local iOS bundle IDs and Android `applicationId`/`namespace`/flavors (supports `--json`). |
 | `clean` | — | Cleans cached build outputs and Xcode DerivedData under `~/.appitool`. |
 | `notes` | — | Generates categorized Markdown release notes from Git conventional commits. |

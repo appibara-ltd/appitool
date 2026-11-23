@@ -19,6 +19,7 @@ appitool apple <subcommand> [options]
 | **Provisioning Profiles** | `list-profiles`, `create-profile`, `delete-profile`, `prune-profiles` |
 | **Certificates** | `list-certificates`, `create-certificate`, `delete-certificate`, `prune-certificates` |
 | **Devices** | `list-devices`, `add-device`, `disable-device` |
+| **Users & Invitations** | `list-users`, `invite-user`, `update-user`, `delete-user`, `list-invitations`, `cancel-invitation` |
 
 ---
 
@@ -278,4 +279,109 @@ Disables a registered device by UDID on Apple Developer Portal so it is excluded
 
 ```bash
 appitool apple disable-device -u 00008130-001234567890001E
+```
+
+---
+
+## Users & Invitations
+
+> [!NOTE]
+> Managing App Store Connect team users and invitations requires an API key with the **Admin** role. The `ACCOUNT_HOLDER` role cannot be assigned or modified via the API.
+>
+> **Supported Role Keys (comma-separated):** `admin`, `app-manager`, `developer`, `finance`, `sales`, `marketing`, `customer-support` (alias: `support`), `access-to-reports` (alias: `reports`), `create-apps`, `cloud-managed-developer-id`, `cloud-managed-app-distribution`, `generate-individual-keys`.
+
+### `appitool apple list-users`
+
+Lists active team users in App Store Connect.
+
+| Option | Description |
+|:---|:---|
+| `-u, --username <email>` | Filter by username (Apple ID email). |
+| `-r, --roles <roles>` | Filter by comma-separated roles (e.g. `admin,developer`). |
+| `-l, --limit <count>` | Maximum number of items to return (omit to fetch all). |
+
+```bash
+appitool apple list-users
+appitool apple list-users -r admin,developer
+```
+
+### `appitool apple invite-user`
+
+Sends an email invitation to add a new user to your App Store Connect team.
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `-e, --email <email>` | **Required** | Invitee email address. |
+| `-f, --first-name <name>` | **Required** | Invitee first name. |
+| `-l, --last-name <name>` | **Required** | Invitee last name. |
+| `-r, --roles <roles>` | **Required** | Comma-separated roles to assign (e.g. `developer,app-manager`). |
+| `-a, --visible-apps <apps>` | — | Comma-separated App Store Connect App IDs or bundle IDs to grant access. |
+| `--all-apps-visible` / `--no-all-apps-visible` | `true` (or `false` if `--visible-apps` is set) | Grant visibility to all apps. |
+| `--provisioning-allowed` / `--no-provisioning-allowed` | Role default | Allow access to certificates, identifiers, and profiles. |
+
+```bash
+appitool apple invite-user \
+  -e dev@example.com \
+  -f Jane \
+  -l Doe \
+  -r developer \
+  -a com.example.app \
+  --provisioning-allowed
+```
+
+### `appitool apple update-user`
+
+Updates an active team user's roles, app visibility, or provisioning access (identify user with `-i, --id` or `-u, --username`).
+
+| Option / Flag | Description |
+|:---|:---|
+| `-i, --id <id>` | User resource ID in App Store Connect. |
+| `-u, --username <email>` | User username (Apple ID email). |
+| `-r, --roles <roles>` | Comma-separated roles to assign. |
+| `-a, --visible-apps <apps>` | Comma-separated App Store Connect App IDs or bundle IDs for visible apps. |
+| `--all-apps-visible` / `--no-all-apps-visible` | Grant or restrict visibility to all apps. |
+| `--provisioning-allowed` / `--no-provisioning-allowed` | Allow or disallow access to certificates, identifiers, and profiles. |
+
+```bash
+appitool apple update-user -u dev@example.com -r app-manager --all-apps-visible
+```
+
+### `appitool apple delete-user`
+
+Removes an active team user from App Store Connect (identify user with `-i, --id` or `-u, --username`).
+
+| Option | Description |
+|:---|:---|
+| `-i, --id <id>` | User resource ID to remove. |
+| `-u, --username <email>` | User username (Apple ID email) to remove. |
+
+```bash
+appitool apple delete-user -u dev@example.com
+```
+
+### `appitool apple list-invitations`
+
+Lists pending team user invitations in App Store Connect.
+
+| Option | Description |
+|:---|:---|
+| `-e, --email <email>` | Filter by invitee email address. |
+| `-r, --roles <roles>` | Filter by comma-separated roles. |
+| `-l, --limit <count>` | Maximum number of items to return (omit to fetch all). |
+
+```bash
+appitool apple list-invitations
+```
+
+### `appitool apple cancel-invitation`
+
+Cancels a pending user invitation in App Store Connect (identify invitation with `-i, --id` or `-e, --email`).
+
+| Option | Description |
+|:---|:---|
+| `-i, --id <id>` | Invitation resource ID to cancel. |
+| `-e, --email <email>` | Invitee email address whose pending invitation should be canceled. |
+
+```bash
+appitool apple cancel-invitation -e dev@example.com
 ```
