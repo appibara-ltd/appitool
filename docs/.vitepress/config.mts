@@ -1,10 +1,19 @@
-import { defineConfig } from 'vitepress';
+import { defineConfigWithTheme, type DefaultTheme } from 'vitepress';
+import { readAppitoolVersion } from '../scripts/version.mjs';
+
+/** Default theme config extended with the CLI version (read as `$theme.appitoolVersion` in Markdown). */
+interface AppitoolThemeConfig extends DefaultTheme.Config {
+  appitoolVersion: string;
+}
 
 // Custom domain: https://appitool.appibara.com/
 const siteUrl = 'https://appitool.appibara.com';
 const base = '/';
 
-export default defineConfig({
+// Single source of truth: `version:` in Sources/appitool/appitool.swift.
+const appitoolVersion = readAppitoolVersion();
+
+export default defineConfigWithTheme<AppitoolThemeConfig>({
   title: 'appitool',
   description: 'A unified CLI utility and release orchestration engine for Apple App Store Connect and Google Play operations.',
   base,
@@ -23,6 +32,8 @@ export default defineConfig({
   ],
 
   themeConfig: {
+    // Exposed to Markdown as `{{ $theme.appitoolVersion }}` (use a `-vue` fence suffix inside code blocks).
+    appitoolVersion,
     logo: '/logo.png',
     siteTitle: 'appitool',
 
@@ -34,6 +45,13 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/getting-started', activeMatch: '/guide/' },
       { text: 'Commands', link: '/commands/overview', activeMatch: '/commands/' },
       { text: 'Flow Pipeline', link: '/guide/flow-architecture' },
+      {
+        text: `v${appitoolVersion}`,
+        items: [
+          { text: 'Release Notes', link: 'https://github.com/appibara-ltd/appitool/releases', target: '_blank' },
+          { text: 'Updating (self-update)', link: '/commands/self-update' },
+        ],
+      },
       {
         text: 'AI / LLMs',
         items: [

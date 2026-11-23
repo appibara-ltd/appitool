@@ -10,8 +10,8 @@ appitool status
 
 ## Example Output
 
-```text
+```text-vue
 Tool: appitool
 Purpose: A unified CLI utility for Apple App Store Connect and Google Play operations.
-Version: 0.9.6
+Version: {{ $theme.appitoolVersion }}
 ```

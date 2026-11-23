@@ -1,6 +1,7 @@
 # appitool — Complete CLI Documentation
 
 > Unified CLI utility for Apple App Store Connect and Google Play operations.
+> Version: 0.10.0
 > Generated automatically from VitePress Markdown documentation.
 
 ---
@@ -197,7 +198,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 | Variable | Description | Default / Behavior |
 |:---|:---|:---|
 | `ANDROID_PROJECT_DIR` | Android root directory containing `gradlew` | `./android` if present, else `.` |
-| `ANDROID_FLAVOR` | Gradle product flavor (e.g., `production`, `staging`) | None |
+| `ANDROID_FLAVOR` | Gradle product flavor (e.g., `production`, `staging`); fallback for `build android --flavor` and `flow android --flavor` | None |
 | `ANDROID_CONFIGURATION` | Build type (`Release` or `Debug`) | `Release` |
 | `ANDROID_KEYSTORE_PATH` | Path to local `.keystore` / `.jks` file | None |
 | `ANDROID_KEYSTORE` | Base64-encoded keystore content (decoded to temporary keystore) | None |
@@ -244,7 +245,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 
 ### CI Mode & Destructive Command Guard
 
-`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, `match ios prune`) are skipped as a no-op with a warning and exit code `0`.
+`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios --nuke`, `match ios --prune`) are skipped as a no-op with a warning and exit code `0`.
 
 | Variable | Description | Notes |
 |:---|:---|:---|
@@ -365,9 +366,9 @@ Choosing a platform (`ios` / `android`) and distribution (`appstore`, `adhoc`, `
 - **Required Configuration (`requirements`)**:
   - `GOOGLE_KEY`
 - **Stage Execution**:
-  - `setup`: Extracts `packageName`, `applicationId`, `namespace`, `versionName`, `versionCode`, and flavors via regex (`AndroidTasks.getAndroidIdentifiers`) and Gradle evaluation (`evaluateAppInfoViaGradle`). If `MATCH_GIT_URL` and `MATCH_PASSWORD` are configured, resolves the release keystore via `MatchRunner().runAndroid`. Queries Google Play Console (`internal` track) for the latest `versionCode`.
+  - `setup`: Extracts `packageName`, `applicationId`, `namespace`, `versionName`, `versionCode`, and flavors via regex (`AndroidTasks.getAndroidIdentifiers`) and Gradle evaluation (`evaluateAppInfoViaGradle`). When `--flavor` / `ANDROID_FLAVOR` is set, the selected flavor's effective `applicationId` (unless `--package-name` is given), `versionName`, and `versionCode` are used, and a warning is logged if the flavor is not found. If `MATCH_GIT_URL` and `MATCH_PASSWORD` are configured, resolves the release keystore via `MatchRunner().runAndroid`. Queries Google Play Console (`internal` track) for the latest `versionCode`.
   - `prebuild`: Computes `nextCode = baseCode + 1` in `context.buildNumber`.
-  - `build`: Executes Gradle `bundleRelease` producing an `.aab` with `-PversionCode` and `-PversionName` plus Match signing config if present.
+  - `build`: Executes Gradle `bundleRelease` (or `bundle<Flavor>Release` with `--flavor`) producing an `.aab` with `-PversionCode` and `-PversionName` plus Match signing config if present.
   - `postbuild`: Verifies `.aab` existence and logs file size.
   - `prerelease`: Generates plain-text release notes (max 500 chars for Google Play) from commits since the latest `🤖_*` tag (excluding `*_adhoc` / `*_development`) via `GenerateReleaseNotesTask`.
   - `release`: Uploads `.aab` and generated release notes to Google Play Console `internal` track with `releaseStatus: .completed` via `UploadToGooglePlayConsoleTask`.
@@ -381,7 +382,7 @@ Choosing a platform (`ios` / `android`) and distribution (`appstore`, `adhoc`, `
 - **Stage Execution**:
   - `setup`: Inspects Android project, optionally resolves release keystore from Match, and retrieves latest Firebase App Distribution build info.
   - `prebuild`: Increments `versionCode` by `+1`.
-  - `build`: Runs Gradle `assembleRelease` (default `.apk` for `adhoc`/`development`) or `bundleRelease` (if `-f aab` is specified).
+  - `build`: Runs Gradle `assembleRelease` (default `.apk` for `adhoc`/`development`) or `bundleRelease` (if `--format aab` is specified); with `--flavor`, runs `assemble<Flavor>Release` / `bundle<Flavor>Release`.
   - `postbuild`: Verifies artifact file integrity and logs size.
   - `prerelease`: Generates plain-text release notes (max 4,000 chars) from commits since the latest `🤖_*` tag via `GenerateReleaseNotesTask`.
   - `release`: Ensures `internal` tester group exists and uploads binary with generated release notes via `UploadToFirebaseTask`.
@@ -561,7 +562,7 @@ Includes `GoogleCredentialsOptions` and resolves the Android application package
 | Flag | `.env` Fallback | Description |
 |:---|:---|:---|
 | `-g, --google-key <key>` | `GOOGLE_KEY` | Inherited from `GoogleCredentialsOptions` |
-| `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` or local Android project | Target Android application package name |
+| `--package-name <name>` | `GOOGLE_PACKAGE_NAME` or local Android project | Target Android application package name |
 
 ### `FirebaseProjectOptions`
 
@@ -570,7 +571,7 @@ Used by `firebase list-groups`, `create-group`, `list-users`, `delete-user`, `ex
 | Flag | `.env` Fallback | Description |
 |:---|:---|:---|
 | `-g, --google-key <key>` | `GOOGLE_KEY` | Inherited from `GoogleCredentialsOptions` |
-| `-p, --project <id>` | `FIREBASE_PROJECT_ID`, `GOOGLE_PROJECT_ID`, or parsed from `FIREBASE_*_APP_ID` | Firebase / Google Cloud project ID or project number |
+| `--project <id>` | `FIREBASE_PROJECT_ID`, `GOOGLE_PROJECT_ID`, or parsed from `FIREBASE_*_APP_ID` | Firebase / Google Cloud project ID or project number |
 
 ### `FirebaseCredentialsOptions`
 
@@ -579,9 +580,9 @@ Includes `FirebaseProjectOptions` and adds app-level flags. Used by `firebase li
 | Flag | `.env` Fallback | Description |
 |:---|:---|:---|
 | `--firebase-app-id <id>` | `FIREBASE_IOS_APP_ID` / `FIREBASE_ANDROID_APP_ID` | Target Firebase App ID |
-| `--platform <platform>` | — | Target platform for App ID resolution (`ios` or `android`) |
+| `-p, --platform <platform>` | — | Target platform for App ID resolution (`ios` or `android`) |
 | `-g, --google-key <key>` | `GOOGLE_KEY` | Inherited from `FirebaseProjectOptions` |
-| `-p, --project <id>` | `FIREBASE_PROJECT_ID` | Inherited from `FirebaseProjectOptions` |
+| `--project <id>` | `FIREBASE_PROJECT_ID` | Inherited from `FirebaseProjectOptions` |
 
 ### `MatchStorageOptions`
 
@@ -621,7 +622,7 @@ Used by `flow ios` and `flow android`.
 
 ### `GlobalCIOptions`
 
-Available globally on `appitool` (can be placed before or after subcommands, as well as directly on guarded destructive subcommands and `match ios`). Auto-detects CI environment variables (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD`) when omitted. In CI mode, destructive commands (`apple delete-identifier`, `apple delete-profile`, `apple prune-profiles`, `apple delete-certificate`, `apple prune-certificates`, `apple disable-device`, `apple delete-user`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, and `match ios prune`) are skipped as a no-op with a warning (exit code `0`).
+Available globally on `appitool` (can be placed before or after subcommands, as well as directly on guarded destructive subcommands and `match ios`). Auto-detects CI environment variables (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD`) when omitted. In CI mode, destructive commands (`apple delete-identifier`, `apple delete-profile`, `apple prune-profiles`, `apple delete-certificate`, `apple prune-certificates`, `apple disable-device`, `apple delete-user`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios --nuke`, and `match ios --prune`) are skipped as a no-op with a warning (exit code `0`).
 
 | Flag | Default / Env Fallback | Description |
 |:---|:---|:---|
@@ -711,8 +712,9 @@ Executes the automated release flow for Android.
 |:---|:---|:---|
 | `-d, --distribution <method>` | `appstore` | Distribution method: `adhoc`, `development`, or `appstore`. |
 | `--dry-run` | `false` | Validate configuration, resolve Match keystore, inspect remote `versionCode`, and simulate upload without building or mutating state. |
-| `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` | Target Android package name. Auto-detected from Gradle if omitted. |
-| `-f, --format <format>` | `aab` for `appstore`; `apk` for `adhoc`/`development` | Packaging format (`aab` or `apk`). |
+| `--package-name <name>` | `GOOGLE_PACKAGE_NAME` | Target Android package name. Auto-detected from Gradle if omitted. |
+| `--format <format>` | `aab` for `appstore`; `apk` for `adhoc`/`development` | Packaging format (`aab` or `apk`). |
+| `--flavor <name>` | `ANDROID_FLAVOR` | Gradle product flavor (e.g., `production`, `staging`). Builds `bundle<Flavor>Release` / `assemble<Flavor>Release`, resolves flavor-specific `applicationId` (when `--package-name` is omitted), `versionName`, and `versionCode`, and names the artifact `<Target>_<flavor>_release`. |
 | `--firebase-app-id <id>` | `FIREBASE_ANDROID_APP_ID` | Firebase App ID for Android (used for Ad-Hoc / Firebase distribution). |
 | `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or show (`--no-silent`) Gradle and Match output. |
 
@@ -726,10 +728,13 @@ Plus shared option groups:
 
 ```bash
 # Build AAB and upload to Google Play Console internal track
-appitool flow android -d appstore -p com.example.app
+appitool flow android -d appstore --package-name com.example.app
 
 # Build APK and distribute to Firebase App Distribution
 appitool flow android -d adhoc --no-silent
+
+# Build the production flavor AAB and upload to Google Play Console internal track
+appitool flow android -d appstore --flavor production
 
 # Dry-run Android Ad-Hoc flow
 appitool flow android -d adhoc --dry-run
@@ -763,18 +768,18 @@ Artifacts are written under `~/.appitool/ios/<MainTarget>/build/<version>_<build
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
 | `-d, --distribution <method>` | `appstore` | Distribution method: `adhoc`, `development`, or `appstore`. Mapped to `app-store-connect`, `release-testing`, or `debugging` export methods. |
-| `-w, --workspace <path>` | `XCODE_WORKSPACE` or auto-detected | Path to `.xcworkspace`. |
-| `-p, --project <path>` | `XCODE_PROJECT` or auto-detected | Path to `.xcodeproj`. |
+| `--workspace-path <path>` | `XCODE_WORKSPACE` or auto-detected | Path to `.xcworkspace`. |
+| `--project <path>` | `XCODE_PROJECT` or auto-detected | Path to `.xcodeproj`. |
 | `-s, --scheme <name>` | `XCODE_SCHEME` or inferred | Xcode scheme to build (inferred via `xcodebuild -list -json`). |
 | `-c, --configuration <name>` | `XCODE_CONFIGURATION` or `Release` | Build configuration (`Debug`, `Release`). |
-| `-t, --team-id <id>` | `APPLE_TEAM_ID` | Apple Developer Team ID. |
+| `--team-id <id>` | `APPLE_TEAM_ID` | Apple Developer Team ID. |
 | `--codesigning-identity <id>` | — | Code signing identity override (e.g., `"Apple Distribution"`, `"Apple Development"`). |
 | `--clean` | `false` | Clean build folder before building. |
 | `--skip-build-archive` | `false` | Skip compiling `.xcarchive` and export an IPA from the latest `.xcarchive` found under `~/.appitool/ios/<MainTarget>/build/`. |
 | `--skip-package-ipa` | `false` | Only compile `.xcarchive` and skip IPA packaging. |
 | `--allow-provisioning-updates` | `false` | Allow `xcodebuild` to communicate with Apple Developer Portal for provisioning updates (passes `-authenticationKeyPath`, `-authenticationKeyID`, `-authenticationKeyIssuerID` automatically if `APPLE_KEY` is a file path). |
 | `--manage-build-number` | `false` | Allow App Store Connect to automatically manage/increment version and build numbers during export. |
-| `--silent` | `false` | Suppress `xcodebuild` stdout logs. |
+| `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or stream (`--no-silent`) `xcodebuild` stdout logs. |
 | `--xcodebuild-formatter <cmd>` | `XCODEBUILD_FORMATTER` or `xcbeautify --renderer github-actions` | Formatter command piped from `xcodebuild` output. |
 
 Plus [`AppleCredentialsOptions`](https://appitool.appibara.com/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`).
@@ -812,12 +817,12 @@ Artifacts are written under `~/.appitool/android/<Target>/build/<version>_<build
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
 | `-d, --distribution <method>` | `appstore` | Distribution method: `adhoc`, `development`, or `appstore`. |
-| `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` or Gradle-resolved | Target Android package name. |
-| `-f, --flavor <name>` | `ANDROID_FLAVOR` | Gradle product flavor (e.g., `production`, `staging`). |
+| `--package-name <name>` | `GOOGLE_PACKAGE_NAME` or Gradle-resolved | Target Android package name. |
+| `--flavor <name>` | `ANDROID_FLAVOR` | Gradle product flavor (e.g., `production`, `staging`). |
 | `-c, --configuration <type>` | `ANDROID_CONFIGURATION` or `Release` | Build configuration/type (`Release`, `Debug`). |
 | `--format <format>` | `aab` for `appstore`; `apk` for `adhoc`/`development` | Packaging format (`aab` or `apk`). |
 | `--clean` | `false` | Run Gradle `clean` before building. |
-| `--silent` | `false` | Suppress Gradle stdout logs. |
+| `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or stream (`--no-silent`) Gradle stdout logs. |
 | `--project-dir <path>` | `ANDROID_PROJECT_DIR`, `./android`, or `.` | Android root directory containing `gradlew`. |
 | `--keystore-path <path>` | `ANDROID_KEYSTORE_PATH` | Path to local keystore file. |
 | `--keystore-base64 <str>` | `ANDROID_KEYSTORE` | Base64-encoded keystore content. |
@@ -836,7 +841,7 @@ Plus [`MatchStorageOptions`](https://appitool.appibara.com/commands/overview#mat
 appitool build android -d appstore --match
 
 # Build staging flavor APK cleanly with custom JVM heap
-appitool build android -d adhoc -f staging --format apk --clean --gradle-opts "-Xmx4g"
+appitool build android -d adhoc --flavor staging --format apk --clean --gradle-opts "-Xmx4g"
 ```
 
 ---
@@ -903,7 +908,7 @@ Checks Android application metadata and latest build information from Firebase A
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
 | `-d, --distribution <method>` | `adhoc` | Distribution method: `adhoc`, `development`, or `appstore`. |
-| `-p, --package-name <name>` | Auto-detected from Android project | Target Android package name. |
+| `--package-name <name>` | `GOOGLE_PACKAGE_NAME` or auto-detected from Android project | Target Android package name. |
 | `--firebase-app-id <id>` | `FIREBASE_ANDROID_APP_ID` | Firebase App ID for Android (used when `-d adhoc`). |
 
 Plus [`GoogleCredentialsOptions`](https://appitool.appibara.com/commands/overview#googlecredentialsoptions) (`-g, --google-key`).
@@ -915,7 +920,7 @@ Plus [`GoogleCredentialsOptions`](https://appitool.appibara.com/commands/overvie
 appitool check android -d adhoc
 
 # Check latest build versionCode on Google Play Console
-appitool check android -d appstore -p com.example.app
+appitool check android -d appstore --package-name com.example.app
 ```
 
 ---
@@ -953,15 +958,15 @@ Syncs, prunes, or nukes Apple certificates and provisioning profiles using Git s
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
 | `-t, --type <type>` | `MATCH_TYPE` or `appstore` | Distribution type: `appstore`, `development`, `adhoc`, `enterprise`, `developer_id`. |
-| `--platform <platform>` | `ios` | Target Apple platform: `ios`, `macos`, `tvos`, `catalyst`. |
-| `-a, --app-identifiers <ids>` | Auto-discovered from local Xcode project | Comma-separated bundle identifiers to sync profiles for. |
+| `-p, --platform <platform>` | `ios` | Target Apple platform: `ios`, `macos`, `tvos`, `catalyst`. |
+| `--app-identifiers <ids>` | Auto-discovered from local Xcode project | Comma-separated bundle identifiers to sync profiles for. |
 | `--prune` | `false` | Prune revoked/expired certificates and profiles from Git storage. |
-| `-A, --all` | `false` | Operate across all distribution types when pruning. |
+| `--all` | `false` | Operate across all distribution types when pruning. |Z
 | `--nuke` | `false` | Revoke certificates and delete provisioning profiles on Apple Developer Portal and in Git storage. |
 | `-f, --force` | `false` | Force renewal of provisioning profiles even if still valid. |
 | `--shallow-clone` / `--no-shallow-clone` | `true` for `--readonly`; `false` otherwise | Perform shallow Git clone (`--depth 1`). |
 | `--team-name <name>` | — | Apple Developer Team Name (used as certificate CN when generating a new certificate). |
-| `--silent` | `false` | Suppress verbose logging. |
+| `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or show (`--no-silent`) verbose logging. |
 
 Plus shared option groups:
 - [`AppleCredentialsOptions`](https://appitool.appibara.com/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`)
@@ -975,7 +980,7 @@ Plus shared option groups:
 appitool match ios appstore
 
 # Read-only CI sync for Ad-Hoc profiles across specific bundle IDs
-appitool match ios adhoc --readonly -a "com.example.app,com.example.app.widget"
+appitool match ios adhoc --readonly --app-identifiers "com.example.app,com.example.app.widget"
 
 # Prune invalid/expired assets across all profile types from Git storage
 appitool match ios prune all
@@ -993,20 +998,20 @@ Syncs an encrypted Android keystore (`.keystore`, `.jks`, `.p12`) from Git stora
 ### Modes
 
 - **Sync Mode (default)**: Clones and decrypts `android/<configuration>/<packageName>.<keystore|jks|p12>` and `<packageName>.json`, copying the keystore into `~/.appitool/android/keystores/<packageName>.keystore`.
-- **Add Mode (`--add` or `-k, --keystore`)**: Encrypts the local keystore (and optional credential metadata JSON when `--alias`, `--store-password`, and `--key-password` are provided) using Match V2 (`AES-256-GCM`) and pushes it to the Git repository.
+- **Add Mode (`--add` or `-k, --keystore`)**: Encrypts the local keystore (and optional credential metadata JSON when `--alias`, `--keystore-password`, and `--key-password` are provided) using Match V2 (`AES-256-GCM`) and pushes it to the Git repository.
 
 ### Options & Flags
 
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
-| `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` or Gradle-resolved | Target Android application package name. |
+| `--package-name <name>` | `GOOGLE_PACKAGE_NAME` or Gradle-resolved | Target Android application package name. |
 | `-c, --configuration <type>` | `release` | Build type (`release` or `debug`). |
 | `--add <path>` | — | Path to local keystore file to encrypt and add to Match Git storage. |
 | `-k, --keystore <path>` | — | Alias for `--add`. |
-| `-a, --alias <name>` | `ANDROID_KEY_ALIAS` | Key alias inside keystore. |
-| `--store-password <pass>` | `ANDROID_KEYSTORE_PASSWORD` | Keystore password. |
+| `--alias <name>` | `ANDROID_KEY_ALIAS` | Key alias inside keystore. |
+| `--keystore-password <pass>` | `ANDROID_KEYSTORE_PASSWORD` | Keystore password. |
 | `--key-password <pass>` | `ANDROID_KEY_PASSWORD` | Key password. |
-| `--silent` | `false` | Suppress verbose output. |
+| `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or show (`--no-silent`) verbose output. |
 
 Plus [`MatchStorageOptions`](https://appitool.appibara.com/commands/overview#matchstorageoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`).
 
@@ -1015,14 +1020,14 @@ Plus [`MatchStorageOptions`](https://appitool.appibara.com/commands/overview#mat
 ```bash
 # Add and encrypt a local release keystore with credentials metadata
 appitool match android \
-  -p com.example.app \
+  --package-name com.example.app \
   --add ./android/app/release.keystore \
-  -a upload \
-  --store-password "store_secret" \
+  --alias upload \
+  --keystore-password "store_secret" \
   --key-password "key_secret"
 
 # Sync release keystore from Match Git repository
-appitool match android -p com.example.app -c release
+appitool match android --package-name com.example.app -c release
 ```
 
 ---
@@ -1085,7 +1090,7 @@ Lists App/Bundle Identifiers registered on Apple Developer Portal.
 
 | Option | Description |
 |:---|:---|
-| `-i, --identifier <id>` | Filter by bundle identifier. |
+| `-b, --bundle-id <id>` | Filter by bundle identifier. |
 | `-l, --limit <count>` | Maximum number of items to return. |
 
 ```bash
@@ -1099,16 +1104,15 @@ Registers a new App/Bundle Identifier with optional capabilities on Apple Develo
 | Option | Default | Description |
 |:---|:---|:---|
 | `-b, --bundle-id <id>` | — | App/Bundle identifier (e.g. `com.example.app`). |
-| `-a, --app-identifier <id>` | — | Alternative flag for bundle identifier. |
 | `-n, --name <name>` | Bundle ID | Description or name of the App Identifier. |
-| `--platform <platform>` | `universal` | Platform: `universal`, `ios`, or `macos`. |
-| `-c, --capabilities <list>` | — | Comma-separated capability keys (e.g. `push-notifications,in-app-purchase`). |
+| `-p, --platform <platform>` | `universal` | Platform: `universal`, `ios`, or `macos`. |
+| `--capabilities <list>` | — | Comma-separated capability keys (e.g. `push-notifications,in-app-purchase`). |
 
 ```bash
 appitool apple create-identifier \
   -b com.example.app \
   -n "Example App" \
-  -c "push-notifications,sign-in-with-apple,associated-domains"
+  --capabilities "push-notifications,sign-in-with-apple,associated-domains"
 ```
 
 ### `appitool apple delete-identifier`
@@ -1117,10 +1121,10 @@ Deletes an App/Bundle Identifier from Apple Developer Portal. Any provisioning p
 
 | Option | Description |
 |:---|:---|
-| `-a, --app-identifier <id>` | App/Bundle identifier to delete (required). |
+| `-b, --bundle-id <id>` | App/Bundle identifier to delete (required). |
 
 ```bash
-appitool apple delete-identifier -a com.example.app
+appitool apple delete-identifier -b com.example.app
 ```
 
 ### `appitool apple list-capabilities`
@@ -1191,9 +1195,9 @@ Creates and optionally downloads a provisioning profile on Apple Developer Porta
 | `-b, --bundle-id <id>` | **Required** | Application Bundle Identifier. |
 | `-n, --name <name>` | `match <type> <bundle-id>` | Provisioning profile name. |
 | `-t, --type <type>` | `appstore` | Profile type: `appstore`, `development`, `adhoc`, `enterprise`, `developer_id`. |
-| `--platform <platform>` | `ios` | Target platform: `ios`, `macos`, `tvos`, `catalyst`. |
-| `-c, --certificate-id <id>` | First active matching cert | Certificate Portal ID to embed in the profile. |
-| `-d, --device-ids <ids>` | All enabled matching devices | Comma-separated device Portal IDs for `development`/`adhoc` profiles. |
+| `-p, --platform <platform>` | `ios` | Target platform: `ios`, `macos`, `tvos`, `catalyst`. |
+| `--certificate-id <id>` | First active matching cert | Certificate Portal ID to embed in the profile. |
+| `--device-ids <ids>` | All enabled matching devices | Comma-separated device Portal IDs for `development`/`adhoc` profiles. |
 | `-o, --output <path>` | — | File path to save the generated `.mobileprovision` / `.provisionprofile`. |
 
 ```bash
@@ -1207,8 +1211,8 @@ Deletes a single provisioning profile by name, UUID, or Portal ID.
 | Option | Description |
 |:---|:---|
 | `-n, --name <name>` | Provisioning profile name. |
-| `-u, --uuid <uuid>` | Provisioning profile UUID. |
-| `-p, --portal-id <id>` | Provisioning profile Portal ID. |
+| `--uuid <uuid>` | Provisioning profile UUID. |
+| `--portal-id <id>` | Provisioning profile Portal ID. |
 
 ### `appitool apple prune-profiles`
 
@@ -1216,8 +1220,8 @@ Deletes all `INVALID` (and optionally expired) provisioning profiles from Apple 
 
 | Flag | Default | Description |
 |:---|:---|:---|
-| `-d, --dry-run` | `false` | Preview candidate profiles without deleting them. |
-| `-i, --include-expired` | `false` | Also prune expired profiles in addition to `INVALID` profiles. |
+| `--dry-run` | `false` | Preview candidate profiles without deleting them. |
+| `--include-expired` | `false` | Also prune expired profiles in addition to `INVALID` profiles. |
 
 ```bash
 appitool apple prune-profiles --include-expired --dry-run
@@ -1262,9 +1266,9 @@ Revokes/deletes a certificate from Apple Developer Portal by Portal ID, name, or
 
 | Option | Description |
 |:---|:---|
-| `-p, --portal-id <id>` | Certificate Portal ID. |
+| `--portal-id <id>` | Certificate Portal ID. |
 | `-n, --name <name>` | Certificate name. |
-| `-s, --serial-number <serial>` | Certificate serial number. |
+| `--serial-number <serial>` | Certificate serial number. |
 
 ### `appitool apple prune-certificates`
 
@@ -1272,7 +1276,7 @@ Deletes/revokes all expired certificates from Apple Developer Portal.
 
 | Option / Flag | Default | Description |
 |:---|:---|:---|
-| `-d, --dry-run` | `false` | Preview expired certificates without revoking them. |
+| `--dry-run` | `false` | Preview expired certificates without revoking them. |
 | `-t, --type <type>` | — | Filter pruning by certificate type (e.g. `distribution`, `development`). |
 
 ---
@@ -1286,7 +1290,7 @@ Lists registered devices on Apple Developer Portal.
 | Option | Description |
 |:---|:---|
 | `-p, --platform <platform>` | Filter by platform (`ios`, `macos`, `universal`). |
-| `-s, --status <status>` | Filter by status (`enabled`, `disabled`). |
+| `--status <status>` | Filter by status (`enabled`, `disabled`). |
 | `-n, --name <query>` | Case-insensitive substring filter on device name. |
 | `-l, --limit <count>` | Maximum number of items to return. |
 
@@ -1297,11 +1301,11 @@ Registers a new test device on Apple Developer Portal.
 | Option | Default | Description |
 |:---|:---|:---|
 | `-n, --name <name>` | **Required** | Device display name (e.g. `"QA iPhone 16"`). |
-| `-u, --udid <udid>` | **Required** | Device Unique Device Identifier (UDID). |
+| `--udid <udid>` | **Required** | Device Unique Device Identifier (UDID). |
 | `-p, --platform <platform>` | `ios` | Platform: `ios`, `macos`, `universal`. |
 
 ```bash
-appitool apple add-device -n "QA iPhone" -u 00008130-001234567890001E
+appitool apple add-device -n "QA iPhone" --udid 00008130-001234567890001E
 ```
 
 ### `appitool apple disable-device`
@@ -1310,10 +1314,10 @@ Disables a registered device by UDID on Apple Developer Portal so it is excluded
 
 | Option | Description |
 |:---|:---|
-| `-u, --udid <udid>` | Device UDID to disable (**Required**). |
+| `--udid <udid>` | Device UDID to disable (**Required**). |
 
 ```bash
-appitool apple disable-device -u 00008130-001234567890001E
+appitool apple disable-device --udid 00008130-001234567890001E
 ```
 
 ---
@@ -1331,7 +1335,7 @@ Lists active team users in App Store Connect.
 
 | Option | Description |
 |:---|:---|
-| `-u, --username <email>` | Filter by username (Apple ID email). |
+| `--username <email>` | Filter by username (Apple ID email). |
 | `-r, --roles <roles>` | Filter by comma-separated roles (e.g. `admin,developer`). |
 | `-l, --limit <count>` | Maximum number of items to return (omit to fetch all). |
 
@@ -1347,51 +1351,51 @@ Sends an email invitation to add a new user to your App Store Connect team.
 | Option / Flag | Default | Description |
 |:---|:---|:---|
 | `-e, --email <email>` | **Required** | Invitee email address. |
-| `-f, --first-name <name>` | **Required** | Invitee first name. |
-| `-l, --last-name <name>` | **Required** | Invitee last name. |
+| `--first-name <name>` | **Required** | Invitee first name. |
+| `--last-name <name>` | **Required** | Invitee last name. |
 | `-r, --roles <roles>` | **Required** | Comma-separated roles to assign (e.g. `developer,app-manager`). |
-| `-a, --visible-apps <apps>` | — | Comma-separated App Store Connect App IDs or bundle IDs to grant access. |
+| `--visible-apps <apps>` | — | Comma-separated App Store Connect App IDs or bundle IDs to grant access. |
 | `--all-apps-visible` / `--no-all-apps-visible` | `true` (or `false` if `--visible-apps` is set) | Grant visibility to all apps. |
 | `--provisioning-allowed` / `--no-provisioning-allowed` | Role default | Allow access to certificates, identifiers, and profiles. |
 
 ```bash
 appitool apple invite-user \
   -e dev@example.com \
-  -f Jane \
-  -l Doe \
+  --first-name Jane \
+  --last-name Doe \
   -r developer \
-  -a com.example.app \
+  --visible-apps com.example.app \
   --provisioning-allowed
 ```
 
 ### `appitool apple update-user`
 
-Updates an active team user's roles, app visibility, or provisioning access (identify user with `-i, --id` or `-u, --username`).
+Updates an active team user's roles, app visibility, or provisioning access (identify user with `--id` or `--username`).
 
 | Option / Flag | Description |
 |:---|:---|
-| `-i, --id <id>` | User resource ID in App Store Connect. |
-| `-u, --username <email>` | User username (Apple ID email). |
+| `--id <id>` | User resource ID in App Store Connect. |
+| `--username <email>` | User username (Apple ID email). |
 | `-r, --roles <roles>` | Comma-separated roles to assign. |
-| `-a, --visible-apps <apps>` | Comma-separated App Store Connect App IDs or bundle IDs for visible apps. |
+| `--visible-apps <apps>` | Comma-separated App Store Connect App IDs or bundle IDs for visible apps. |
 | `--all-apps-visible` / `--no-all-apps-visible` | Grant or restrict visibility to all apps. |
 | `--provisioning-allowed` / `--no-provisioning-allowed` | Allow or disallow access to certificates, identifiers, and profiles. |
 
 ```bash
-appitool apple update-user -u dev@example.com -r app-manager --all-apps-visible
+appitool apple update-user --username dev@example.com -r app-manager --all-apps-visible
 ```
 
 ### `appitool apple delete-user`
 
-Removes an active team user from App Store Connect (identify user with `-i, --id` or `-u, --username`).
+Removes an active team user from App Store Connect (identify user with `--id` or `--username`).
 
 | Option | Description |
 |:---|:---|
-| `-i, --id <id>` | User resource ID to remove. |
-| `-u, --username <email>` | User username (Apple ID email) to remove. |
+| `--id <id>` | User resource ID to remove. |
+| `--username <email>` | User username (Apple ID email) to remove. |
 
 ```bash
-appitool apple delete-user -u dev@example.com
+appitool apple delete-user --username dev@example.com
 ```
 
 ### `appitool apple list-invitations`
@@ -1410,11 +1414,11 @@ appitool apple list-invitations
 
 ### `appitool apple cancel-invitation`
 
-Cancels a pending user invitation in App Store Connect (identify invitation with `-i, --id` or `-e, --email`).
+Cancels a pending user invitation in App Store Connect (identify invitation with `--id` or `-e, --email`).
 
 | Option | Description |
 |:---|:---|
-| `-i, --id <id>` | Invitation resource ID to cancel. |
+| `--id <id>` | Invitation resource ID to cancel. |
 | `-e, --email <email>` | Invitee email address whose pending invitation should be canceled. |
 
 ```bash
@@ -1433,8 +1437,8 @@ All `screenshots` subcommands (except `types`) accept shared app-resolution opti
 |:---|:---|:---|
 | `-b, --bundle-id <id>` | `APPLE_BUNDLE_ID` or auto-detected from Xcode project | Target application bundle identifier |
 | `--app-id <id>` | — | Numeric App Store Connect App ID (takes precedence over `--bundle-id`) |
-| `--platform <platform>` | `ios` | Target platform (`ios`, `macos`, `tvos`, `visionos`) |
-| `-v, --app-version <ver>` | Auto-selects editable version (or latest for `list`) | Explicit App Store version string (e.g. `1.2.0`) |
+| `-p, --platform <platform>` | `ios` | Target platform (`ios`, `macos`, `tvos`, `visionos`) |
+| `--app-version <ver>` | Auto-selects editable version (or latest for `list`) | Explicit App Store version string (e.g. `1.2.0`) |
 
 ### `appitool apple screenshots list`
 
@@ -1442,25 +1446,25 @@ Lists screenshot sets and individual screenshots registered on the resolved App 
 
 | Option | Description |
 |:---|:---|
-| `-l, --locale <locale>` | Filter by App Store locale (e.g. `en-US`, `tr`). Omit to list all localizations. |
+| `--locale <locale>` | Filter by App Store locale (e.g. `en-US`, `tr`). Omit to list all localizations. |
 | `-t, --type <display-type>` | Filter by screenshot display type (e.g. `iphone-67`, `ipad-pro-129`). |
 
 ```bash
 appitool apple screenshots list -b com.example.app
-appitool apple screenshots list -b com.example.app -v 1.2.0 -l en-US -t iphone-67
+appitool apple screenshots list -b com.example.app --app-version 1.2.0 --locale en-US -t iphone-67
 ```
 
 ### `appitool apple screenshots upload`
 
-Uploads screenshots to an editable App Store version (e.g. `PREPARE_FOR_SUBMISSION`) either from explicit flat image paths (`-l` and `-t` required) or symmetrically from a `<locale>/<type>/` directory tree defaulting to `~/.appitool/screenshots/<project>/apple/` (`-l` and `-t` optional filters).
+Uploads screenshots to an editable App Store version (e.g. `PREPARE_FOR_SUBMISSION`) either from explicit flat image paths (`--locale` and `-t` required) or symmetrically from a `<locale>/<type>/` directory tree defaulting to `~/.appitool/screenshots/<project>/apple/` (`--locale` and `-t` optional filters).
 
 | Option / Flag / Argument | Default | Description |
 |:---|:---|:---|
-| `-l, --locale <locale>` | — | App Store localization locale (e.g. `en-US`, `tr`). Required for flat files; optional filter for `<locale>/<type>/` trees. |
+| `--locale <locale>` | — | App Store localization locale (e.g. `en-US`, `tr`). Required for flat files; optional filter for `<locale>/<type>/` trees. |
 | `-t, --type <display-type>` | — | Screenshot display type (e.g. `iphone-67`, `ipad-pro-129`, `APP_IPHONE_67`). Required for flat files; optional filter for directory trees. |
-| `-r, --replace` | `false` | Delete existing screenshots in each target set before uploading. |
-| `--wait` / `--no-wait` | `true` (`--wait`) | Wait for App Store Connect to process each uploaded screenshot (`COMPLETE` / `FAILED`). |
-| `-d, --dry-run` | `false` | Validate files and preview upload targets without contacting App Store Connect. |
+| `--replace` | `false` | Delete existing screenshots in each target set before uploading. |
+| `--wait-processing` / `--no-wait-processing` | `true` (`--wait-processing`) | Wait for App Store Connect to process each uploaded screenshot (`COMPLETE` / `FAILED`). |
+| `--dry-run` | `false` | Validate files and preview upload targets without contacting App Store Connect. |
 | `<paths...>` | `~/.appitool/screenshots/<project>/apple/` | Optional PNG/JPEG file(s), flat directory, or `<locale>/<type>/` directory tree. |
 
 ```bash
@@ -1468,12 +1472,12 @@ Uploads screenshots to an editable App Store version (e.g. `PREPARE_FOR_SUBMISSI
 appitool apple screenshots upload --replace
 
 # Bulk-upload only en-US sets from the default per-project directory
-appitool apple screenshots upload -l en-US -r
+appitool apple screenshots upload --locale en-US --replace
 
 # Upload flat directory images for a single locale and display type
 appitool apple screenshots upload \
   -b com.example.app \
-  -l en-US \
+  --locale en-US \
   -t iphone-67 \
   --replace \
   ./screenshots/ios/en-US/iphone-67/
@@ -1485,17 +1489,17 @@ Downloads screenshots from App Store Connect (`imageAsset.templateUrl` at full r
 
 | Option / Flag | Default | Description |
 |:---|:---|:---|
-| `-l, --locale <locale>` | — | Filter by App Store locale (e.g. `en-US`, `tr`). Omit to download all locales. |
+| `--locale <locale>` | — | Filter by App Store locale (e.g. `en-US`, `tr`). Omit to download all locales. |
 | `-t, --type <display-type>` | — | Filter by screenshot display type (e.g. `iphone-67`, `ipad-pro-129`). |
 | `-o, --output <dir>` | `~/.appitool/screenshots/<project>/apple/` | Custom destination root directory. |
-| `-d, --dry-run` | `false` | Preview target local paths and CDN URLs without downloading files. |
+| `--dry-run` | `false` | Preview target local paths and CDN URLs without downloading files. |
 
 ```bash
 # Download all locales and display types for the project to ~/.appitool/screenshots/<bundle-id>/apple/
 appitool apple screenshots download
 
 # Download only en-US iPhone 6.7" screenshots into a custom folder
-appitool apple screenshots download -b com.example.app -l en-US -t iphone-67 -o ./downloads/ios
+appitool apple screenshots download -b com.example.app --locale en-US -t iphone-67 -o ./downloads/ios
 ```
 
 ### `appitool apple screenshots delete`
@@ -1504,15 +1508,15 @@ Deletes an individual screenshot by resource ID or all screenshots for `--locale
 
 | Option / Flag | Default | Description |
 |:---|:---|:---|
-| `-i, --id <screenshot-id>` | — | Specific App Store screenshot resource ID to delete (mutually exclusive with `-a`). |
-| `-l, --locale <locale>` | — | App Store localization locale when deleting with `-a, --all`. |
-| `-t, --type <display-type>` | — | Optional screenshot display type filter when deleting with `-a, --all`. |
-| `-a, --all` | `false` | Delete all screenshots matching `--locale` (and optional `--type`). |
-| `-d, --dry-run` | `false` | Preview matching screenshot(s) without deleting them. |
+| `--id <screenshot-id>` | — | Specific App Store screenshot resource ID to delete (mutually exclusive with `--all`). |
+| `--locale <locale>` | — | App Store localization locale when deleting with `--all`. |
+| `-t, --type <display-type>` | — | Optional screenshot display type filter when deleting with `--all`. |
+| `--all` | `false` | Delete all screenshots matching `--locale` (and optional `--type`). |
+| `--dry-run` | `false` | Preview matching screenshot(s) without deleting them. |
 
 ```bash
-appitool apple screenshots delete -i "<screenshot-id>"
-appitool apple screenshots delete -b com.example.app -l en-US -t iphone-67 --all --dry-run
+appitool apple screenshots delete --id "<screenshot-id>"
+appitool apple screenshots delete -b com.example.app --locale en-US -t iphone-67 --all --dry-run
 ```
 
 ### `appitool apple screenshots types`
@@ -1531,7 +1535,7 @@ appitool apple screenshots types
 
 Direct management of Google Play Console store visuals and resources via the Google Play Developer API v3.
 
-All `google screenshots` subcommands (except `types`) accept [`GooglePlayAppOptions`](https://appitool.appibara.com/commands/overview#googleplayappoptions) (`-g, --google-key`, `-p, --package-name`), falling back to `GOOGLE_KEY`, `GOOGLE_PACKAGE_NAME` in `.env`, or auto-detection from the local Android project.
+All `google screenshots` subcommands (except `types`) accept [`GooglePlayAppOptions`](https://appitool.appibara.com/commands/overview#googleplayappoptions) (`-g, --google-key`, `--package-name`), falling back to `GOOGLE_KEY`, `GOOGLE_PACKAGE_NAME` in `.env`, or auto-detection from the local Android project.
 
 > [!NOTE]
 > **CI Guard:** Destructive subcommand `screenshots delete` accepts [`GlobalCIOptions`](https://appitool.appibara.com/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and is skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
@@ -1577,26 +1581,26 @@ Opens a temporary read-only Google Play edit session (deleted automatically afte
 
 | Option | Description |
 |:---|:---|
-| `-l, --locale <bcp47>` | Filter by BCP-47 language code (e.g. `en-US`, `tr-TR`). Omit to inspect all listing languages. |
+| `--locale <bcp47>` | Filter by BCP-47 language code (e.g. `en-US`, `tr-TR`). Omit to inspect all listing languages. |
 | `-t, --type <type>` | Filter by image type (e.g. `phone`, `tablet7`, `feature-graphic`, `icon`). Omit to inspect all types. |
 
 ```bash
-appitool google screenshots list -p com.example.app
-appitool google screenshots list -l en-US -t phone
+appitool google screenshots list --package-name com.example.app
+appitool google screenshots list --locale en-US -t phone
 ```
 
 ### `appitool google screenshots upload`
 
-Uploads PNG/JPEG screenshots and graphics to Google Play Console inside a single atomic edit transaction—either for flat image path(s) (`-l` required, `-t` defaults to `phone`) or symmetrically from a `<locale>/<type>/` directory tree defaulting to `~/.appitool/screenshots/<package-name>/google/` (`-l` and `-t` optional filters).
+Uploads PNG/JPEG screenshots and graphics to Google Play Console inside a single atomic edit transaction—either for flat image path(s) (`--locale` required, `-t` defaults to `phone`) or symmetrically from a `<locale>/<type>/` directory tree defaulting to `~/.appitool/screenshots/<package-name>/google/` (`--locale` and `-t` optional filters).
 
 | Option / Flag / Argument | Default | Description |
 |:---|:---|:---|
-| `-l, --locale <bcp47>` | — | BCP-47 language code (e.g. `en-US`, `tr-TR`). Required for flat files; optional filter for `<locale>/<type>/` trees. |
+| `--locale <bcp47>` | — | BCP-47 language code (e.g. `en-US`, `tr-TR`). Required for flat files; optional filter for `<locale>/<type>/` trees. |
 | `-t, --type <type>` | `phone` (flat) / all (tree) | Target image type (`phone`, `tablet7`, `tablet10`, `tv`, `wear`, `icon`, `feature-graphic`, `tv-banner`). |
-| `-r, --replace` | `false` | Delete existing images in each target slot before uploading. |
+| `--replace` | `false` | Delete existing images in each target slot before uploading. |
 | `--validate-only` | `false` | Validate the edit session (`edits.validate`) without committing changes. |
 | `--changes-not-sent-for-review` | `false` | Commit changes without automatically sending them for Google Play review. |
-| `-d, --dry-run` | `false` | Validate local image files and preview target slots without contacting Google Play. |
+| `--dry-run` | `false` | Validate local image files and preview target slots without contacting Google Play. |
 | `<paths...>` | `~/.appitool/screenshots/<package-name>/google/` | Optional PNG/JPEG file(s), flat directory, or `<locale>/<type>/` directory tree. |
 
 ```bash
@@ -1604,20 +1608,20 @@ Uploads PNG/JPEG screenshots and graphics to Google Play Console inside a single
 appitool google screenshots upload --replace
 
 # Bulk-upload only phone screenshots across all locales in the default folder
-appitool google screenshots upload -t phone -r
+appitool google screenshots upload -t phone --replace
 
 # Replace phone screenshots for en-US from a flat directory
 appitool google screenshots upload \
-  -p com.example.app \
-  -l en-US \
+  --package-name com.example.app \
+  --locale en-US \
   -t phone \
   --replace \
   ./screenshots/android/en-US/phone/
 
 # Upload a feature graphic banner
 appitool google screenshots upload \
-  -p com.example.app \
-  -l en-US \
+  --package-name com.example.app \
+  --locale en-US \
   -t feature-graphic \
   ./assets/feature-graphic.png
 ```
@@ -1628,17 +1632,17 @@ Downloads store screenshots and graphics from Google Play Console into `<output>
 
 | Option / Flag | Default | Description |
 |:---|:---|:---|
-| `-l, --locale <bcp47>` | — | Filter by BCP-47 language code (e.g. `en-US`, `tr-TR`). Omit to download all listing languages. |
+| `--locale <bcp47>` | — | Filter by BCP-47 language code (e.g. `en-US`, `tr-TR`). Omit to download all listing languages. |
 | `-t, --type <type>` | — | Filter by image type (e.g. `phone`, `tablet7`, `feature-graphic`, `icon`). Omit to download all types. |
 | `-o, --output <dir>` | `~/.appitool/screenshots/<package-name>/google/` | Custom destination root directory. |
-| `-d, --dry-run` | `false` | Preview target local paths and CDN URLs without downloading files. |
+| `--dry-run` | `false` | Preview target local paths and CDN URLs without downloading files. |
 
 ```bash
 # Download all Google Play visuals to ~/.appitool/screenshots/<package-name>/google/
 appitool google screenshots download
 
 # Download only en-US phone screenshots into a custom folder
-appitool google screenshots download -p com.example.app -l en-US -t phone -o ./downloads/android
+appitool google screenshots download --package-name com.example.app --locale en-US -t phone -o ./downloads/android
 ```
 
 ### `appitool google screenshots delete`
@@ -1647,19 +1651,19 @@ Deletes a specific image by ID or all images of a given type for a locale in Goo
 
 | Option / Flag | Default | Description |
 |:---|:---|:---|
-| `-l, --locale <bcp47>` | **Required** | BCP-47 language code (e.g. `en-US`, `tr-TR`). |
+| `--locale <bcp47>` | **Required** | BCP-47 language code (e.g. `en-US`, `tr-TR`). |
 | `-t, --type <type>` | **Required** | Target image type (`phone`, `tablet7`, `tablet10`, `tv`, `wear`, `icon`, `feature-graphic`, `tv-banner`). |
-| `-i, --id <image-id>` | — | Specific Google Play image ID to delete (mutually exclusive with `-a`). |
-| `-a, --all` | `false` | Delete all images of the specified type for the language (mutually exclusive with `-i`). |
+| `--id <image-id>` | — | Specific Google Play image ID to delete (mutually exclusive with `--all`). |
+| `--all` | `false` | Delete all images of the specified type for the language (mutually exclusive with `--id`). |
 | `--changes-not-sent-for-review` | `false` | Commit changes without automatically sending them for Google Play review. |
-| `-d, --dry-run` | `false` | Preview matching image(s) without deleting or committing changes. |
+| `--dry-run` | `false` | Preview matching image(s) without deleting or committing changes. |
 
 ```bash
 # Preview images that would be removed
-appitool google screenshots delete -l en-US -t phone --all --dry-run
+appitool google screenshots delete --locale en-US -t phone --all --dry-run
 
 # Delete a single image by ID
-appitool google screenshots delete -l en-US -t phone -i AO7oq_example_id
+appitool google screenshots delete --locale en-US -t phone --id AO7oq_example_id
 ```
 
 ### `appitool google screenshots types`
@@ -1710,7 +1714,7 @@ appitool firebase <subcommand> [options]
 
 ## App Distribution Commands
 
-All three release subcommands use [`FirebaseCredentialsOptions`](https://appitool.appibara.com/commands/overview#firebasecredentialsoptions) (`--firebase-app-id`, `--platform`, `-g, --google-key`, `-p, --project`).
+All three release subcommands use [`FirebaseCredentialsOptions`](https://appitool.appibara.com/commands/overview#firebasecredentialsoptions) (`--firebase-app-id`, `-p, --platform`, `-g, --google-key`, `--project`).
 
 ### `appitool firebase list-releases`
 
@@ -1719,7 +1723,7 @@ Lists uploaded releases for a Firebase application (version, build, creation tim
 | Option | Default | Description |
 |:---|:---|:---|
 | `-l, --limit <count>` | `25` | Maximum number of releases to return (`1–100`). |
-| `-o, --order-by <expr>` | — | Ordering expression (e.g. `'createTime desc'`). |
+| `--order-by <expr>` | — | Ordering expression (e.g. `'createTime desc'`). |
 
 ```bash
 appitool firebase list-releases --platform ios -l 10
@@ -1731,16 +1735,16 @@ Uploads an `.apk`, `.aab`, or `.ipa` binary to Firebase App Distribution, waits 
 
 | Option | Description |
 |:---|:---|
-| `-b, --binary <path>` | Path to `.apk`, `.aab`, or `.ipa` binary (**Required**). |
-| `-r, --release-notes <text>` | Release notes text for testers. |
-| `-t, --test-groups <aliases>` | Comma-separated tester group aliases (e.g. `'internal,qa'`). |
-| `-e, --tester-emails <emails>` | Comma-separated tester email addresses. |
+| `--binary <path>` | Path to `.apk`, `.aab`, or `.ipa` binary (**Required**). |
+| `--release-notes <text>` | Release notes text for testers. |
+| `--test-groups <aliases>` | Comma-separated tester group aliases (e.g. `'internal,qa'`). |
+| `--tester-emails <emails>` | Comma-separated tester email addresses. |
 
 ```bash
 appitool firebase create-release \
   --platform android \
-  -b ./app-release.apk \
-  -r "QA build #42" \
+  --binary ./app-release.apk \
+  --release-notes "QA build #42" \
   --test-groups "internal,qa"
 ```
 
@@ -1750,10 +1754,10 @@ Updates an existing Firebase App Distribution release by attaching new release n
 
 | Option | Description |
 |:---|:---|
-| `-i, --release-id <id>` | Full release resource path (`projects/.../apps/.../releases/<id>`) or short release ID (**Required**; `--firebase-app-id` is required if passing a short ID). |
-| `-r, --release-notes <text>` | New release notes text to attach. |
-| `-t, --test-groups <aliases>` | Comma-separated tester group aliases to distribute to. |
-| `-e, --tester-emails <emails>` | Comma-separated tester emails to distribute to. |
+| `--release-id <id>` | Full release resource path (`projects/.../apps/.../releases/<id>`) or short release ID (**Required**; `--firebase-app-id` is required if passing a short ID). |
+| `--release-notes <text>` | New release notes text to attach. |
+| `--test-groups <aliases>` | Comma-separated tester group aliases to distribute to. |
+| `--tester-emails <emails>` | Comma-separated tester emails to distribute to. |
 
 ```bash
 appitool firebase update-release \
@@ -1765,7 +1769,7 @@ appitool firebase update-release \
 
 ### `appitool firebase list-groups`
 
-Uses [`FirebaseProjectOptions`](https://appitool.appibara.com/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `-p, --project`).
+Uses [`FirebaseProjectOptions`](https://appitool.appibara.com/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `--project`).
 
 Lists tester groups registered in a Firebase project with alias, tester count, and release count.
 
@@ -1781,18 +1785,18 @@ Creates a new tester group (or returns the existing group if the alias already e
 
 | Option | Default | Description |
 |:---|:---|:---|
-| `-a, --alias <alias>` | **Required** | Unique alias/ID for the group (e.g. `internal`, `qa-team`). |
+| `--alias <alias>` | **Required** | Unique alias/ID for the group (e.g. `internal`, `qa-team`). |
 | `-n, --name <display>` | `<alias>` | Human-readable display name (e.g. `'Internal Testers'`). |
 
 ```bash
-appitool firebase create-group -a qa-team -n "QA Team"
+appitool firebase create-group --alias qa-team -n "QA Team"
 ```
 
 ---
 
 ## Firebase Authentication Commands
 
-All user management subcommands use [`FirebaseProjectOptions`](https://appitool.appibara.com/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `-p, --project`).
+All user management subcommands use [`FirebaseProjectOptions`](https://appitool.appibara.com/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `--project`).
 
 ### `appitool firebase list-users`
 
@@ -1801,16 +1805,16 @@ Lists Firebase Authentication users with optional exact/partial search by email 
 | Option | Default | Description |
 |:---|:---|:---|
 | `-l, --limit <count>` | `100` | Maximum number of users to return. |
-| `-s, --search <query>` | — | Search users by email or UID (attempts fast exact lookup on page 1 before paginated scan). |
-| `-a, --anonymous <filter>` | `all` | Filter by anonymous status: `all`, `only`, or `exclude`. |
-| `-t, --page-token <token>` | — | Pagination token printed at the end of the previous page output. |
+| `--search <query>` | — | Search users by email or UID (attempts fast exact lookup on page 1 before paginated scan). |
+| `--anonymous <filter>` | `all` | Filter by anonymous status: `all`, `only`, or `exclude`. |
+| `--page-token <token>` | — | Pagination token printed at the end of the previous page output. |
 
 ```bash
 # List up to 50 non-anonymous users
-appitool firebase list-users -l 50 -a exclude
+appitool firebase list-users -l 50 --anonymous exclude
 
 # Search for a user by email
-appitool firebase list-users -s user@example.com
+appitool firebase list-users --search user@example.com
 ```
 
 ### `appitool firebase delete-user`
@@ -1819,10 +1823,10 @@ Deletes Firebase Authentication user(s) by UID, by email lookup, or deletes all 
 
 | Option / Flag | Default | Description |
 |:---|:---|:---|
-| `-u, --uid <uid>` | — | UID (`localId`) of the user to delete. |
+| `--uid <uid>` | — | UID (`localId`) of the user to delete. |
 | `-e, --email <email>` | — | Email address of the user to look up and delete. |
-| `-a, --anonymous` | `false` | Delete all anonymous users in the project (cannot be combined with `-u` or `-e`). |
-| `-d, --dry-run` | `false` | Preview matching user(s) without deleting them. |
+| `--anonymous` | `false` | Delete all anonymous users in the project (cannot be combined with `--uid` or `-e`). |
+| `--dry-run` | `false` | Preview matching user(s) without deleting them. |
 
 ```bash
 # Preview bulk anonymous user cleanup
@@ -1839,21 +1843,21 @@ Exports all Firebase Authentication users to a UTF-8 CSV file with columns:
 
 | Option | Default | Description |
 |:---|:---|:---|
-| `-a, --anonymous <filter>` | `all` | Filter exported users: `all`, `only`, or `exclude`. |
+| `--anonymous <filter>` | `all` | Filter exported users: `all`, `only`, or `exclude`. |
 | `-o, --output <path>` | `firebase_users_<project>.csv` | Output CSV filename or path. |
 
 ```bash
-appitool firebase export-users -a exclude -o ./exports/users.csv
+appitool firebase export-users --anonymous exclude -o ./exports/users.csv
 ```
 
 ---
 
 ## Cloud Firestore Commands
 
-All `appitool firebase firestore` subcommands use [`FirebaseProjectOptions`](https://appitool.appibara.com/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `-p, --project`) and `--database <id>` (defaults to `(default)`).
+All `appitool firebase firestore` subcommands use [`FirebaseProjectOptions`](https://appitool.appibara.com/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `--project`) and `--database <id>` (defaults to `(default)`).
 
 > [!NOTE]
-> - **Project ID Resolution:** Firestore requires a string Google Cloud `project_id` resolved in order: `-p, --project` → `FIREBASE_PROJECT_ID` / `GOOGLE_PROJECT_ID` → `project_id` embedded inside the `GOOGLE_KEY` Service Account JSON.
+> - **Project ID Resolution:** Firestore requires a string Google Cloud `project_id` resolved in order: `--project` → `FIREBASE_PROJECT_ID` / `GOOGLE_PROJECT_ID` → `project_id` embedded inside the `GOOGLE_KEY` Service Account JSON.
 > - **IAM Permissions:** The Service Account must hold `Cloud Datastore Viewer` (`roles/datastore.viewer`) for read-only commands (`collections`, `list`, `get`, `query`) or `Cloud Datastore User` (`roles/datastore.user`) for read/write/delete commands (`set`, `delete`). Service Account requests bypass client Firestore Security Rules.
 
 ### `appitool firebase firestore collections`
@@ -1864,7 +1868,7 @@ Lists root collection IDs or subcollection IDs beneath a specific document path.
 |:---|:---|:---|
 | `<path>` | — | Optional parent document path (even number of segments, e.g. `users/alice`). |
 | `-l, --limit <count>` | `100` | Maximum number of collection IDs to return. |
-| `-t, --page-token <token>` | — | Pagination token to fetch the next page of collection IDs. |
+| `--page-token <token>` | — | Pagination token to fetch the next page of collection IDs. |
 | `--json` | `false` | Output raw JSON. |
 
 ```bash
@@ -1880,8 +1884,8 @@ Lists documents in a Firestore collection.
 |:---|:---|:---|
 | `<path>` | **Required** | Firestore collection path (odd number of segments, e.g. `users` or `users/alice/orders`). |
 | `-l, --limit <count>` | `50` | Maximum number of documents to return. |
-| `-o, --order-by <expr>` | — | Sort expression (e.g. `'createdAt desc'`). |
-| `-t, --page-token <token>` | — | Pagination token to fetch the next page of documents. |
+| `--order-by <expr>` | — | Sort expression (e.g. `'createdAt desc'`). |
+| `--page-token <token>` | — | Pagination token to fetch the next page of documents. |
 | `--json` | `false` | Output raw JSON. |
 
 ```bash
@@ -1908,13 +1912,13 @@ Writes a document at a document path (`PATCH`, creating or overwriting) or creat
 | Option / Flag / Argument | Default | Description |
 |:---|:---|:---|
 | `<path>` | **Required** | Document path (`users/alice`) or collection path (`users`). |
-| `-d, --data <json>` | — | Inline JSON object string containing document fields (mutually exclusive with `-f`). |
-| `-f, --file <path>` | — | Path to a JSON file containing document fields (mutually exclusive with `-d`). |
-| `-m, --merge` | `false` | Merge provided top-level fields using `updateMask.fieldPaths` (requires a document path). |
+| `--data <json>` | — | Inline JSON object string containing document fields (mutually exclusive with `-f`). |
+| `-f, --file <path>` | — | Path to a JSON file containing document fields (mutually exclusive with `--data`). |
+| `--merge` | `false` | Merge provided top-level fields using `updateMask.fieldPaths` (requires a document path). |
 | `--json` | `false` | Output raw JSON. |
 
 ```bash
-appitool firebase firestore set users/alice -d '{"role":"admin","active":true}' --merge
+appitool firebase firestore set users/alice --data '{"role":"admin","active":true}' --merge
 appitool firebase firestore set logs -f ./event.json
 ```
 
@@ -1925,7 +1929,7 @@ Deletes a Firestore document by path.
 | Option / Flag / Argument | Default | Description |
 |:---|:---|:---|
 | `<path>` | **Required** | Firestore document path (even number of segments, e.g. `users/alice`). |
-| `-d, --dry-run` | `false` | Check whether the document exists without deleting it. |
+| `--dry-run` | `false` | Check whether the document exists without deleting it. |
 
 ```bash
 appitool firebase firestore delete users/alice --dry-run
@@ -1940,7 +1944,7 @@ Runs a structured query (`:runQuery`) against a collection (or collection group 
 |:---|:---|:---|
 | `<path>` | **Required** | Firestore collection path (odd number of segments, e.g. `users` or `orders`). |
 | `-w, --where <expr>` | — | Repeatable filter expression: `<field> <op> <value>`. Supported `<op>`: `==`, `!=`, `<`, `<=`, `>`, `>=`, `array-contains`, `in`, `not-in`, `array-contains-any`. |
-| `-o, --order-by <expr>` | — | Repeatable sort clause (`<field> [asc\|desc]`). |
+| `--order-by <expr>` | — | Repeatable sort clause (`<field> [asc\|desc]`). |
 | `-l, --limit <count>` | `50` | Maximum number of documents to return. |
 | `--all-descendants` | `false` | Query across all descendant collections matching the final collection ID (collection group query). |
 | `--json` | `false` | Output raw JSON. |
@@ -1949,7 +1953,7 @@ Runs a structured query (`:runQuery`) against a collection (or collection group 
 appitool firebase firestore query users \
   -w 'active == true' \
   -w 'age >= 18' \
-  -o 'age desc' \
+  --order-by 'age desc' \
   -l 10 \
   --json
 ```
@@ -1960,7 +1964,7 @@ appitool firebase firestore query users \
 
 # `appitool inspect`
 
-Inspects local iOS (Xcode) and Android (Gradle) project files in a workspace and prints resolved identifiers, versions, build numbers / version codes, targets, schemes, and product flavors. When `-s, --scheme` is omitted on iOS, all distributable schemes are inspected and listed; when `-f, --flavor` is omitted on Android, all product flavors are listed with their effective application IDs, versions, and version codes.
+Inspects local iOS (Xcode) and Android (Gradle) project files in a workspace and prints resolved identifiers, versions, build numbers / version codes, targets, schemes, and product flavors. When `-s, --scheme` is omitted on iOS, all distributable schemes are inspected and listed; when `--flavor` is omitted on Android, all product flavors are listed with their effective application IDs, versions, and version codes.
 
 ## Synopsis
 
@@ -1973,11 +1977,11 @@ appitool inspect [options]
 | Option / Flag | Default | Description |
 |:---|:---|:---|
 | `-p, --platform <platform>` | `all` | Platform to inspect: `all`, `ios`, or `android`. |
-| `-w, --workspace-name <name>` | Auto-detected | Custom Xcode workspace or project name. |
+| `--workspace-name <name>` | Auto-detected | Custom Xcode workspace or project name. |
 | `-s, --scheme <scheme>` | All distributable schemes | Specific Xcode scheme name to inspect (omit to list every distributable scheme). |
 | `-c, --configuration <config>` | Auto-inferred | Xcode build configuration (e.g., `Debug`, `Release`). |
-| `-f, --flavor <name>` | All product flavors | Specific Android product flavor to resolve (omit to list all `productFlavors` with resolved overrides). |
-| `-d, --project-dir <path>` / `--workspace-root <path>` | Current directory | Path to the project root directory. |
+| `--flavor <name>` | All product flavors | Specific Android product flavor to resolve (omit to list all `productFlavors` with resolved overrides). |
+| `--project-dir <path>` | Current directory | Path to the project root directory. |
 | `--json` | `false` | Output results as pretty-printed, key-sorted JSON (`ios.schemes[]`, `ios.version`, `ios.buildNumber`, `android.versionName`, `android.versionCode`, and resolved `android.flavors[]`). |
 
 ## Examples
@@ -1990,10 +1994,10 @@ appitool inspect
 appitool inspect -p ios -s MyApp -c Release --json
 
 # Inspect Android metadata filtered to a single product flavor
-appitool inspect -p android -f staging
+appitool inspect -p android --flavor staging
 
 # Inspect a project located in another directory
-appitool inspect --workspace-root ~/projects/my-mobile-app
+appitool inspect --project-dir ~/projects/my-mobile-app
 ```
 
 ---
@@ -2015,8 +2019,8 @@ appitool clean [options]
 | Option / Flag | Default | Description |
 |:---|:---|:---|
 | `-p, --platform <platform>` | `all` | Platform to clean: `ios`, `android`, or `all`. |
-| `-d, --derived-data` | `false` | Also clean Xcode `derivedData` directories under `~/.appitool/ios/<project>/derivedData`. |
-| `-D, --derived-data-only` / `--only-derived-data` | `false` | Only clean Xcode `derivedData` directories without deleting build archives. |
+| `--dd, --derived-data` | `false` | Also clean Xcode `derivedData` directories under `~/.appitool/ios/<project>/derivedData`. |
+| `--ddo, --derived-data-only` | `false` | Only clean Xcode `derivedData` directories without deleting build archives. |
 | `--dry-run` | `false` | Scan and display items with disk sizes without deleting anything. |
 
 ## Examples
@@ -2029,7 +2033,7 @@ appitool clean --derived-data --dry-run
 appitool clean
 
 # Delete only Xcode DerivedData directories
-appitool clean -D
+appitool clean --ddo
 
 # Clean only Android build outputs
 appitool clean -p android
@@ -2062,9 +2066,9 @@ appitool notes [options]
 
 | Option | Default | Description |
 |:---|:---|:---|
-| `-f, --from <ref>` | Latest Git tag at or before `--to` (or last 20 commits if untagged) | Starting Git tag or commit reference (exclusive). If omitted and `--to` (or `HEAD`) already sits on a matching tag, no commits are returned; pass `-f` explicitly to inspect a tagged release. |
-| `-t, --to <ref>` | `HEAD` | Ending Git tag or commit reference (inclusive). |
-| `-p, --tag-prefix <prefix>` | — | Filter auto-detected tags by prefix when `--from` is omitted (e.g. `v`, `ios-v`, `android-`). |
+| `--from <ref>` | Latest Git tag at or before `--to` (or last 20 commits if untagged) | Starting Git tag or commit reference (exclusive). If omitted and `--to` (or `HEAD`) already sits on a matching tag, no commits are returned; pass `--from` explicitly to inspect a tagged release. |
+| `--to <ref>` | `HEAD` | Ending Git tag or commit reference (inclusive). |
+| `--tag-prefix <prefix>` | — | Filter auto-detected tags by prefix when `--from` is omitted (e.g. `v`, `ios-v`, `android-`). |
 | `-o, --output <path>` | Print to stdout | File path to write the generated Markdown release notes. |
 
 ## Examples
@@ -2074,13 +2078,13 @@ appitool notes [options]
 appitool notes
 
 # Auto-detect commits since the latest iOS-prefixed tag (e.g. ios-v1.2.0..HEAD)
-appitool notes -p ios-v
+appitool notes --tag-prefix ios-v
 
 # Print release notes from v0.8.0 to HEAD
-appitool notes -f v0.8.0
+appitool notes --from v0.8.0
 
 # Generate notes between two tags and save to CHANGELOG_DRAFT.md
-appitool notes -f v0.8.0 -t v0.9.0 -o CHANGELOG_DRAFT.md
+appitool notes --from v0.8.0 --to v0.9.0 -o CHANGELOG_DRAFT.md
 ```
 
 ---
@@ -2095,7 +2099,7 @@ Dispatches a push notification to a KokoNo webhook endpoint (`?token=<token>`), 
 
 - When an E2E public key is resolved (Base64-encoded 32-byte Curve25519 / X25519 public key), `NotifyTask` encrypts both `title` and `message` using an ephemeral X25519 key pair + `HKDF-SHA256` (`salt: "kokono-salt-v1"`, `info: "kokono-info-v1"`) + `AES-256-GCM`.
 - Messages longer than 250 characters are truncated with `...`.
-- **Per-URL Keypair Isolation**: If `-u, --url` is explicitly passed on the command line, `appitool kokono` will **not** fall back to `KOKONO_E2E_PUBLIC_KEY` from `.env`—you must also pass `-e, --e2e` explicitly if you want encryption for that custom URL.
+- **Per-URL Keypair Isolation**: If `--url` is explicitly passed on the command line, `appitool kokono` will **not** fall back to `KOKONO_E2E_PUBLIC_KEY` from `.env`—you must also pass `--e2e` explicitly if you want encryption for that custom URL.
 
 ## Synopsis
 
@@ -2107,10 +2111,10 @@ appitool kokono -m <message> [options]
 
 | Option | Default / `.env` Fallback | Description |
 |:---|:---|:---|
-| `-t, --title <title>` | `appitool` | Notification title. |
+| `--title <title>` | `appitool` | Notification title. |
 | `-m, --message <message>` | **Required** | Notification message body. |
-| `-u, --url <url>` | `KOKONO_URL` | KokoNo notification webhook URL (`https://kokono.me/notify?token=...`). |
-| `-e, --e2e <public-key>` | `KOKONO_E2E_PUBLIC_KEY` (when `-u` is omitted) | Base64 X25519 public key for E2E encryption. |
+| `--url <url>` | `KOKONO_URL` | KokoNo notification webhook URL (`https://kokono.me/notify?token=...`). |
+| `--e2e <public-key>` | `KOKONO_E2E_PUBLIC_KEY` (when `--url` is omitted) | Base64 X25519 public key for E2E encryption. |
 
 ## Examples
 
@@ -2119,7 +2123,7 @@ appitool kokono -m <message> [options]
 appitool kokono -m "Release v0.9.0 deployed to TestFlight."
 
 # Send E2E encrypted notification with explicit title
-appitool kokono -t "CI Alert" -m "Build #128 succeeded." -e "<base64_x25519_public_key>"
+appitool kokono --title "CI Alert" -m "Build #128 succeeded." --e2e "<base64_x25519_public_key>"
 ```
 
 ---
@@ -2152,8 +2156,8 @@ appitool self-update [options]
 
 | Flag | Default | Description |
 |:---|:---|:---|
-| `-c, --check` | `false` | Check whether an update is available without downloading or installing. |
-| `-f, --force` | `false` | Force download and re-installation even if already on the latest version. |
+| `--check` | `false` | Check whether an update is available without downloading or installing. |
+| `--force` | `false` | Force download and re-installation even if already on the latest version. |
 
 ## Examples
 
@@ -2187,5 +2191,5 @@ appitool status
 ```text
 Tool: appitool
 Purpose: A unified CLI utility for Apple App Store Connect and Google Play operations.
-Version: 0.9.6
+Version: 0.10.0
 ```

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readAppitoolVersion, versionPlaceholder } from './version.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +13,27 @@ const SITE_URL = 'https://appitool.appibara.com';
 
 // Rewrites root-relative Markdown links/images (`](/path)`) to absolute site URLs.
 const absolutizeLinks = (md) => md.replace(/\]\(\/(?!\/)/g, `](${SITE_URL}/`);
+
+// CLI version read from Sources/appitool/appitool.swift (single source of truth).
+const APPITOOL_VERSION = readAppitoolVersion();
+
+// Replaces VitePress-only version interpolation with the literal version and drops `-vue` fence suffixes
+// (e.g. ```text-vue → ```text) so plain-text LLM context contains no Vue syntax.
+const resolveVersionPlaceholders = (md) =>
+  md
+    .split(versionPlaceholder).join(APPITOOL_VERSION)
+    .replace(/^(\s*```[\w+-]*?)-vue\b/gm, '$1');
+
+// Keeps docs/package.json "version" aligned with the CLI version.
+function syncPackageVersion() {
+  const pkgPath = path.join(docsRoot, 'package.json');
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+  if (pkg.version !== APPITOOL_VERSION) {
+    pkg.version = APPITOOL_VERSION;
+    fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf8');
+    console.log(`Synced docs/package.json version to ${APPITOOL_VERSION}`);
+  }
+}
 
 const sections = [
   {
@@ -93,6 +115,7 @@ function listOrderedFiles(dirPath, preferredOrder) {
 }
 
 function generate() {
+  syncPackageVersion();
   fs.mkdirSync(publicDir, { recursive: true });
 
   const llmsLines = [
@@ -100,6 +123,7 @@ function generate() {
     '',
     '> A unified CLI utility and release orchestration engine for Apple App Store Connect, Developer Portal, Google Play Console, Firebase App Distribution/Auth, and Fastlane-compatible Match code signing.',
     '',
+    `- Current Version: ${APPITOOL_VERSION}`,
     '- Source & Repository: https://github.com/appibara-ltd/appitool',
     `- Documentation: ${SITE_URL}/`,
     `- Full Consolidated Context: [llms-full.txt](${SITE_URL}/llms-full.txt)`,
@@ -110,6 +134,7 @@ function generate() {
     '# appitool — Complete CLI Documentation',
     '',
     '> Unified CLI utility for Apple App Store Connect and Google Play operations.',
+    `> Version: ${APPITOOL_VERSION}`,
     '> Generated automatically from VitePress Markdown documentation.',
     '',
   ];
@@ -124,7 +149,7 @@ function generate() {
     for (const file of files) {
       const fullPath = path.join(dirPath, file);
       const raw = fs.readFileSync(fullPath, 'utf8');
-      const clean = stripFrontmatter(raw);
+      const clean = resolveVersionPlaceholders(stripFrontmatter(raw));
       const slug = file.replace(/\.md$/, '');
       const urlPath = `${SITE_URL}/${section.dir}/${slug}`;
       const title = extractTitle(clean, slug);

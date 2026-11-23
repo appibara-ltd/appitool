@@ -2,6 +2,7 @@
 
 > A unified CLI utility and release orchestration engine for Apple App Store Connect, Developer Portal, Google Play Console, Firebase App Distribution/Auth, and Fastlane-compatible Match code signing.
 
+- Current Version: 0.10.0
 - Source & Repository: https://github.com/appibara-ltd/appitool
 - Documentation: https://appitool.appibara.com/
 - Full Consolidated Context: [llms-full.txt](https://appitool.appibara.com/llms-full.txt)
@@ -23,7 +24,7 @@
 - [`appitool apple`](https://appitool.appibara.com/commands/apple): Direct management of Apple App Store Connect and Apple Developer Portal resources via the App Store Connect OpenAPI client.
 - [`appitool google`](https://appitool.appibara.com/commands/google): Direct management of Google Play Console store visuals and resources via the Google Play Developer API v3.
 - [`appitool firebase`](https://appitool.appibara.com/commands/firebase): Manages Firebase App Distribution releases and tester groups, Firebase Authentication user accounts, and Cloud Firestore collections and documents.
-- [`appitool inspect`](https://appitool.appibara.com/commands/inspect): Inspects local iOS (Xcode) and Android (Gradle) project files in a workspace and prints resolved identifiers, versions, build numbers / version codes, targets, schemes, and product flavors. When -s, --scheme is omitted on iOS, all distributable schemes are inspected and listed; when -f, --flavor is omitted on Android, all product flavors are listed with their effective application IDs, versions, and version codes.
+- [`appitool inspect`](https://appitool.appibara.com/commands/inspect): Inspects local iOS (Xcode) and Android (Gradle) project files in a workspace and prints resolved identifiers, versions, build numbers / version codes, targets, schemes, and product flavors. When -s, --scheme is omitted on iOS, all distributable schemes are inspected and listed; when --flavor is omitted on Android, all product flavors are listed with their effective application IDs, versions, and version codes.
 - [`appitool clean`](https://appitool.appibara.com/commands/clean): Scans ~/.appitool/ios and ~/.appitool/android and deletes previously built archives (.xcarchive, .ipa, .aab, .apk) and optional Xcode DerivedData directories. System folders such as ~/.appitool/android/keystores and tmp are preserved.
 - [`appitool notes`](https://appitool.appibara.com/commands/notes): Generates categorized Markdown release notes from Git commit history between two tags or revisions (git log --no-merges).
 - [`appitool kokono`](https://appitool.appibara.com/commands/kokono): Dispatches a push notification to a KokoNo webhook endpoint (?token=<token>), with optional end-to-end (E2E) encryption.
