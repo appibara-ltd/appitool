@@ -22,4 +22,6 @@ struct appitool: AsyncParsableCommand {
             NotesCommand.self,
         ]
     )
+    @OptionGroup
+    var ciOptions: GlobalCIOptions
 }

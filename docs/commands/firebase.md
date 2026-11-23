@@ -2,6 +2,9 @@
 
 Manages Firebase App Distribution releases and tester groups, Firebase Authentication user accounts, and Cloud Firestore collections and documents.
 
+> [!NOTE]
+> **CI Guard:** Destructive subcommands (`delete-user` and `firestore delete`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
+
 ## Synopsis
 
 ```bash

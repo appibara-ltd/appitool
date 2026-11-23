@@ -4,14 +4,19 @@ import AppStoreConnectAPI
 import AppleServices
 import Rainbow
 
-struct ApplePruneProfilesCommand: BaseCommand {
+struct ApplePruneProfilesCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
         commandName: "prune-profiles",
         abstract: "Deletes all invalid (and optionally expired) provisioning profiles from Apple Developer Portal."
     )
 
+    var destructiveCommandDescription: String { "apple prune-profiles" }
+
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions
+
+    @OptionGroup
+    var ciOptions: GlobalCIOptions
 
     @Flag(name: .shortAndLong, help: "Preview profiles to be pruned without deleting them.")
     var dryRun: Bool = false

@@ -3,14 +3,19 @@ import Foundation
 import AppleServices
 import Rainbow
 
-struct AppleDeleteProfileCommand: BaseCommand {
+struct AppleDeleteProfileCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
         commandName: "delete-profile",
         abstract: "Deletes a single provisioning profile from Apple Developer Portal."
     )
 
+    var destructiveCommandDescription: String { "apple delete-profile" }
+
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions
+
+    @OptionGroup
+    var ciOptions: GlobalCIOptions
 
     @Option(name: .shortAndLong, help: "Provisioning profile name to delete.")
     var name: String?

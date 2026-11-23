@@ -3,14 +3,19 @@ import Foundation
 import AppleServices
 import Rainbow
 
-struct AppleDisableDeviceCommand: BaseCommand {
+struct AppleDisableDeviceCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
         commandName: "disable-device",
         abstract: "Disables a registered Device by UDID on Apple Developer Portal."
     )
 
+    var destructiveCommandDescription: String { "apple disable-device" }
+
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions
+
+    @OptionGroup
+    var ciOptions: GlobalCIOptions
 
     @Option(name: .shortAndLong, help: "Device Unique Device Identifier (UDID).")
     var udid: String

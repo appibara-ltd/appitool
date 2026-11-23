@@ -4,14 +4,19 @@ import AppStoreConnectAPI
 import AppleServices
 import Rainbow
 
-struct ApplePruneCertificatesCommand: BaseCommand {
+struct ApplePruneCertificatesCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
         commandName: "prune-certificates",
         abstract: "Deletes (revokes) all expired certificates from Apple Developer Portal."
     )
 
+    var destructiveCommandDescription: String { "apple prune-certificates" }
+
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions
+
+    @OptionGroup
+    var ciOptions: GlobalCIOptions
 
     @Flag(name: .shortAndLong, help: "Preview certificates to be pruned without deleting them.")
     var dryRun: Bool = false

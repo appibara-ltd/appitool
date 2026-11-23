@@ -3,14 +3,19 @@ import Foundation
 import AppleServices
 import Rainbow
 
-struct AppleDeleteIdentifierCommand: BaseCommand {
+struct AppleDeleteIdentifierCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
         commandName: "delete-identifier",
         abstract: "Deletes an App/Bundle Identifier from Apple Developer Portal."
     )
 
+    var destructiveCommandDescription: String { "apple delete-identifier" }
+
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions
+
+    @OptionGroup
+    var ciOptions: GlobalCIOptions
 
     @Option(name: .shortAndLong, help: "App/Bundle identifier to delete (e.g., com.example.app).")
     var appIdentifier: String?

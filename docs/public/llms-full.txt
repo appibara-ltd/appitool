@@ -242,6 +242,15 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 | `GITHUB_TOKEN` | Optional GitHub PAT to avoid API rate limits in `self-update` & Match HTTPS PAT fallback | Falls back to `GH_TOKEN` |
 | `GH_TOKEN` | Secondary fallback token in `self-update` & Match | Checked if `GITHUB_TOKEN` is unset |
 
+### CI Mode & Destructive Command Guard
+
+`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, `match ios prune`) are skipped as a no-op with a warning and exit code `0`.
+
+| Variable | Description | Notes |
+|:---|:---|:---|
+| `CI` | Generic CI indicator | Any non-empty value except `0`, `false`, `no`, `off` enables CI mode; explicit falsy `CI` suppresses provider fallback |
+| `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD` | Provider-specific CI indicators (checked when `CI` is unset or blank) | Evaluated with the same truthy/falsy rules (`0`, `false`, `no`, `off`, and empty strings are ignored) |
+
 ---
 
 ## Local Storage Architecture (`~/.appitool`)
@@ -596,6 +605,14 @@ Used by `flow ios` and `flow android`.
 | `--kokono-url <url>` | `KOKONO_URL` | KokoNo notification webhook URL |
 | `--kokono-public-key <key>` | `KOKONO_E2E_PUBLIC_KEY` (ignored if `--kokono-url` flag is explicitly passed) | KokoNo E2E encryption public key |
 
+### `GlobalCIOptions`
+
+Available globally on `appitool` (can be placed before or after subcommands, as well as directly on guarded destructive subcommands and `match ios`). Auto-detects CI environment variables (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD`) when omitted. In CI mode, destructive commands (`apple delete-identifier`, `apple delete-profile`, `apple prune-profiles`, `apple delete-certificate`, `apple prune-certificates`, `apple disable-device`, `apple delete-user`, `apple cancel-invitation`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, and `match ios prune`) are skipped as a no-op with a warning (exit code `0`).
+
+| Flag | Default / Env Fallback | Description |
+|:---|:---|:---|
+| `--ci` / `--no-ci` | `CI` and provider env vars (`false` if unset) | Explicitly enable or disable CI mode, overriding environment detection |
+
 ### `ReleaseNotesOptions`
 
 Used by `flow ios` and `flow android`.
@@ -935,6 +952,7 @@ Syncs, prunes, or nukes Apple certificates and provisioning profiles using Git s
 Plus shared option groups:
 - [`AppleCredentialsOptions`](https://appitool.appibara.com/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`)
 - [`MatchOptions`](https://appitool.appibara.com/commands/overview#matchoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`, `--keychain-name`, `--keychain-password`, `--team-id`, `--readonly`; `--readonly` defaults to `false` in `match ios`)
+- [`GlobalCIOptions`](https://appitool.appibara.com/commands/overview#globalcioptions) (`--ci` / `--no-ci`; skips destructive `nuke` and `prune` actions as a no-op with exit code `0` in CI mode, while `sync` runs normally)
 
 ### Examples
 
@@ -1002,6 +1020,9 @@ appitool match android -p com.example.app -c release
 Direct management of Apple App Store Connect and Apple Developer Portal resources via the App Store Connect OpenAPI client.
 
 All `apple` subcommands accept [`AppleCredentialsOptions`](https://appitool.appibara.com/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`), falling back to `APPLE_KEY_ID`, `APPLE_ISSUER_ID`, and `APPLE_KEY` in `.env` / environment variables.
+
+> [!NOTE]
+> **CI Guard:** Destructive subcommands (`delete-identifier`, `delete-profile`, `prune-profiles`, `delete-certificate`, `prune-certificates`, `disable-device`, `delete-user`, and `cancel-invitation`) accept [`GlobalCIOptions`](https://appitool.appibara.com/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
 
 ## Synopsis
 
@@ -1392,6 +1413,9 @@ appitool apple cancel-invitation -e dev@example.com
 # `appitool firebase`
 
 Manages Firebase App Distribution releases and tester groups, Firebase Authentication user accounts, and Cloud Firestore collections and documents.
+
+> [!NOTE]
+> **CI Guard:** Destructive subcommands (`delete-user` and `firestore delete`) accept [`GlobalCIOptions`](https://appitool.appibara.com/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
 
 ## Synopsis
 

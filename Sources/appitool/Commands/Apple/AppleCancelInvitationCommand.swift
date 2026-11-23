@@ -3,14 +3,19 @@ import Foundation
 import AppleServices
 import Rainbow
 
-struct AppleCancelInvitationCommand: BaseCommand {
+struct AppleCancelInvitationCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
         commandName: "cancel-invitation",
         abstract: "Cancels a pending User Invitation in App Store Connect."
     )
 
+    var destructiveCommandDescription: String { "apple cancel-invitation" }
+
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions
+
+    @OptionGroup
+    var ciOptions: GlobalCIOptions
 
     @Option(name: .shortAndLong, help: "Invitation resource ID to cancel.")
     var id: String?

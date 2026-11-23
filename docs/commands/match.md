@@ -42,6 +42,7 @@ Syncs, prunes, or nukes Apple certificates and provisioning profiles using Git s
 Plus shared option groups:
 - [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`)
 - [`MatchOptions`](/commands/overview#matchoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`, `--keychain-name`, `--keychain-password`, `--team-id`, `--readonly`; `--readonly` defaults to `false` in `match ios`)
+- [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`; skips destructive `nuke` and `prune` actions as a no-op with exit code `0` in CI mode, while `sync` runs normally)
 
 ### Examples
 

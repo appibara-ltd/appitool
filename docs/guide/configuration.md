@@ -105,6 +105,15 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 | `GITHUB_TOKEN` | Optional GitHub PAT to avoid API rate limits in `self-update` & Match HTTPS PAT fallback | Falls back to `GH_TOKEN` |
 | `GH_TOKEN` | Secondary fallback token in `self-update` & Match | Checked if `GITHUB_TOKEN` is unset |
 
+### CI Mode & Destructive Command Guard
+
+`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, `match ios prune`) are skipped as a no-op with a warning and exit code `0`.
+
+| Variable | Description | Notes |
+|:---|:---|:---|
+| `CI` | Generic CI indicator | Any non-empty value except `0`, `false`, `no`, `off` enables CI mode; explicit falsy `CI` suppresses provider fallback |
+| `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD` | Provider-specific CI indicators (checked when `CI` is unset or blank) | Evaluated with the same truthy/falsy rules (`0`, `false`, `no`, `off`, and empty strings are ignored) |
+
 ---
 
 ## Local Storage Architecture (`~/.appitool`)

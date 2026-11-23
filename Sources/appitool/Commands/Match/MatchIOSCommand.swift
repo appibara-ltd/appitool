@@ -52,14 +52,33 @@ struct MatchIOSCommand: BaseCommand {
     @OptionGroup
     var matchOptions: MatchOptions
 
+    @OptionGroup
+    var ciOptions: GlobalCIOptions
+
+    var resolvedMatchAction: MatchAction {
+        if nuke || actionOrType?.lowercased() == "nuke" {
+            return .nuke
+        } else if prune || actionOrType?.lowercased() == "prune" {
+            return .prune
+        }
+        return .sync
+    }
+
+    var isDestructive: Bool {
+        resolvedMatchAction == .nuke || resolvedMatchAction == .prune
+    }
+
+    var ciFlagOverride: Bool? {
+        ciOptions.ci
+    }
+
+    var destructiveCommandDescription: String {
+        "match ios \(resolvedMatchAction.rawValue)"
+    }
+
     func execute() async throws {
         // 1. Resolve Action
-        var resolvedAction: MatchAction = .sync
-        if nuke || actionOrType?.lowercased() == "nuke" {
-            resolvedAction = .nuke
-        } else if prune || actionOrType?.lowercased() == "prune" {
-            resolvedAction = .prune
-        }
+        let resolvedAction = resolvedMatchAction
 
         // 2. Resolve Profile Type
         let isActionArg = actionOrType?.lowercased() == "nuke" || actionOrType?.lowercased() == "prune"

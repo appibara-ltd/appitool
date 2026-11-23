@@ -111,6 +111,14 @@ Used by `flow ios` and `flow android`.
 | `--kokono-url <url>` | `KOKONO_URL` | KokoNo notification webhook URL |
 | `--kokono-public-key <key>` | `KOKONO_E2E_PUBLIC_KEY` (ignored if `--kokono-url` flag is explicitly passed) | KokoNo E2E encryption public key |
 
+### `GlobalCIOptions`
+
+Available globally on `appitool` (can be placed before or after subcommands, as well as directly on guarded destructive subcommands and `match ios`). Auto-detects CI environment variables (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD`) when omitted. In CI mode, destructive commands (`apple delete-identifier`, `apple delete-profile`, `apple prune-profiles`, `apple delete-certificate`, `apple prune-certificates`, `apple disable-device`, `apple delete-user`, `apple cancel-invitation`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, and `match ios prune`) are skipped as a no-op with a warning (exit code `0`).
+
+| Flag | Default / Env Fallback | Description |
+|:---|:---|:---|
+| `--ci` / `--no-ci` | `CI` and provider env vars (`false` if unset) | Explicitly enable or disable CI mode, overriding environment detection |
+
 ### `ReleaseNotesOptions`
 
 Used by `flow ios` and `flow android`.

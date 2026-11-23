@@ -3,14 +3,19 @@ import Foundation
 import AppleServices
 import Rainbow
 
-struct AppleDeleteCertificateCommand: BaseCommand {
+struct AppleDeleteCertificateCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
         commandName: "delete-certificate",
         abstract: "Deletes (revokes) a Certificate from Apple Developer Portal."
     )
 
+    var destructiveCommandDescription: String { "apple delete-certificate" }
+
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions
+
+    @OptionGroup
+    var ciOptions: GlobalCIOptions
 
     @Option(name: .shortAndLong, help: "Certificate Portal ID to delete.")
     var portalId: String?

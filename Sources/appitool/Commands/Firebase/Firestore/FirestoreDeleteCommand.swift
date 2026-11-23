@@ -3,14 +3,19 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-struct FirestoreDeleteCommand: BaseCommand {
+struct FirestoreDeleteCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
         commandName: "delete",
         abstract: "Deletes a Cloud Firestore document by path."
     )
 
+    var destructiveCommandDescription: String { "firebase firestore delete" }
+
     @OptionGroup
     var firestore: FirestoreOptions
+
+    @OptionGroup
+    var ciOptions: GlobalCIOptions
 
     @Argument(help: "Firestore document path to delete (e.g. users/alice).")
     var path: String

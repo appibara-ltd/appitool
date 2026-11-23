@@ -3,14 +3,19 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-struct FirebaseDeleteUserCommand: BaseCommand {
+struct FirebaseDeleteUserCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
         commandName: "delete-user",
         abstract: "Deletes Firebase Authentication user(s) by UID, email, or all anonymous users."
     )
 
+    var destructiveCommandDescription: String { "firebase delete-user" }
+
     @OptionGroup
     var projectOptions: FirebaseProjectOptions
+
+    @OptionGroup
+    var ciOptions: GlobalCIOptions
 
     @Option(name: .shortAndLong, help: "UID (localId) of the user to delete.")
     var uid: String?

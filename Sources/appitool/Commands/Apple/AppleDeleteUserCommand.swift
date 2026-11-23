@@ -3,14 +3,19 @@ import Foundation
 import AppleServices
 import Rainbow
 
-struct AppleDeleteUserCommand: BaseCommand {
+struct AppleDeleteUserCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
         commandName: "delete-user",
         abstract: "Removes an active team User from App Store Connect."
     )
 
+    var destructiveCommandDescription: String { "apple delete-user" }
+
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions
+
+    @OptionGroup
+    var ciOptions: GlobalCIOptions
 
     @Option(name: .shortAndLong, help: "User resource ID to remove.")
     var id: String?
