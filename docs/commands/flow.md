@@ -18,7 +18,8 @@ See [Flow Architecture](/guide/flow-architecture) for full stage-by-stage detail
 Executes the automated release flow for iOS.
 
 - When `-d appstore` (default) is used, runs **`IOSInternalPreset`** (App Store Connect / TestFlight upload).
-- When `-d adhoc` or `-d development` is used, runs **`IOSAdHocPreset`** (Firebase App Distribution upload to `internal` tester group).
+- When `-d adhoc` is used, runs **`IOSAdHocPreset`** (ad-hoc signed IPA, Firebase App Distribution upload to `internal` tester group).
+- When `-d development` is used, runs **`IOSDevelopmentPreset`** (development-signed IPA via Match `development` profiles and the `development` export method, Firebase App Distribution upload to `internal` tester group). Installs only on devices included in the development provisioning profile.
 
 ### Options
 
@@ -60,7 +61,8 @@ appitool flow ios -d appstore --dry-run
 Executes the automated release flow for Android.
 
 - When `-d appstore` (default) is used, runs **`AndroidInternalPreset`** (Google Play Console `internal` track).
-- When `-d adhoc` or `-d development` is used, runs **`AndroidAdHocPreset`** (Firebase App Distribution upload to `internal` tester group).
+- When `-d adhoc` is used, runs **`AndroidAdHocPreset`** (`release` build signed with the Match/release keystore, Firebase App Distribution upload to `internal` tester group).
+- When `-d development` is used, runs **`AndroidDevelopmentPreset`** (`debug` build signed by the project's Gradle debug signing config — no Match keystore — Firebase App Distribution upload to `internal` tester group).
 
 ### Options
 

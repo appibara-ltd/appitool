@@ -55,8 +55,10 @@ struct FlowAndroidCommand: BaseCommand {
 
         let preset: (any FlowPreset) = {
             switch distribution {
-            case .adhoc, .development:
+            case .adhoc:
                 return AndroidAdHocPreset()
+            case .development:
+                return AndroidDevelopmentPreset()
             case .appstore:
                 return AndroidInternalPreset()
             }

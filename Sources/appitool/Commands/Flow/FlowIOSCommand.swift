@@ -54,8 +54,10 @@ struct FlowIOSCommand: BaseCommand {
 
         let preset: (any FlowPreset) = {
             switch distribution {
-            case .adhoc, .development:
+            case .adhoc:
                 return IOSAdHocPreset()
+            case .development:
+                return IOSDevelopmentPreset()
             case .appstore:
                 return IOSInternalPreset()
             }

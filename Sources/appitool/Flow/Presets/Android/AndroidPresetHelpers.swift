@@ -197,12 +197,11 @@ enum AndroidPresetHelpers {
 
     // MARK: - Build: Gradle
 
-    /// Builds a signed `release` artifact with Gradle, injecting the resolved `versionCode`/`versionName`,
-    /// and records it in `context.artifactPaths` and `context.metadata["<format>_path"]`.
+    /// Builds an artifact of `buildType` (`release` by default, `debug` for development) with Gradle, injecting the
+    /// resolved `versionCode`/`versionName`, and records it in `context.artifactPaths` and `context.metadata["<format>_path"]`.
     /// Honors `--dry-run` (skips Gradle) and the selected product flavor.
-    static func build(context: inout FlowContext, format: GradleTask.BuildFormat) async throws {
-        let buildType = "release"
-        let label = format.rawValue.uppercased()
+    static func build(context: inout FlowContext, format: GradleTask.BuildFormat, buildType: String = "release") async throws {
+        let label = "\(buildType.lowercased()) \(format.rawValue.uppercased())"
         let taskName = GradleTask.resolveTaskName(format: format, buildType: buildType, flavor: context.androidFlavor)
         Log("🔨 Running Gradle \(taskName) to produce \(label)...".dim)
 

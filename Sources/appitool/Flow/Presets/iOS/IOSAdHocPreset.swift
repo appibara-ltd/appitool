@@ -36,31 +36,7 @@ struct IOSAdHocPreset: FlowPreset {
             label: "Ad-Hoc"
         )
 
-        // Fetch latest build number / version from Firebase App Distribution
-        Log("🔥 Fetching latest build info from Firebase App Distribution...".dim)
-        guard let firebaseAppId = CLIValues.trimmedNonEmpty(context.firebaseAppId) else {
-            throw FlowRequirementError(presetName: name, missing: ["FIREBASE_IOS_APP_ID"])
-        }
-        guard let googleKey = CLIValues.trimmedNonEmpty(context.googleKey) else {
-            throw FlowRequirementError(presetName: name, missing: ["GOOGLE_KEY"])
-        }
-        let firebaseService = try FirebaseService(key: googleKey)
-
-        let buildInfo = try await GetLatestBuildNumberTask().run(
-            .init(
-                target: .ios(
-                    bundleId: context.bundleId,
-                    firebaseAppId: firebaseAppId,
-                    firebaseService: firebaseService
-                ),
-                distribution: .adhoc
-            )
-        )
-
-        context.metadata["firebase_version"] = buildInfo.version
-        context.metadata["firebase_build_number"] = buildInfo.buildNumber
-
-        Log("🟢 Retrieved Firebase build info: Version: \(buildInfo.version.bold), Build Number: \(buildInfo.buildNumber.bold)".green)
+        try await FirebasePresetHelpers.fetchLatestBuild(context: &context, presetName: name, appIdKey: "FIREBASE_IOS_APP_ID")
     }
 
     func prebuild(context: inout FlowContext) async throws {

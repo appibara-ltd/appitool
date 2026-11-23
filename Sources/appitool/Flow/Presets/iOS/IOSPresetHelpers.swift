@@ -135,7 +135,8 @@ enum IOSPresetHelpers {
     static func prepareSigningAndBuildNumber(
         context: inout FlowContext,
         remoteBuildNumber: String?,
-        sourceLabel: String
+        sourceLabel: String,
+        isDevelopment: Bool = false
     ) throws {
         Log("🔧 Preparing project for manual code signing...".dim)
 
@@ -146,18 +147,7 @@ enum IOSPresetHelpers {
 
         let configuration = context.configuration ?? "Release"
 
-        let identity: String = {
-            if let cert = context.installedCertificates.first {
-                if cert.contains("iPhone Distribution") {
-                    return "iPhone Distribution"
-                } else if cert.contains("Apple Distribution") {
-                    return "Apple Distribution"
-                } else {
-                    return cert
-                }
-            }
-            return "Apple Distribution"
-        }()
+        let identity = signingIdentity(from: context.installedCertificates.first, isDevelopment: isDevelopment)
 
         if context.teamId == nil, let cert = context.installedCertificates.first {
             let pattern = #"\(([A-Z0-9]{10})\)"#
@@ -200,6 +190,21 @@ enum IOSPresetHelpers {
             sourceLabel: sourceLabel,
             configuration: configuration
         )
+    }
+
+    /// Maps an installed certificate name to the code signing identity used for manual signing.
+    /// Recognizes distribution (`Apple Distribution` / `iPhone Distribution`) and development
+    /// (`Apple Development` / `iPhone Developer`) certificates; otherwise uses the certificate name as-is.
+    /// Without a certificate, falls back to `Apple Development` for development builds or `Apple Distribution`.
+    static func signingIdentity(from certificate: String?, isDevelopment: Bool) -> String {
+        guard let cert = certificate else {
+            return isDevelopment ? "Apple Development" : "Apple Distribution"
+        }
+        for known in ["iPhone Distribution", "Apple Distribution", "iPhone Developer", "Apple Development"]
+        where cert.contains(known) {
+            return known
+        }
+        return cert
     }
 
     /// Snapshots `project.pbxproj` before prebuild mutates code signing settings so it can be restored after building.

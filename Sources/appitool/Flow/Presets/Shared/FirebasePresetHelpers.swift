@@ -2,8 +2,49 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-/// Shared Firebase App Distribution release logic for ad-hoc presets (iOS `.ipa`, Android `.apk`/`.aab`).
+/// Shared Firebase App Distribution logic for ad-hoc and development presets (iOS `.ipa`, Android `.apk`/`.aab`).
 enum FirebasePresetHelpers {
+    // MARK: - Setup: Latest build lookup
+
+    /// Fetches the latest Firebase App Distribution release for the context's platform and stores it in
+    /// `context.metadata["firebase_version"]` / `["firebase_build_number"]` (used by the build-number bump).
+    ///
+    /// An app with no releases yet resolves to build `0`. Throws `FlowRequirementError` when the Firebase App ID or
+    /// Google key is missing, and rethrows lookup failures (e.g. invalid credentials) instead of silently continuing.
+    ///
+    /// - Parameters:
+    ///   - presetName: Preset name used in `FlowRequirementError` messages.
+    ///   - appIdKey: `.env` key reported when the Firebase App ID is missing (e.g. `FIREBASE_IOS_APP_ID`).
+    static func fetchLatestBuild(context: inout FlowContext, presetName: String, appIdKey: String) async throws {
+        Log("🔥 Fetching latest build info from Firebase App Distribution...".dim)
+
+        guard let firebaseAppId = CLIValues.trimmedNonEmpty(context.firebaseAppId) else {
+            throw FlowRequirementError(presetName: presetName, missing: [appIdKey])
+        }
+        guard let googleKey = CLIValues.trimmedNonEmpty(context.googleKey) else {
+            throw FlowRequirementError(presetName: presetName, missing: ["GOOGLE_KEY"])
+        }
+        let firebaseService = try FirebaseService(key: googleKey)
+
+        let target: GetLatestBuildNumberTask.Input.Target
+        switch context.platform {
+        case .ios:
+            target = .ios(bundleId: context.bundleId, firebaseAppId: firebaseAppId, firebaseService: firebaseService)
+        case .android:
+            target = .android(packageName: context.bundleId, firebaseAppId: firebaseAppId, firebaseService: firebaseService)
+        }
+
+        // `GetLatestBuildNumberTask` resolves Firebase builds through the `.adhoc` distribution path
+        // (also for development presets, which use the same Firebase app).
+        let buildInfo = try await GetLatestBuildNumberTask().run(.init(target: target, distribution: .adhoc))
+
+        context.metadata["firebase_version"] = buildInfo.version
+        context.metadata["firebase_build_number"] = buildInfo.buildNumber
+        Log("🟢 Retrieved Firebase build info: Version: \(buildInfo.version.bold), Build Number: \(buildInfo.buildNumber.bold)".green)
+    }
+
+    // MARK: - Release: Upload & distribution
+
     /// Uploads the built artifact to Firebase App Distribution and distributes it to testers.
     ///
     /// - Reads tester groups from `firebase_test_groups` / `test_groups` and emails from

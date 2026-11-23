@@ -55,6 +55,22 @@ import ArgumentParser
     }
 }
 
+@Test func testSigningIdentityMapping() {
+    #expect(IOSPresetHelpers.signingIdentity(from: "Apple Distribution: Acme (ABCDE12345)", isDevelopment: false) == "Apple Distribution")
+    #expect(IOSPresetHelpers.signingIdentity(from: "iPhone Distribution: Acme (ABCDE12345)", isDevelopment: false) == "iPhone Distribution")
+    #expect(IOSPresetHelpers.signingIdentity(from: "Apple Development: Jane Doe (ABCDE12345)", isDevelopment: true) == "Apple Development")
+    #expect(IOSPresetHelpers.signingIdentity(from: "iPhone Developer: Jane Doe (ABCDE12345)", isDevelopment: true) == "iPhone Developer")
+    #expect(IOSPresetHelpers.signingIdentity(from: nil, isDevelopment: true) == "Apple Development")
+    #expect(IOSPresetHelpers.signingIdentity(from: nil, isDevelopment: false) == "Apple Distribution")
+}
+
+@Test func testDevelopmentDistributionUsesDevelopmentPresets() {
+    #expect(IOSDevelopmentPreset().name == "iOS Development")
+    #expect(AndroidDevelopmentPreset().name == "Android Development")
+    #expect(GradleTask.resolveTaskName(format: .apk, buildType: "debug", flavor: "staging") == "assembleStagingDebug")
+    #expect(AppitoolPaths.androidArtifactName(target: "MyApp", flavor: nil, buildType: "debug") == "MyApp_debug")
+}
+
 @Test func testAndroidArtifactNaming() {
     #expect(AppitoolPaths.androidArtifactName(target: "MyApp", flavor: nil, buildType: "Release") == "MyApp_release")
     #expect(AppitoolPaths.androidArtifactName(target: "MyApp", flavor: "staging", buildType: "release") == "MyApp_staging_release")

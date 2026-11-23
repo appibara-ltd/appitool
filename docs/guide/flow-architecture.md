@@ -29,14 +29,16 @@ Choosing a platform (`ios` / `android`) and distribution (`appstore`, `adhoc`, `
 | Command Invocation | Preset | Target Destination |
 |:---|:---|:---|
 | `flow ios -d appstore` | `IOSInternalPreset` (`iOS Internal`) | App Store Connect / TestFlight |
-| `flow ios -d adhoc` or `-d development` | `IOSAdHocPreset` (`iOS AdHoc`) | Firebase App Distribution (`internal` group) |
+| `flow ios -d adhoc` | `IOSAdHocPreset` (`iOS AdHoc`) | Firebase App Distribution (`internal` group) |
+| `flow ios -d development` | `IOSDevelopmentPreset` (`iOS Development`) | Firebase App Distribution (`internal` group) |
 | `flow android -d appstore` | `AndroidInternalPreset` (`Android Internal`) | Google Play Console (`internal` track) |
-| `flow android -d adhoc` or `-d development` | `AndroidAdHocPreset` (`Android AdHoc`) | Firebase App Distribution (`internal` group) |
+| `flow android -d adhoc` | `AndroidAdHocPreset` (`Android AdHoc`) | Firebase App Distribution (`internal` group) |
+| `flow android -d development` | `AndroidDevelopmentPreset` (`Android Development`) | Firebase App Distribution (`internal` group) |
 
 > Presets share stage implementations and only supply what differs per destination. Sources are grouped by platform under `Sources/appitool/Flow/Presets/`:
 > `iOS/IOSPresetHelpers.swift` (project detection, Match sync, manual signing + build-number bump, archive/export),
 > `Android/AndroidPresetHelpers.swift` (project/flavor detection, Gradle build), and
-> `Shared/FirebasePresetHelpers.swift` (Firebase upload/distribution used by both ad-hoc presets).
+> `Shared/FirebasePresetHelpers.swift` (latest Firebase build lookup and upload/distribution, used by the ad-hoc and development presets).
 
 ### 1. `IOSInternalPreset` (`flow ios -d appstore`)
 
@@ -55,7 +57,7 @@ Choosing a platform (`ios` / `android`) and distribution (`appstore`, `adhoc`, `
   - `release`: Uploads `.ipa` via `UploadToAppStoreTask`, waits for App Store Connect build processing (unless `--no-wait-processing` is passed), and sets TestFlight "What to Test" notes via `setWhatsNew` when `changelog` is populated.
   - `postrelease`: Creates and pushes Git tag `🍏_<version>_<buildNumber>` via `GitTagTask` and dispatches Slack/KokoNo notifications (skipped in `--dry-run`).
 
-### 2. `IOSAdHocPreset` (`flow ios -d adhoc` / `development`)
+### 2. `IOSAdHocPreset` (`flow ios -d adhoc`)
 
 - **Required Configuration (`requirements`)**:
   - `MATCH_GIT_URL`
@@ -63,13 +65,23 @@ Choosing a platform (`ios` / `android`) and distribution (`appstore`, `adhoc`, `
   - `FIREBASE_IOS_APP_ID`
   - `GOOGLE_KEY`
 - **Stage Execution**:
-  - `setup`: Inspects iOS project, runs `MatchTask` with `type: .adhoc`, and queries Firebase App Distribution (`GetLatestBuildNumberTask`) for the latest build number.
+  - `setup`: Inspects iOS project, runs `MatchTask` with `type: .adhoc`, and queries Firebase App Distribution for the latest build number via `FirebasePresetHelpers.fetchLatestBuild` (an app with no releases yet resolves to build `0`; lookup failures stop the flow).
   - `prebuild`: Snapshots `project.pbxproj`, configures manual signing on Xcode targets, computes `max(firebase_build_number, project build number) + 1` in `context.buildNumber`, and normalizes literal `Info.plist` `CFBundleVersion` values to `$(CURRENT_PROJECT_VERSION)` via `XCodeTasks.updateBuildNumber` (kept permanently when `CURRENT_PROJECT_VERSION` exists in `project.pbxproj`, or registered for post-build restore otherwise; skipped in `--dry-run`).
   - `build`: Prepares keychain, builds `.xcarchive` (passing `CURRENT_PROJECT_VERSION=<buildNumber>`) and exports `.ipa` with `.adHoc` export method, restoring `project.pbxproj` and temporary `Info.plist` edits immediately in `defer` (skipped in `--dry-run`).
   - `postbuild`: Verifies `.ipa` existence and non-zero file size (skipped in `--dry-run`).
   - `prerelease`: Generates plain-text release notes (max 4,000 chars) from commits since the latest `🍏_*` tag via `GenerateReleaseNotesTask`.
   - `release`: Uploads the `.ipa` with generated release notes via the shared `FirebasePresetHelpers.distribute`, which runs `UploadToFirebaseTask` with `ensureGroupsExist` so the `internal` tester group is created on Firebase (`createOrGetGroup`) before upload.
-  - `postrelease`: Creates and pushes Git tag `🍏_<version>_<buildNumber>_adhoc` (or `_development`) via `GitTagTask` and dispatches success notification to configured Slack and KokoNo webhooks (skipped in `--dry-run`).
+  - `postrelease`: Creates and pushes Git tag `🍏_<version>_<buildNumber>_adhoc` via `GitTagTask` and dispatches success notification to configured Slack and KokoNo webhooks (skipped in `--dry-run`).
+
+### 2b. `IOSDevelopmentPreset` (`flow ios -d development`)
+
+Same stages and requirements as `IOSAdHocPreset`, with development signing:
+
+- `setup`: Runs `MatchTask` with `type: .development` (development certificates and profiles).
+- `prebuild`: Uses a development signing identity (`Apple Development` / `iPhone Developer`, falling back to `Apple Development`).
+- `build`: Exports the `.ipa` with the `.development` export method.
+- `release`: Uploads via `FirebasePresetHelpers.distribute`. Development-signed builds install only on devices included in the development provisioning profile.
+- `postrelease`: Tags `🍏_<version>_<buildNumber>_development`.
 
 ### 3. `AndroidInternalPreset` (`flow android -d appstore`)
 
@@ -84,19 +96,28 @@ Choosing a platform (`ios` / `android`) and distribution (`appstore`, `adhoc`, `
   - `release`: Uploads `.aab` and generated release notes to Google Play Console `internal` track with `releaseStatus: .completed` via `UploadToGooglePlayConsoleTask`.
   - `postrelease`: Creates and pushes Git tag `🤖_<version>_<buildNumber>` via `GitTagTask` and dispatches success notification to Slack and KokoNo webhooks (skipped in `--dry-run`).
 
-### 4. `AndroidAdHocPreset` (`flow android -d adhoc` / `development`)
+### 4. `AndroidAdHocPreset` (`flow android -d adhoc`)
 
 - **Required Configuration (`requirements`)**:
   - `FIREBASE_ANDROID_APP_ID`
   - `GOOGLE_KEY`
 - **Stage Execution**:
-  - `setup`: Inspects Android project, resolves the release keystore from Match when configured (failing the flow if the lookup fails), and retrieves latest Firebase App Distribution build info.
+  - `setup`: Inspects Android project, resolves the release keystore from Match when configured (failing the flow if the lookup fails), and retrieves the latest Firebase App Distribution build via `FirebasePresetHelpers.fetchLatestBuild` (an app with no releases yet resolves to build `0`; lookup failures stop the flow).
   - `prebuild`: Sets `versionCode` to `max(firebase_build_number, project versionCode) + 1`.
-  - `build`: Runs Gradle `assembleRelease` (default `.apk` for `adhoc`/`development`) or `bundleRelease` (if `--format aab` is specified); with `--flavor`, runs `assemble<Flavor>Release` / `bundle<Flavor>Release`.
+  - `build`: Runs Gradle `assembleRelease` (default `.apk`) or `bundleRelease` (if `--format aab` is specified); with `--flavor`, runs `assemble<Flavor>Release` / `bundle<Flavor>Release`.
   - `postbuild`: Verifies artifact file integrity and logs size.
   - `prerelease`: Generates plain-text release notes (max 4,000 chars) from commits since the latest `🤖_*` tag via `GenerateReleaseNotesTask`.
   - `release`: Uploads the `.apk`/`.aab` with generated release notes via the shared `FirebasePresetHelpers.distribute` (same as iOS Ad-Hoc), which runs `UploadToFirebaseTask` with `ensureGroupsExist` so the `internal` tester group is created before upload.
-  - `postrelease`: Creates and pushes Git tag `🤖_<version>_<buildNumber>_adhoc` (or `_development`) via `GitTagTask` and dispatches success notification to Slack and KokoNo webhooks (skipped in `--dry-run`).
+  - `postrelease`: Creates and pushes Git tag `🤖_<version>_<buildNumber>_adhoc` via `GitTagTask` and dispatches success notification to Slack and KokoNo webhooks (skipped in `--dry-run`).
+
+### 5. `AndroidDevelopmentPreset` (`flow android -d development`)
+
+Same stages and requirements as `AndroidAdHocPreset`, with a debug build:
+
+- `setup`: Does not resolve a Match keystore; the project's Gradle debug signing config signs the build.
+- `build`: Runs Gradle `assembleDebug` (default `.apk`) or `bundleDebug` (with `--format aab`); with `--flavor`, runs `assemble<Flavor>Debug` / `bundle<Flavor>Debug`. Artifact name: `<Target>_[<flavor>_]debug`.
+- `release`: Uploads via `FirebasePresetHelpers.distribute`.
+- `postrelease`: Tags `🤖_<version>_<buildNumber>_development`.
 
 ---
 

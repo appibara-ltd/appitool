@@ -26,25 +26,7 @@ struct AndroidAdHocPreset: FlowPreset {
         // Resolve the release keystore via Match when configured (fails loudly on errors)
         try await AndroidPresetHelpers.resolveMatchKeystore(context: &context)
 
-        guard let firebaseAppId = context.firebaseAppId, !firebaseAppId.isEmpty else { return }
-        guard let googleKey = context.googleKey, !googleKey.isEmpty else { return }
-
-        if let service = try? FirebaseService(key: googleKey) {
-            if let buildInfo = try? await GetLatestBuildNumberTask().run(
-                .init(
-                    target: .android(
-                        packageName: context.bundleId,
-                        firebaseAppId: firebaseAppId,
-                        firebaseService: service
-                    ),
-                    distribution: .adhoc
-                )
-            ) {
-                context.metadata["firebase_version"] = buildInfo.version
-                context.metadata["firebase_build_number"] = buildInfo.buildNumber
-                Log("🟢 Retrieved Firebase build info: Version: \(buildInfo.version.bold), Build Number: \(buildInfo.buildNumber.bold)".green)
-            }
-        }
+        try await FirebasePresetHelpers.fetchLatestBuild(context: &context, presetName: name, appIdKey: "FIREBASE_ANDROID_APP_ID")
     }
 
     func prebuild(context: inout FlowContext) async throws {
