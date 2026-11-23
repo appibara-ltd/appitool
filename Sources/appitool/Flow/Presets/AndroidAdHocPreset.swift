@@ -79,7 +79,7 @@ struct AndroidAdHocPreset: FlowPreset {
 
     func build(context: inout FlowContext) async throws {
         let format = context.androidFormat ?? .apk
-        let taskName = format == .aab ? "bundleRelease" : "assembleRelease"
+        let taskName = GradleTask.resolveTaskName(format: format, buildType: "release", flavor: context.androidFlavor)
         Log("🔨 Running Gradle \(taskName) to produce \(format.rawValue.uppercased())...".dim)
 
         if context.isDryRun {
@@ -98,13 +98,14 @@ struct AndroidAdHocPreset: FlowPreset {
         }
 
         let targetName = context.targetName ?? context.bundleId ?? "AndroidApp"
-        let outputDir = AppitoolPaths.buildDirectory(platform: "android", target: targetName).path
-        let artifactName = "\(targetName)_release"
+        let outputDir = AppitoolPaths.buildDirectory(platform: "android", target: targetName, name: context.buildDirectoryName).path
+        let artifactName = AndroidPresetHelpers.artifactName(targetName: targetName, flavor: context.androidFlavor)
 
         let output = try await GradleTask().run(
             .init(
                 projectDirectory: projectDir,
                 buildType: "release",
+                flavor: context.androidFlavor,
                 format: format,
                 outputDirectory: outputDir,
                 artifactName: artifactName,

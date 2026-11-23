@@ -130,4 +130,88 @@ struct AndroidTasksTests {
         try write(#"<resources><string name="app_name">StringsXmlApp</string></resources>"#, to: stringsUrl)
         #expect(AndroidTasks.resolveAppName(in: root) == "StringsXmlApp")
     }
+
+    @Test("parseAppBuildGradle parses flavor versions, suffixes, and skips $-interpolated versionName")
+    func parseAppBuildGradleFlavorVersionsAndSkipInterpolation() {
+        let gradle = """
+        android {
+            namespace "com.example.ns"
+            defaultConfig {
+                applicationId "com.example.app"
+                versionName "$DYNAMIC_VERSION"
+                versionCode 10
+            }
+            productFlavors {
+                staging {
+                    applicationIdSuffix ".staging"
+                    versionNameSuffix "-beta"
+                    versionCode 11
+                }
+                create("prod") {
+                    versionName = "2.5.0"
+                    versionCode = 50
+                }
+            }
+        }
+        """
+
+        let parsed = AndroidTasks.parseAppBuildGradle(content: gradle)
+        #expect(parsed.applicationId == "com.example.app")
+        #expect(parsed.versionName == nil)
+        #expect(parsed.versionCode == "10")
+        #expect(parsed.flavors.count == 2)
+
+        #expect(parsed.flavors[0] == AndroidTasks.AndroidFlavor(
+            name: "staging",
+            applicationId: nil,
+            applicationIdSuffix: ".staging",
+            versionName: nil,
+            versionNameSuffix: "-beta",
+            versionCode: "11"
+        ))
+        #expect(parsed.flavors[1] == AndroidTasks.AndroidFlavor(
+            name: "prod",
+            applicationId: nil,
+            applicationIdSuffix: nil,
+            versionName: "2.5.0",
+            versionNameSuffix: nil,
+            versionCode: "50"
+        ))
+    }
+
+    @Test("parseGradleAppInfoOutput and resolveEffectiveVersion handle flavor overrides and suffixes")
+    func parseGradleAppInfoOutputAndResolveEffectiveVersion() {
+        let output = """
+        APPI_VERSION_CODE=100
+        APPI_VERSION_NAME=2.0.0
+        APPI_APPLICATION_ID=com.example.app
+        APPI_NAMESPACE=com.example.ns
+        APPI_FLAVOR=staging||.staging||-rc|101
+        APPI_FLAVOR=pro|com.example.pro||3.1.0||300
+        APPI_FLAVOR=legacy|com.example.legacy|.legacy
+        """
+
+        let defaultInfo = AndroidTasks.parseGradleAppInfoOutput(output, flavor: nil)
+        #expect(defaultInfo.versionName == "2.0.0")
+        #expect(defaultInfo.versionCode == "100")
+        #expect(defaultInfo.packageName == "com.example.app")
+        #expect(defaultInfo.flavors.count == 3)
+
+        let stagingInfo = AndroidTasks.parseGradleAppInfoOutput(output, flavor: "STAGING")
+        #expect(stagingInfo.versionName == "2.0.0-rc")
+        #expect(stagingInfo.versionCode == "101")
+
+        let proInfo = AndroidTasks.parseGradleAppInfoOutput(output, flavor: "pro")
+        #expect(proInfo.versionName == "3.1.0")
+        #expect(proInfo.versionCode == "300")
+
+        let missingDefault = AndroidTasks.resolveEffectiveVersion(
+            defaultVersionName: nil,
+            defaultVersionCode: nil,
+            flavors: defaultInfo.flavors,
+            flavor: "staging"
+        )
+        #expect(missingDefault.versionName == nil)
+        #expect(missingDefault.versionCode == "101")
+    }
 }

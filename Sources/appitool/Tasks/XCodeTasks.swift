@@ -662,6 +662,37 @@ public enum XCodeTasks {
         }
     }
 
+    public struct IosSchemeInfo: Sendable, Codable {
+        public let scheme: String
+        public let configuration: String
+        public let mainAppTargetName: String?
+        public let bundleId: String?
+        public let version: String?
+        public let buildNumber: String?
+        public let buildableNames: [String]
+        public let targets: [ResolvedTargetInfo]
+
+        public init(
+            scheme: String,
+            configuration: String,
+            mainAppTargetName: String?,
+            bundleId: String?,
+            version: String?,
+            buildNumber: String?,
+            buildableNames: [String],
+            targets: [ResolvedTargetInfo]
+        ) {
+            self.scheme = scheme
+            self.configuration = configuration
+            self.mainAppTargetName = mainAppTargetName
+            self.bundleId = bundleId
+            self.version = version
+            self.buildNumber = buildNumber
+            self.buildableNames = buildableNames
+            self.targets = targets
+        }
+    }
+
     public struct IosIdentifiersResult: Sendable, Codable {
         public let workspaceName: String
         public let scheme: String
@@ -671,6 +702,9 @@ public enum XCodeTasks {
         public let buildableNames: [String]
         public let targets: [ResolvedTargetInfo]
         public let iosRoot: URL
+        public let version: String?
+        public let buildNumber: String?
+        public let schemes: [IosSchemeInfo]?
 
         enum CodingKeys: String, CodingKey {
             case workspaceName
@@ -681,6 +715,9 @@ public enum XCodeTasks {
             case buildableNames
             case targets
             case iosRoot
+            case version
+            case buildNumber
+            case schemes
         }
 
         public init(
@@ -691,7 +728,10 @@ public enum XCodeTasks {
             bundleId: String?,
             buildableNames: [String],
             targets: [ResolvedTargetInfo],
-            iosRoot: URL
+            iosRoot: URL,
+            version: String? = nil,
+            buildNumber: String? = nil,
+            schemes: [IosSchemeInfo]? = nil
         ) {
             self.workspaceName = workspaceName
             self.scheme = scheme
@@ -701,6 +741,9 @@ public enum XCodeTasks {
             self.buildableNames = buildableNames
             self.targets = targets
             self.iosRoot = iosRoot
+            self.version = version
+            self.buildNumber = buildNumber
+            self.schemes = schemes
         }
 
         public func encode(to encoder: Encoder) throws {
@@ -713,6 +756,9 @@ public enum XCodeTasks {
             try container.encode(buildableNames, forKey: .buildableNames)
             try container.encode(targets, forKey: .targets)
             try container.encode(iosRoot.path, forKey: .iosRoot)
+            try container.encodeIfPresent(version, forKey: .version)
+            try container.encodeIfPresent(buildNumber, forKey: .buildNumber)
+            try container.encodeIfPresent(schemes, forKey: .schemes)
         }
     }
 
@@ -753,20 +799,17 @@ public enum XCodeTasks {
         )
     }
 
-    /// Detects workspace/project, resolves scheme, targets, and extracts iOS bundle identifiers.
-    /// Follows the 3-tier resolution strategy: buildSettings -> xcodebuild -showBuildSettings -> xcconfig.
-    public static func getIosIdentifiers(
-        _ options: GetIosIdentifiersOptions = GetIosIdentifiersOptions()
-    ) async throws -> IosIdentifiersResult {
+    private static func resolveWorkspaceProjectContext(
+        workspaceRoot: URL,
+        workspaceName explicitWorkspaceName: String?
+    ) throws -> (resolvedWorkspaceName: String, iosRoot: URL, projectUrl: URL, workspaceUrl: URL) {
         let fm = FileManager.default
-        let wsRoot = options.workspaceRoot
         let iosDir =
-            fm.fileExists(atPath: wsRoot.appendingPathComponent("ios").path)
-            ? wsRoot.appendingPathComponent("ios")
-            : wsRoot
+            fm.fileExists(atPath: workspaceRoot.appendingPathComponent("ios").path)
+            ? workspaceRoot.appendingPathComponent("ios")
+            : workspaceRoot
 
-        // 1. Resolve workspace name
-        var workspaceName = options.workspaceName
+        var workspaceName = explicitWorkspaceName
         if workspaceName == nil || workspaceName?.isEmpty == true {
             let detected = autoDetect(in: iosDir)
             if let ws = detected.workspace {
@@ -799,16 +842,15 @@ public enum XCodeTasks {
             )
         }
 
-        // 2. Resolve iosRoot
         let iosRoot: URL
         if fm.fileExists(
-            atPath: wsRoot.appendingPathComponent("\(resolvedWorkspaceName).xcodeproj").path)
+            atPath: workspaceRoot.appendingPathComponent("\(resolvedWorkspaceName).xcodeproj").path)
         {
-            iosRoot = wsRoot
+            iosRoot = workspaceRoot
         } else if fm.fileExists(
-            atPath: wsRoot.appendingPathComponent("ios/\(resolvedWorkspaceName).xcodeproj").path)
+            atPath: workspaceRoot.appendingPathComponent("ios/\(resolvedWorkspaceName).xcodeproj").path)
         {
-            iosRoot = wsRoot.appendingPathComponent("ios")
+            iosRoot = workspaceRoot.appendingPathComponent("ios")
         } else {
             iosRoot = iosDir
         }
@@ -825,6 +867,122 @@ public enum XCodeTasks {
                 ]
             )
         }
+
+        return (resolvedWorkspaceName, iosRoot, projectUrl, workspaceUrl)
+    }
+
+    /// Inspects all available non-Pod/distributable Xcode schemes in the workspace or project and returns
+    /// their per-scheme configuration, target, bundle identifier, version, and build number metadata.
+    public static func inspectAllIosSchemes(
+        workspaceRoot: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
+        workspaceName: String? = nil,
+        configuration: String? = nil
+    ) async throws -> IosIdentifiersResult {
+        let ctx = try resolveWorkspaceProjectContext(
+            workspaceRoot: workspaceRoot,
+            workspaceName: workspaceName
+        )
+        let rawSchemes = getAvailableSchemes(iosDir: ctx.iosRoot, workspaceName: ctx.resolvedWorkspaceName)
+            .filter { !$0.hasPrefix("Pods_") && !$0.hasPrefix("Pods-") }
+
+        guard !rawSchemes.isEmpty else {
+            return try await getIosIdentifiers(
+                workspaceRoot: workspaceRoot,
+                workspaceName: ctx.resolvedWorkspaceName,
+                scheme: nil,
+                configuration: configuration
+            )
+        }
+
+        let xcodeProj = try XcodeProj(path: Path(ctx.projectUrl.path))
+        let distributableTargetNames = Set(
+            xcodeProj.pbxproj.nativeTargets
+                .filter { isDistributableTarget($0) }
+                .map(\.name)
+        )
+
+        let filteredSchemes = rawSchemes.filter { schemeName in
+            let buildable = extractBuildableNamesFromScheme(
+                scheme: schemeName,
+                workspaceUrl: ctx.workspaceUrl,
+                projectUrl: ctx.projectUrl
+            )
+            return buildable.isEmpty || !Set(buildable).isDisjoint(with: distributableTargetNames)
+        }
+
+        let candidateSchemes = (filteredSchemes.isEmpty ? rawSchemes : filteredSchemes)
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+
+        var results: [IosIdentifiersResult] = []
+        var firstError: Error?
+
+        for schemeName in candidateSchemes {
+            do {
+                let res = try await getIosIdentifiers(
+                    workspaceRoot: workspaceRoot,
+                    workspaceName: ctx.resolvedWorkspaceName,
+                    scheme: schemeName,
+                    configuration: configuration
+                )
+                results.append(res)
+            } catch {
+                if firstError == nil {
+                    firstError = error
+                }
+            }
+        }
+
+        guard !results.isEmpty else {
+            throw firstError!
+        }
+
+        let schemeInfos = results.map { res in
+            IosSchemeInfo(
+                scheme: res.scheme,
+                configuration: res.configuration,
+                mainAppTargetName: res.mainAppTargetName,
+                bundleId: res.bundleId,
+                version: res.version,
+                buildNumber: res.buildNumber,
+                buildableNames: res.buildableNames,
+                targets: res.targets
+            )
+        }
+
+        let primary = results.first(where: {
+            $0.scheme.caseInsensitiveCompare(ctx.resolvedWorkspaceName) == .orderedSame
+        }) ?? results[0]
+
+        return IosIdentifiersResult(
+            workspaceName: primary.workspaceName,
+            scheme: primary.scheme,
+            configuration: primary.configuration,
+            mainAppTargetName: primary.mainAppTargetName,
+            bundleId: primary.bundleId,
+            buildableNames: primary.buildableNames,
+            targets: primary.targets,
+            iosRoot: primary.iosRoot,
+            version: primary.version,
+            buildNumber: primary.buildNumber,
+            schemes: schemeInfos
+        )
+    }
+
+    /// Detects workspace/project, resolves scheme, targets, and extracts iOS bundle identifiers.
+    /// Follows the 3-tier resolution strategy: buildSettings -> xcodebuild -showBuildSettings -> xcconfig.
+    public static func getIosIdentifiers(
+        _ options: GetIosIdentifiersOptions = GetIosIdentifiersOptions()
+    ) async throws -> IosIdentifiersResult {
+        let fm = FileManager.default
+        let wsRoot = options.workspaceRoot
+        let ctx = try resolveWorkspaceProjectContext(
+            workspaceRoot: wsRoot,
+            workspaceName: options.workspaceName
+        )
+        let resolvedWorkspaceName = ctx.resolvedWorkspaceName
+        let iosRoot = ctx.iosRoot
+        let projectUrl = ctx.projectUrl
+        let workspaceUrl = ctx.workspaceUrl
 
         // 3. Resolve scheme
         let availableSchemes = getAvailableSchemes(
@@ -984,6 +1142,51 @@ public enum XCodeTasks {
             resolvedTargets.first(where: { $0.name == mainAppTargetName }) ?? resolvedTargets.first
         let mainBundleId = mainTarget?.bundleId
 
+        let wsPathIfPresent = fm.fileExists(atPath: workspaceUrl.path) ? workspaceUrl.path : nil
+        let targetForVersion = mainAppTargetName ?? mainTarget?.name
+
+        var resolvedVersion: String?
+        var resolvedBuildNumber: String?
+
+        if let staticVersion = try? getProjectVersion(
+            projectPath: projectUrl.path,
+            workspacePath: wsPathIfPresent,
+            targetName: targetForVersion,
+            configuration: resolvedConfiguration,
+            in: wsRoot
+        ) {
+            resolvedVersion = staticVersion.version
+            resolvedBuildNumber = staticVersion.buildNumber
+        }
+
+        if resolvedVersion == nil || resolvedBuildNumber == nil {
+            if let xcodebuildSettings {
+                if let selectedSettings = selectTargetBuildSettings(
+                    from: xcodebuildSettings,
+                    targetName: targetForVersion,
+                    scheme: resolvedScheme
+                ) {
+                    let evaluated = extractVersionFromBuildSettings(
+                        selectedSettings,
+                        fallbackProjectDirectory: iosRoot
+                    )
+                    resolvedVersion = resolvedVersion ?? evaluated.version
+                    resolvedBuildNumber = resolvedBuildNumber ?? evaluated.buildNumber
+                }
+            } else {
+                let evaluated = await resolveProjectVersion(
+                    projectPath: projectUrl.path,
+                    workspacePath: wsPathIfPresent,
+                    scheme: resolvedScheme,
+                    targetName: targetForVersion,
+                    configuration: resolvedConfiguration,
+                    in: wsRoot
+                )
+                resolvedVersion = resolvedVersion ?? evaluated.version
+                resolvedBuildNumber = resolvedBuildNumber ?? evaluated.buildNumber
+            }
+        }
+
         return IosIdentifiersResult(
             workspaceName: resolvedWorkspaceName,
             scheme: resolvedScheme,
@@ -992,7 +1195,9 @@ public enum XCodeTasks {
             bundleId: mainBundleId,
             buildableNames: buildableNames,
             targets: resolvedTargets,
-            iosRoot: iosRoot
+            iosRoot: iosRoot,
+            version: resolvedVersion,
+            buildNumber: resolvedBuildNumber
         )
     }
 
@@ -1242,7 +1447,7 @@ public enum XCodeTasks {
         }
     }
 
-    private static func parseXcodebuildBuildSettings(_ output: String) -> [String: [String: String]]
+    internal static func parseXcodebuildBuildSettings(_ output: String) -> [String: [String: String]]
     {
         var settingsByTarget: [String: [String: String]] = [:]
         var currentTarget: String? = nil
@@ -1331,24 +1536,154 @@ public enum XCodeTasks {
         baseConfig: PBXFileReference?,
         projectDir: URL
     ) {
-        guard let ref = baseConfig, let relPath = ref.path else { return }
-        let candidate = projectDir.appendingPathComponent(relPath)
-        guard FileManager.default.fileExists(atPath: candidate.path),
-            let content = try? String(contentsOf: candidate, encoding: .utf8)
+        guard let ref = baseConfig else { return }
+        let candidatePath = (try? ref.fullPath(sourceRoot: projectDir.path))
+            ?? ref.path.map { relPath in
+                relPath.hasPrefix("/")
+                    ? relPath
+                    : projectDir.appendingPathComponent(relPath).path
+            }
+        guard let candidatePath else { return }
+
+        var visitedFiles: Set<String> = []
+        loadXcconfigFile(
+            at: URL(fileURLWithPath: candidatePath),
+            projectDir: projectDir,
+            into: &settings,
+            visitedFiles: &visitedFiles
+        )
+    }
+
+    private static func loadXcconfigFile(
+        at fileURL: URL,
+        projectDir: URL,
+        into settings: inout [String: String],
+        visitedFiles: inout Set<String>
+    ) {
+        let standardized = fileURL.standardizedFileURL
+        guard !visitedFiles.contains(standardized.path),
+              FileManager.default.fileExists(atPath: standardized.path),
+              let content = try? String(contentsOf: standardized, encoding: .utf8)
         else { return }
 
+        visitedFiles.insert(standardized.path)
+        let parentDir = standardized.deletingLastPathComponent()
+
         for line in content.components(separatedBy: .newlines) {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix("//") || trimmed.isEmpty { continue }
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty || trimmed.hasPrefix("//") { continue }
+
+            if let includePath = parseXcconfigIncludePath(from: trimmed) {
+                if let includeUrl = resolveXcconfigIncludeURL(
+                    includePath: includePath,
+                    relativeTo: parentDir,
+                    projectDir: projectDir
+                ) {
+                    loadXcconfigFile(
+                        at: includeUrl,
+                        projectDir: projectDir,
+                        into: &settings,
+                        visitedFiles: &visitedFiles
+                    )
+                }
+                continue
+            }
+
             if let eq = trimmed.firstIndex(of: "=") {
                 let k = String(trimmed[..<eq]).trimmingCharacters(in: .whitespaces)
-                let v = String(trimmed[trimmed.index(after: eq)...]).trimmingCharacters(
-                    in: .whitespaces)
-                if !k.isEmpty {
+                let v = stripXcconfigInlineComment(String(trimmed[trimmed.index(after: eq)...]))
+                    .trimmingCharacters(in: .whitespaces)
+                if !k.isEmpty && v != "$(inherited)" && v != "${inherited}" {
                     settings[k] = v
                 }
             }
         }
+    }
+
+    private static func parseXcconfigIncludePath(from line: String) -> String? {
+        let pattern = #"^#include\??\s+["<]([^">]+)[">]"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+              let range = Range(match.range(at: 1), in: line)
+        else { return nil }
+        let path = String(line[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return path.isEmpty ? nil : path
+    }
+
+    private static func resolveXcconfigIncludeURL(
+        includePath: String,
+        relativeTo currentDir: URL,
+        projectDir: URL
+    ) -> URL? {
+        if includePath.hasPrefix("/") {
+            let abs = URL(fileURLWithPath: includePath)
+            return FileManager.default.fileExists(atPath: abs.path) ? abs : nil
+        }
+        let localCandidate = currentDir.appendingPathComponent(includePath)
+        if FileManager.default.fileExists(atPath: localCandidate.path) {
+            return localCandidate
+        }
+        let projectCandidate = projectDir.appendingPathComponent(includePath)
+        if FileManager.default.fileExists(atPath: projectCandidate.path) {
+            return projectCandidate
+        }
+        return nil
+    }
+
+    private static func stripXcconfigInlineComment(_ value: String) -> String {
+        var searchStart = value.startIndex
+        while let commentRange = value.range(of: "//", range: searchStart..<value.endIndex) {
+            if commentRange.lowerBound == value.startIndex {
+                return ""
+            }
+            let prevIndex = value.index(before: commentRange.lowerBound)
+            if value[prevIndex].isWhitespace {
+                return String(value[..<commentRange.lowerBound])
+            }
+            searchStart = commentRange.upperBound
+        }
+        return value
+    }
+
+    internal static func expandBuildSettingValue(
+        _ value: String,
+        settings: [String: String],
+        seen: Set<String> = []
+    ) -> String? {
+        let pattern = #"\$\(([^)]+)\)|\$\{([^}]+)\}"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+
+        var resolved = value
+        let matches = regex.matches(in: value, range: NSRange(value.startIndex..., in: value))
+
+        for match in matches.reversed() {
+            let varRange =
+                match.range(at: 1).location != NSNotFound ? match.range(at: 1) : match.range(at: 2)
+            guard let swiftVarRange = Range(varRange, in: value),
+                  let fullMatchRange = Range(match.range, in: resolved)
+            else { continue }
+
+            let rawVarName = String(value[swiftVarRange])
+            let settingName = rawVarName.components(separatedBy: ":").first ?? rawVarName
+
+            if settingName == "inherited" {
+                continue
+            }
+
+            if !seen.contains(settingName), let subValue = settings[settingName] {
+                var nextSeen = seen
+                nextSeen.insert(settingName)
+                if let resolvedSub = expandBuildSettingValue(subValue, settings: settings, seen: nextSeen) {
+                    resolved.replaceSubrange(fullMatchRange, with: resolvedSub)
+                }
+            }
+        }
+
+        let trimmed = resolved.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private static func getResolvedSettingFromMap(
@@ -1358,39 +1693,9 @@ public enum XCodeTasks {
     ) -> String? {
         guard let value = settings[key] else { return nil }
         if seen.contains(key) { return value }
-
         var nextSeen = seen
         nextSeen.insert(key)
-
-        let pattern = #"\$\(([^)]+)\)|\$\{([^}]+)\}"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return value }
-
-        var resolved = value
-        let matches = regex.matches(in: value, range: NSRange(value.startIndex..., in: value))
-
-        for match in matches.reversed() {
-            let varRange =
-                match.range(at: 1).location != NSNotFound ? match.range(at: 1) : match.range(at: 2)
-            guard let swiftVarRange = Range(varRange, in: value),
-                let fullMatchRange = Range(match.range, in: resolved)
-            else { continue }
-
-            let rawVarName = String(value[swiftVarRange])
-            let settingName = rawVarName.components(separatedBy: ":").first ?? rawVarName
-
-            if settingName == "TARGET_NAME", let targetName = settings["TARGET_NAME"] {
-                resolved.replaceSubrange(fullMatchRange, with: targetName)
-            } else if settings[settingName] != nil {
-                if let resolvedSub = getResolvedSettingFromMap(
-                    key: settingName, settings: settings, seen: nextSeen)
-                {
-                    resolved.replaceSubrange(fullMatchRange, with: resolvedSub)
-                }
-            }
-        }
-
-        let trimmed = resolved.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
+        return expandBuildSettingValue(value, settings: settings, seen: nextSeen)
     }
 
     // MARK: - Build Number / Version
@@ -1532,6 +1837,24 @@ public enum XCodeTasks {
         return nil
     }
 
+    private static func mergeRawBuildSettings(
+        _ rawSettings: BuildSettings,
+        into settings: inout [String: String]
+    ) {
+        for (key, value) in rawSettings {
+            if let rawString = value as? String {
+                let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty {
+                    settings.removeValue(forKey: key)
+                } else if trimmed != "$(inherited)" && trimmed != "${inherited}" {
+                    settings[key] = trimmed
+                }
+            } else if let str = stringSettingValue(value) {
+                settings[key] = str
+            }
+        }
+    }
+
     private static func hasCurrentProjectVersion(
         target: PBXNativeTarget,
         project: PBXProject?,
@@ -1544,28 +1867,13 @@ public enum XCodeTasks {
         return targetConfigs.allSatisfy { targetConfig in
             var settings: [String: String] = [:]
 
-            func mergeBuildSettings(_ rawSettings: BuildSettings) {
-                for (key, value) in rawSettings {
-                    if let rawString = value as? String {
-                        let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if trimmed.isEmpty {
-                            settings.removeValue(forKey: key)
-                        } else if trimmed != "$(inherited)" && trimmed != "${inherited}" {
-                            settings[key] = trimmed
-                        }
-                    } else if let str = stringSettingValue(value) {
-                        settings[key] = str
-                    }
-                }
-            }
-
             if let projConfig = project?.buildConfigurationList?.buildConfigurations.first(where: { $0.name == targetConfig.name }) {
                 loadXcconfigSettings(into: &settings, baseConfig: projConfig.baseConfiguration, projectDir: projectDir)
-                mergeBuildSettings(projConfig.buildSettings)
+                mergeRawBuildSettings(projConfig.buildSettings, into: &settings)
             }
 
             loadXcconfigSettings(into: &settings, baseConfig: targetConfig.baseConfiguration, projectDir: projectDir)
-            mergeBuildSettings(targetConfig.buildSettings)
+            mergeRawBuildSettings(targetConfig.buildSettings, into: &settings)
 
             guard let resolved = getResolvedSettingFromMap(key: "CURRENT_PROJECT_VERSION", settings: settings) else {
                 return false
@@ -1612,7 +1920,8 @@ public enum XCodeTasks {
     }
 
     /// Reads the current `CURRENT_PROJECT_VERSION` (build number) and `MARKETING_VERSION` (version string)
-    /// from the Xcode project (`.xcodeproj`) using `XcodeProj`.
+    /// from the Xcode project (`.xcodeproj`) using `XcodeProj`, evaluating project/target `.xcconfig` chains,
+    /// `buildSettings`, and `Info.plist` variable expansion while ignoring unresolved build-setting references (`$`).
     public static func getProjectVersion(
         projectPath: String? = nil,
         workspacePath: String? = nil,
@@ -1628,39 +1937,205 @@ public enum XCodeTasks {
 
         let xcodeProj = try XcodeProj(path: Path(effectiveProjectPath))
         let pbxproj = xcodeProj.pbxproj
+        let projectDirectory = URL(fileURLWithPath: effectiveProjectPath).deletingLastPathComponent()
 
-        // Check target first
+        let selectConfig: (XCConfigurationList?) -> XCBuildConfiguration? = { list in
+            guard let list else { return nil }
+            if let configuration {
+                return list.buildConfigurations.first(where: { $0.name == configuration })
+            }
+            return list.buildConfigurations.first(where: { $0.name == "Release" })
+                ?? list.buildConfigurations.first
+        }
+
         let target = targetName != nil
             ? pbxproj.nativeTargets.first(where: { $0.name == targetName })
-            : pbxproj.nativeTargets.first(where: { isApplicationTarget($0) }) ?? pbxproj.nativeTargets.first(where: { isDistributableTarget($0) })
+            : pbxproj.nativeTargets.first(where: { isApplicationTarget($0) })
+                ?? pbxproj.nativeTargets.first(where: { isDistributableTarget($0) })
 
-        if let target = target, let configList = target.buildConfigurationList {
-            let config = configuration != nil
-                ? configList.buildConfigurations.first(where: { $0.name == configuration })
-                : configList.buildConfigurations.first(where: { $0.name == "Release" }) ?? configList.buildConfigurations.first
+        let targetConfig = selectConfig(target?.buildConfigurationList)
+        let matchingConfigName = configuration ?? targetConfig?.name
+        let projConfig: XCBuildConfiguration?
+        if let projList = pbxproj.projects.first?.buildConfigurationList {
+            if let matchingConfigName {
+                projConfig = projList.buildConfigurations.first(where: { $0.name == matchingConfigName })
+                    ?? selectConfig(projList)
+            } else {
+                projConfig = selectConfig(projList)
+            }
+        } else {
+            projConfig = nil
+        }
 
-            if let config = config {
-                let buildNumber = stringSettingValue(config.buildSettings["CURRENT_PROJECT_VERSION"])
-                let version = stringSettingValue(config.buildSettings["MARKETING_VERSION"])
-                if buildNumber != nil || version != nil {
-                    return (version: version, buildNumber: buildNumber)
+        var settings: [String: String] = [
+            "SRCROOT": projectDirectory.path,
+            "PROJECT_DIR": projectDirectory.path,
+        ]
+        if let resolvedTargetName = target?.name ?? targetName {
+            settings["TARGET_NAME"] = resolvedTargetName
+        }
+
+        if let projConfig {
+            loadXcconfigSettings(
+                into: &settings,
+                baseConfig: projConfig.baseConfiguration,
+                projectDir: projectDirectory
+            )
+            mergeRawBuildSettings(projConfig.buildSettings, into: &settings)
+        }
+
+        if let targetConfig {
+            loadXcconfigSettings(
+                into: &settings,
+                baseConfig: targetConfig.baseConfiguration,
+                projectDir: projectDirectory
+            )
+            mergeRawBuildSettings(targetConfig.buildSettings, into: &settings)
+        }
+
+        return extractVersionFromBuildSettings(settings, fallbackProjectDirectory: projectDirectory)
+    }
+
+    internal static func extractVersionFromBuildSettings(
+        _ settings: [String: String],
+        fallbackProjectDirectory: URL? = nil
+    ) -> (version: String?, buildNumber: String?) {
+        let cleanExpanded: (String) -> String? = { raw in
+            guard let expanded = expandBuildSettingValue(raw, settings: settings) else {
+                return nil
+            }
+            let trimmed = expanded.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, !trimmed.contains("$") else {
+                return nil
+            }
+            return trimmed
+        }
+
+        var resolvedVersion = settings["MARKETING_VERSION"].flatMap(cleanExpanded)
+        var resolvedBuildNumber = settings["CURRENT_PROJECT_VERSION"].flatMap(cleanExpanded)
+
+        if (resolvedVersion == nil || resolvedBuildNumber == nil),
+           let rawInfoPlist = settings["INFOPLIST_FILE"],
+           let expandedInfoPlist = cleanExpanded(rawInfoPlist)
+        {
+            let plistUrl: URL
+            if expandedInfoPlist.hasPrefix("/") {
+                plistUrl = URL(fileURLWithPath: expandedInfoPlist)
+            } else if let rootDir = settings["PROJECT_DIR"] ?? settings["SRCROOT"] {
+                plistUrl = URL(fileURLWithPath: rootDir).appendingPathComponent(expandedInfoPlist)
+            } else if let fallbackProjectDirectory {
+                plistUrl = fallbackProjectDirectory.appendingPathComponent(expandedInfoPlist)
+            } else {
+                plistUrl = URL(fileURLWithPath: expandedInfoPlist)
+            }
+
+            if let data = try? Data(contentsOf: plistUrl.standardizedFileURL),
+               let plist = (try? PropertyListSerialization.propertyList(from: data, format: nil)) as? [String: Any]
+            {
+                if resolvedVersion == nil,
+                   let rawShort = stringSettingValue(plist["CFBundleShortVersionString"])
+                {
+                    resolvedVersion = cleanExpanded(rawShort)
+                }
+                if resolvedBuildNumber == nil,
+                   let rawBuild = stringSettingValue(plist["CFBundleVersion"])
+                {
+                    resolvedBuildNumber = cleanExpanded(rawBuild)
                 }
             }
         }
 
-        // Fallback to project-level configuration
-        if let projConfigList = pbxproj.projects.first?.buildConfigurationList {
-            let config = configuration != nil
-                ? projConfigList.buildConfigurations.first(where: { $0.name == configuration })
-                : projConfigList.buildConfigurations.first(where: { $0.name == "Release" }) ?? projConfigList.buildConfigurations.first
+        return (version: resolvedVersion, buildNumber: resolvedBuildNumber)
+    }
 
-            if let config = config {
-                let buildNumber = stringSettingValue(config.buildSettings["CURRENT_PROJECT_VERSION"])
-                let version = stringSettingValue(config.buildSettings["MARKETING_VERSION"])
-                return (version: version, buildNumber: buildNumber)
+    /// Resolves version and build number via static `.xcodeproj`/`.xcconfig`/`Info.plist` inspection first,
+    /// falling back to `xcodebuild -showBuildSettings` only when either field remains unresolved.
+    public static func resolveProjectVersion(
+        projectPath: String? = nil,
+        workspacePath: String? = nil,
+        scheme: String? = nil,
+        targetName: String? = nil,
+        configuration: String? = nil,
+        in directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) async -> (version: String?, buildNumber: String?) {
+        var resolvedVersion: String?
+        var resolvedBuildNumber: String?
+
+        if let staticVersion = try? getProjectVersion(
+            projectPath: projectPath,
+            workspacePath: workspacePath,
+            targetName: targetName,
+            configuration: configuration,
+            in: directory
+        ) {
+            resolvedVersion = staticVersion.version
+            resolvedBuildNumber = staticVersion.buildNumber
+        }
+
+        if resolvedVersion != nil && resolvedBuildNumber != nil {
+            return (version: resolvedVersion, buildNumber: resolvedBuildNumber)
+        }
+
+        var effectiveWorkspace = workspacePath
+        var effectiveProject = projectPath
+        if effectiveWorkspace == nil && effectiveProject == nil {
+            let detected = autoDetect(in: directory)
+            effectiveWorkspace = detected.workspace
+            effectiveProject = detected.project
+        }
+
+        let effectiveScheme = scheme ?? targetName
+        let effectiveConfig = configuration ?? "Release"
+
+        guard let effectiveScheme, !effectiveScheme.isEmpty,
+              effectiveWorkspace != nil || effectiveProject != nil
+        else {
+            return (version: resolvedVersion, buildNumber: resolvedBuildNumber)
+        }
+
+        let projectDir: URL? = (effectiveProject ?? effectiveWorkspace).map {
+            URL(fileURLWithPath: $0).deletingLastPathComponent()
+        }
+
+        if let output = await captureXcodebuildBuildSettings(
+            workspacePath: effectiveWorkspace,
+            projectPath: effectiveWorkspace == nil ? effectiveProject : nil,
+            scheme: effectiveScheme,
+            configurationName: effectiveConfig,
+            workingDirectory: directory
+        ) {
+            let settingsByTarget = parseXcodebuildBuildSettings(output)
+            if let selectedSettings = selectTargetBuildSettings(
+                from: settingsByTarget,
+                targetName: targetName,
+                scheme: effectiveScheme
+            ) {
+                let evaluated = extractVersionFromBuildSettings(
+                    selectedSettings,
+                    fallbackProjectDirectory: projectDir
+                )
+                resolvedVersion = resolvedVersion ?? evaluated.version
+                resolvedBuildNumber = resolvedBuildNumber ?? evaluated.buildNumber
             }
         }
 
-        return (version: nil, buildNumber: nil)
+        return (version: resolvedVersion, buildNumber: resolvedBuildNumber)
+    }
+
+    private static func selectTargetBuildSettings(
+        from settingsByTarget: [String: [String: String]],
+        targetName: String?,
+        scheme: String
+    ) -> [String: String]? {
+        if let targetName, let exact = settingsByTarget[targetName] {
+            return exact
+        }
+        if let schemeMatch = settingsByTarget[scheme] {
+            return schemeMatch
+        }
+        if settingsByTarget.count == 1 {
+            return settingsByTarget.values.first
+        }
+        return nil
     }
 }

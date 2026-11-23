@@ -24,6 +24,9 @@ package struct GooglePlayService: Sendable {
     /// The underlying authentication middleware.
     package let authMiddleware: GooglePlayAuthMiddleware
 
+    /// Underlying URLSession used for direct binary media uploads.
+    package let urlSession: URLSession
+
     /// The underlying OpenAPI client for the Google Play Developer Publishing API (androidpublisher v3).
     package let client: GooglePlayStoreAPI.Client
 
@@ -52,6 +55,7 @@ package struct GooglePlayService: Sendable {
     ) throws {
         let authMiddleware = try GooglePlayAuthMiddleware(key: key, scope: scope, urlSession: urlSession)
         self.authMiddleware = authMiddleware
+        self.urlSession = urlSession
 
         self.client = GooglePlayStoreAPI.Client(serverURL: try GooglePlayStoreAPI.Servers.Server1.url(), transport: transport, middlewares: [authMiddleware])
         self.reporting = GooglePlayReportingAPI.Client(serverURL: try GooglePlayReportingAPI.Servers.Server1.url(), transport: transport, middlewares: [authMiddleware])

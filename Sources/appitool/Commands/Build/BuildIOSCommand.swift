@@ -77,7 +77,9 @@ struct BuildIOSCommand: BaseCommand {
             throw CommandError("No scheme specified. Provide -s, --scheme or set XCODE_SCHEME in .env.")
         }
 
-        // 4. Resolve Target, Output Directory & DerivedData
+        // 4. Resolve Target, DerivedData, Archive & Output Directory
+        let resolvedConfiguration = configuration ?? EnvLoader.value(for: "XCODE_CONFIGURATION") ?? "Release"
+
         let mainTarget: String
         if let resolved = await XcodeBuildTask.resolveMainTarget(forScheme: resolvedScheme, workspace: resolvedWorkspace, project: resolvedProject), !resolved.isEmpty {
             mainTarget = resolved
@@ -87,7 +89,6 @@ struct BuildIOSCommand: BaseCommand {
 
         let buildRoot = AppitoolPaths.targetBuildRoot(platform: "ios", target: mainTarget)
         let resolvedDerivedData = AppitoolPaths.iosDerivedDataDirectory(target: mainTarget).path
-        let resolvedOutputDir = AppitoolPaths.buildDirectory(platform: "ios", target: mainTarget).path
         let resolvedOutputName = resolvedScheme
 
         var resolvedArchivePath: String? = nil
@@ -108,7 +109,35 @@ struct BuildIOSCommand: BaseCommand {
             }.sorted { $0.1 > $1.1 }.first?.0.path
         }
 
-        let resolvedConfiguration = configuration ?? EnvLoader.value(for: "XCODE_CONFIGURATION") ?? "Release"
+        var resolvedVersion: String?
+        var resolvedBuildNumber: String?
+        if resolvedWorkspace != nil || resolvedProject != nil {
+            let projectVersion = await XCodeTasks.resolveProjectVersion(
+                projectPath: resolvedProject,
+                workspacePath: resolvedWorkspace,
+                scheme: resolvedScheme,
+                targetName: mainTarget,
+                configuration: resolvedConfiguration
+            )
+            resolvedVersion = projectVersion.version
+            resolvedBuildNumber = projectVersion.buildNumber
+        }
+        if (resolvedVersion == nil || resolvedBuildNumber == nil), let archivePath = resolvedArchivePath {
+            let archiveVersion = XcodeBuildTask.extractVersionInfo(fromArchive: archivePath)
+            resolvedVersion = resolvedVersion ?? archiveVersion.version
+            resolvedBuildNumber = resolvedBuildNumber ?? archiveVersion.buildNumber
+        }
+        let buildTagName = AppitoolPaths.buildTagName(
+            version: resolvedVersion,
+            buildNumber: resolvedBuildNumber,
+            distribution: distribution
+        )
+        let resolvedOutputDir = AppitoolPaths.buildDirectory(
+            platform: "ios",
+            target: mainTarget,
+            name: buildTagName
+        ).path
+
         let resolvedTeamId = teamId ?? EnvLoader.value(for: "APPLE_TEAM_ID")
         let resolvedFormatter = xcodebuildFormatter ?? EnvLoader.value(for: "XCODEBUILD_FORMATTER") ?? "xcbeautify --renderer github-actions"
 

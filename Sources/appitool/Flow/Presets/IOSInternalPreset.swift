@@ -195,7 +195,7 @@ struct IOSInternalPreset: FlowPreset {
         }
 
         let target = context.targetName ?? context.scheme ?? "app"
-        let outputDir = AppitoolPaths.buildDirectory(platform: "ios", target: target).path
+        let outputDir = AppitoolPaths.buildDirectory(platform: "ios", target: target, name: context.buildDirectoryName).path
         let derivedData = AppitoolPaths.iosDerivedDataDirectory(target: target).path
         let outputName = context.scheme ?? "app"
 

@@ -603,6 +603,11 @@ public struct XcodeBuildTask: Task {
     }
 
     private func executeArchive(input: Input, scheme: String, archivePath: String) async throws {
+        let fileManager = FileManager.default
+        if fileManager.fileExists(atPath: archivePath) {
+            try fileManager.removeItem(atPath: archivePath)
+        }
+
         let arguments = Self.buildArchiveArguments(input: input, scheme: scheme, archivePath: archivePath)
 
         if !input.silent {
@@ -781,6 +786,42 @@ public struct XcodeBuildTask: Task {
         } catch {
             throw XcodeBuildError.plistSerializationFailed(error.localizedDescription)
         }
+    }
+
+    /// Extracts `CFBundleShortVersionString` and `CFBundleVersion` from an `.xcarchive`'s `Info.plist` `ApplicationProperties`.
+    public static func extractVersionInfo(fromArchive archivePath: String) -> (version: String?, buildNumber: String?) {
+        let plistPath = URL(fileURLWithPath: archivePath).appendingPathComponent("Info.plist").path
+        guard let data = FileManager.default.contents(atPath: plistPath),
+              let plist = (try? PropertyListSerialization.propertyList(from: data, format: nil)) as? [String: Any],
+              let appProps = plist["ApplicationProperties"] as? [String: Any]
+        else {
+            return (nil, nil)
+        }
+
+        let normalize: (Any?) -> String? = { raw in
+            let text: String?
+            if let str = raw as? String {
+                text = str
+            } else if let int = raw as? Int {
+                text = String(int)
+            } else if let double = raw as? Double {
+                text = String(double)
+            } else {
+                text = nil
+            }
+            guard let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !trimmed.isEmpty,
+                  !trimmed.contains("$")
+            else {
+                return nil
+            }
+            return trimmed
+        }
+
+        return (
+            version: normalize(appProps["CFBundleShortVersionString"]),
+            buildNumber: normalize(appProps["CFBundleVersion"])
+        )
     }
 
     private func extractTeamIdFromArchive(_ archivePath: String) -> String? {

@@ -432,4 +432,135 @@ package struct AppleTypeMapper: Sendable {
         }
         return filterRole
     }
+
+    // MARK: - App Store Versions & Screenshots
+
+    package struct ScreenshotDisplayTypeDescriptor: Sendable {
+        package let category: String
+        package let key: String
+        package let enumName: String
+        package let aliases: [String]
+        package let description: String
+
+        package init(
+            category: String,
+            key: String,
+            enumName: String,
+            aliases: [String] = [],
+            description: String
+        ) {
+            self.category = category
+            self.key = key
+            self.enumName = enumName
+            self.aliases = aliases
+            self.description = description
+        }
+    }
+
+    /// Complete catalog of supported App Store Connect screenshot display types.
+    package static let supportedScreenshotDisplayTypes: [ScreenshotDisplayTypeDescriptor] = [
+        // iPhone
+        ScreenshotDisplayTypeDescriptor(category: "iPhone", key: "iphone-67", enumName: "APP_IPHONE_67", aliases: ["iphone-6.7", "iphone-69", "iphone-6.9"], description: "iPhone 6.7\" / 6.9\" Display (Pro Max / Plus)"),
+        ScreenshotDisplayTypeDescriptor(category: "iPhone", key: "iphone-65", enumName: "APP_IPHONE_65", aliases: ["iphone-6.5"], description: "iPhone 6.5\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iPhone", key: "iphone-61", enumName: "APP_IPHONE_61", aliases: ["iphone-6.1"], description: "iPhone 6.1\" / 6.3\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iPhone", key: "iphone-58", enumName: "APP_IPHONE_58", aliases: ["iphone-5.8"], description: "iPhone 5.8\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iPhone", key: "iphone-55", enumName: "APP_IPHONE_55", aliases: ["iphone-5.5"], description: "iPhone 5.5\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iPhone", key: "iphone-47", enumName: "APP_IPHONE_47", aliases: ["iphone-4.7"], description: "iPhone 4.7\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iPhone", key: "iphone-40", enumName: "APP_IPHONE_40", aliases: ["iphone-4.0"], description: "iPhone 4.0\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iPhone", key: "iphone-35", enumName: "APP_IPHONE_35", aliases: ["iphone-3.5"], description: "iPhone 3.5\" Display"),
+        // iPad
+        ScreenshotDisplayTypeDescriptor(category: "iPad", key: "ipad-pro-129", enumName: "APP_IPAD_PRO_3GEN_129", aliases: ["ipad-pro-3gen-129", "ipad-13"], description: "iPad Pro 12.9\" (3rd+ Gen) / 13\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iPad", key: "ipad-pro-11", enumName: "APP_IPAD_PRO_3GEN_11", aliases: ["ipad-pro-3gen-11", "ipad-11"], description: "iPad Pro 11\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iPad", key: "ipad-pro-129-2gen", enumName: "APP_IPAD_PRO_129", aliases: ["ipad-129", "ipad-12.9"], description: "iPad Pro 12.9\" (2nd Gen) Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iPad", key: "ipad-105", enumName: "APP_IPAD_105", aliases: ["ipad-10.5"], description: "iPad 10.5\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iPad", key: "ipad-97", enumName: "APP_IPAD_97", aliases: ["ipad-9.7"], description: "iPad 9.7\" Display"),
+        // Mac, Watch, TV, Vision
+        ScreenshotDisplayTypeDescriptor(category: "Mac", key: "mac", enumName: "APP_DESKTOP", aliases: ["desktop", "macos"], description: "Mac Desktop Display"),
+        ScreenshotDisplayTypeDescriptor(category: "Apple Watch", key: "watch-ultra", enumName: "APP_WATCH_ULTRA", aliases: [], description: "Apple Watch Ultra Display"),
+        ScreenshotDisplayTypeDescriptor(category: "Apple Watch", key: "watch-10", enumName: "APP_WATCH_SERIES_10", aliases: ["watch-series-10"], description: "Apple Watch Series 10 Display"),
+        ScreenshotDisplayTypeDescriptor(category: "Apple Watch", key: "watch-7", enumName: "APP_WATCH_SERIES_7", aliases: ["watch-series-7"], description: "Apple Watch Series 7 / 8 / 9 Display"),
+        ScreenshotDisplayTypeDescriptor(category: "Apple Watch", key: "watch-4", enumName: "APP_WATCH_SERIES_4", aliases: ["watch-series-4"], description: "Apple Watch Series 4 / 5 / 6 Display"),
+        ScreenshotDisplayTypeDescriptor(category: "Apple Watch", key: "watch-3", enumName: "APP_WATCH_SERIES_3", aliases: ["watch-series-3"], description: "Apple Watch Series 3 Display"),
+        ScreenshotDisplayTypeDescriptor(category: "Apple TV", key: "apple-tv", enumName: "APP_APPLE_TV", aliases: ["tv"], description: "Apple TV Display"),
+        ScreenshotDisplayTypeDescriptor(category: "Apple Vision Pro", key: "vision-pro", enumName: "APP_APPLE_VISION_PRO", aliases: ["vision", "visionos"], description: "Apple Vision Pro Display"),
+        // iMessage
+        ScreenshotDisplayTypeDescriptor(category: "iMessage", key: "imessage-iphone-67", enumName: "IMESSAGE_APP_IPHONE_67", aliases: [], description: "iMessage iPhone 6.7\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iMessage", key: "imessage-iphone-65", enumName: "IMESSAGE_APP_IPHONE_65", aliases: [], description: "iMessage iPhone 6.5\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iMessage", key: "imessage-iphone-61", enumName: "IMESSAGE_APP_IPHONE_61", aliases: [], description: "iMessage iPhone 6.1\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iMessage", key: "imessage-iphone-58", enumName: "IMESSAGE_APP_IPHONE_58", aliases: [], description: "iMessage iPhone 5.8\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iMessage", key: "imessage-iphone-55", enumName: "IMESSAGE_APP_IPHONE_55", aliases: [], description: "iMessage iPhone 5.5\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iMessage", key: "imessage-iphone-47", enumName: "IMESSAGE_APP_IPHONE_47", aliases: [], description: "iMessage iPhone 4.7\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iMessage", key: "imessage-iphone-40", enumName: "IMESSAGE_APP_IPHONE_40", aliases: [], description: "iMessage iPhone 4.0\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iMessage", key: "imessage-ipad-pro-129", enumName: "IMESSAGE_APP_IPAD_PRO_3GEN_129", aliases: ["imessage-ipad-pro-3gen-129"], description: "iMessage iPad Pro 12.9\" (3rd+ Gen) Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iMessage", key: "imessage-ipad-pro-11", enumName: "IMESSAGE_APP_IPAD_PRO_3GEN_11", aliases: ["imessage-ipad-pro-3gen-11"], description: "iMessage iPad Pro 11\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iMessage", key: "imessage-ipad-pro-129-2gen", enumName: "IMESSAGE_APP_IPAD_PRO_129", aliases: ["imessage-ipad-129"], description: "iMessage iPad Pro 12.9\" (2nd Gen) Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iMessage", key: "imessage-ipad-105", enumName: "IMESSAGE_APP_IPAD_105", aliases: [], description: "iMessage iPad 10.5\" Display"),
+        ScreenshotDisplayTypeDescriptor(category: "iMessage", key: "imessage-ipad-97", enumName: "IMESSAGE_APP_IPAD_97", aliases: [], description: "iMessage iPad 9.7\" Display"),
+    ]
+
+    /// Parses a CLI platform string into `Components.Schemas.Platform`.
+    package static func parsePlatform(_ raw: String) throws -> Components.Schemas.Platform {
+        let normalized = raw
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "-", with: "_")
+            .uppercased()
+        switch normalized {
+        case "IOS":
+            return .IOS
+        case "MACOS", "MAC", "MAC_OS":
+            return .MAC_OS
+        case "TVOS", "TV", "TV_OS":
+            return .TV_OS
+        case "VISIONOS", "VISION", "VISION_PRO", "VISION_OS":
+            return .VISION_OS
+        default:
+            throw AppStoreServiceError.invalidResponse(
+                "Unsupported App Store platform '\(raw)'. Supported: ios, macos, tvos, visionos."
+            )
+        }
+    }
+
+    /// Parses a CLI display type key, alias, or raw enum string into `Components.Schemas.ScreenshotDisplayType`.
+    package static func parseScreenshotDisplayType(_ raw: String) throws -> Components.Schemas.ScreenshotDisplayType {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw AppStoreServiceError.invalidResponse(
+                "Screenshot display type cannot be empty. Run 'appitool apple screenshots types' to see supported values."
+            )
+        }
+
+        let lowered = trimmed.lowercased().replacingOccurrences(of: "_", with: "-")
+        for descriptor in supportedScreenshotDisplayTypes {
+            if descriptor.key == lowered || descriptor.aliases.contains(lowered) {
+                if let matched = Components.Schemas.ScreenshotDisplayType(rawValue: descriptor.enumName) {
+                    return matched
+                }
+            }
+        }
+
+        let upper = trimmed
+            .replacingOccurrences(of: "-", with: "_")
+            .replacingOccurrences(of: " ", with: "_")
+            .uppercased()
+
+        if let direct = Components.Schemas.ScreenshotDisplayType(rawValue: upper) {
+            return direct
+        }
+        if !upper.hasPrefix("APP_") && !upper.hasPrefix("IMESSAGE_"),
+           let prefixed = Components.Schemas.ScreenshotDisplayType(rawValue: "APP_\(upper)") {
+            return prefixed
+        }
+
+        throw AppStoreServiceError.invalidResponse(
+            "Unsupported screenshot display type '\(raw)'. Run 'appitool apple screenshots types' to see supported values."
+        )
+    }
+
+    /// Returns the preferred friendly CLI key for a `ScreenshotDisplayType` (falling back to kebab-case).
+    package static func cliKey(for displayType: Components.Schemas.ScreenshotDisplayType) -> String {
+        if let match = supportedScreenshotDisplayTypes.first(where: { $0.enumName == displayType.rawValue }) {
+            return match.key
+        }
+        return displayType.rawValue.lowercased().replacingOccurrences(of: "_", with: "-")
+    }
 }

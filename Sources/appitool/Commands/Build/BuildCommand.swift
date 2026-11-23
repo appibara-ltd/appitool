@@ -32,5 +32,13 @@ struct BuildCommand: AsyncParsableCommand {
             case .development: return "🛠️"
             }
         }
+
+        var tagSuffix: String {
+            switch self {
+            case .appstore: return ""
+            case .adhoc: return "_adhoc"
+            case .development: return "_development"
+            }
+        }
     }
 }

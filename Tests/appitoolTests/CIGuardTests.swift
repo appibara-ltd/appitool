@@ -98,7 +98,7 @@ struct CIGuardTests {
         #expect(directSubcommand.ciFlagOverride == true)
     }
 
-    @Test("All 10 always-destructive commands respect --ci and --no-ci flags")
+    @Test("All 12 always-destructive commands respect --ci and --no-ci flags")
     func allAlwaysDestructiveCommandsRespectCIGuard() throws {
         let cases: [([String], String)] = [
             (["apple", "delete-identifier", "-a", "com.example.app"], "apple delete-identifier"),
@@ -109,6 +109,8 @@ struct CIGuardTests {
             (["apple", "disable-device", "--udid", "00008020-000000000000002E"], "apple disable-device"),
             (["apple", "delete-user", "-u", "a@b.com"], "apple delete-user"),
             (["apple", "cancel-invitation", "-i", "inv-1"], "apple cancel-invitation"),
+            (["apple", "screenshots", "delete", "-i", "ss-1"], "apple screenshots delete"),
+            (["google", "screenshots", "delete", "-l", "en-US", "-t", "phone", "-a"], "google screenshots delete"),
             (["firebase", "delete-user", "-u", "uid-1"], "firebase delete-user"),
             (["firebase", "firestore", "delete", "users/alice"], "firebase firestore delete"),
         ]
@@ -198,6 +200,8 @@ struct CIGuardTests {
         let commands: [[String]] = [
             ["--ci", "apple", "delete-user", "-u", "a@b.com"],
             ["--ci", "apple", "delete-identifier", "-a", "com.example.app"],
+            ["--ci", "apple", "screenshots", "delete", "-i", "ss-1"],
+            ["--ci", "google", "screenshots", "delete", "-l", "en-US", "-t", "phone", "-a"],
             ["--ci", "match", "nuke"],
             ["--ci", "match", "ios", "prune"],
             ["--ci", "firebase", "delete-user", "-u", "uid-1"],

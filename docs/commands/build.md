@@ -15,7 +15,7 @@ appitool build android [options]
 
 Builds and packages an iOS application using `xcodebuild` (comparable to Fastlane `build_app` / `gym`).
 
-Artifacts are written under `~/.appitool/ios/<MainTarget>/build/<yyyy_MM_dd_HH_mm>/` with DerivedData isolated in `~/.appitool/ios/<MainTarget>/derivedData/`.
+Artifacts are written under `~/.appitool/ios/<MainTarget>/build/<version>_<build>[_adhoc|_development]/` (falling back to `<yyyy_MM_dd_HH_mm>` when version or build number cannot be resolved) with DerivedData isolated in `~/.appitool/ios/<MainTarget>/derivedData/`.
 
 ### Options
 
@@ -57,7 +57,7 @@ appitool build ios -d adhoc --skip-build-archive
 
 Builds an Android App Bundle (`.aab`) or APK (`.apk`) using Gradle (`./gradlew`).
 
-Artifacts are written under `~/.appitool/android/<Target>/build/<yyyy_MM_dd_HH_mm>/` named `<Target>_<flavor_><buildType>.<aab|apk>`.
+Artifacts are written under `~/.appitool/android/<Target>/build/<version>_<build>[_adhoc|_development]/` (falling back to `<yyyy_MM_dd_HH_mm>` when version or build number cannot be resolved) named `<Target>_<flavor_><buildType>.<aab|apk>`.
 
 ### Signing Resolution Order
 
@@ -72,7 +72,7 @@ Artifacts are written under `~/.appitool/android/<Target>/build/<yyyy_MM_dd_HH_m
 |:---|:---|:---|
 | `-d, --distribution <method>` | `appstore` | Distribution method: `adhoc`, `development`, or `appstore`. |
 | `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` or Gradle-resolved | Target Android package name. |
-| `-f, --flavor <name>` | `ANDROID_FLAVOR` | Gradle product flavor (e.g., `production`, `staging`). |
+| `--flavor <name>` | `ANDROID_FLAVOR` | Gradle product flavor (e.g., `production`, `staging`). |
 | `-c, --configuration <type>` | `ANDROID_CONFIGURATION` or `Release` | Build configuration/type (`Release`, `Debug`). |
 | `--format <format>` | `aab` for `appstore`; `apk` for `adhoc`/`development` | Packaging format (`aab` or `apk`). |
 | `--clean` | `false` | Run Gradle `clean` before building. |
@@ -95,5 +95,5 @@ Plus [`MatchStorageOptions`](/commands/overview#matchstorageoptions).
 appitool build android -d appstore --match
 
 # Build staging flavor APK cleanly with custom JVM heap
-appitool build android -d adhoc -f staging --format apk --clean --gradle-opts "-Xmx4g"
+appitool build android -d adhoc --flavor staging --format apk --clean --gradle-opts "-Xmx4g"
 ```

@@ -63,6 +63,7 @@ struct FlowContext: Sendable {
 
     // Android Product Flavors & Packaging Format
     var androidFlavors: [AndroidTasks.AndroidFlavor] = []
+    var androidFlavor: String? = nil
     var androidFormat: GradleTask.BuildFormat? = nil
     var androidSigningConfig: GradleTask.SigningConfig? = nil
     var androidSigningTempUrl: URL? = nil
@@ -79,8 +80,7 @@ struct FlowContext: Sendable {
     var releaseNotesFrom: String?
     var releaseNotesLocale: String = "en-US"
 
-    /// Standardized release tag name (`🍏_<version>_<buildNumber>[_adhoc]` or `🤖_<version>_<buildNumber>[_adhoc]`).
-    var releaseTagName: String? {
+    private var resolvedVersionAndBuild: (version: String, buildNumber: String)? {
         let resolvedVersion = [
             version,
             metadata["appstore_uploaded_version"],
@@ -89,7 +89,7 @@ struct FlowContext: Sendable {
             metadata["firebase_version"],
         ]
         .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
-        .first { !$0.isEmpty }
+        .first { !$0.isEmpty && !$0.contains("$") }
 
         let resolvedBuild = [
             buildNumber,
@@ -99,23 +99,33 @@ struct FlowContext: Sendable {
             metadata["firebase_build_number"],
         ]
         .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
-        .first { !$0.isEmpty }
+        .first { !$0.isEmpty && !$0.contains("$") }
 
         guard let resolvedVersion, let resolvedBuild else {
             return nil
         }
+        return (resolvedVersion, resolvedBuild)
+    }
 
-        let suffix: String
-        switch distribution {
-        case .appstore:
-            suffix = ""
-        case .adhoc:
-            suffix = "_adhoc"
-        case .development:
-            suffix = "_development"
+    /// Standardized release tag name (`🍏_<version>_<buildNumber>[_adhoc|_development]` or `🤖_<version>_<buildNumber>[_adhoc|_development]`).
+    var releaseTagName: String? {
+        guard let (resolvedVersion, resolvedBuild) = resolvedVersionAndBuild else {
+            return nil
         }
+        return "\(platform.tagPrefix)\(resolvedVersion)_\(resolvedBuild)\(distribution.tagSuffix)"
+    }
 
-        return "\(platform.tagPrefix)\(resolvedVersion)_\(resolvedBuild)\(suffix)"
+    /// Standardized build output directory name (`<version>_<buildNumber>[_adhoc|_development]`),
+    /// omitting platform prefix because builds are already grouped under `~/.appitool/<ios|android>/`.
+    var buildDirectoryName: String? {
+        guard let (resolvedVersion, resolvedBuild) = resolvedVersionAndBuild else {
+            return nil
+        }
+        return AppitoolPaths.buildTagName(
+            version: resolvedVersion,
+            buildNumber: resolvedBuild,
+            distribution: distribution
+        )
     }
 
     // Custom metadata dictionary for stages to pass data
@@ -162,6 +172,7 @@ struct FlowContext: Sendable {
         kokonoUrl: String? = nil,
         kokonoPublicKey: String? = nil,
         preset: (any FlowPreset)? = nil,
+        androidFlavor: String? = nil,
         androidFormat: GradleTask.BuildFormat? = nil,
         changelog: String? = nil,
         releaseNotesFrom: String? = nil,
@@ -198,6 +209,7 @@ struct FlowContext: Sendable {
         self.kokonoUrl = kokonoUrl
         self.kokonoPublicKey = kokonoPublicKey
         self.preset = preset
+        self.androidFlavor = androidFlavor
         self.androidFormat = androidFormat
         self.changelog = changelog
         self.releaseNotesFrom = releaseNotesFrom

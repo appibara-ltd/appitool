@@ -8,11 +8,24 @@ public enum AndroidTasks {
         public let name: String
         public let applicationId: String?
         public let applicationIdSuffix: String?
+        public let versionName: String?
+        public let versionNameSuffix: String?
+        public let versionCode: String?
 
-        public init(name: String, applicationId: String? = nil, applicationIdSuffix: String? = nil) {
+        public init(
+            name: String,
+            applicationId: String? = nil,
+            applicationIdSuffix: String? = nil,
+            versionName: String? = nil,
+            versionNameSuffix: String? = nil,
+            versionCode: String? = nil
+        ) {
             self.name = name
             self.applicationId = applicationId
             self.applicationIdSuffix = applicationIdSuffix
+            self.versionName = versionName
+            self.versionNameSuffix = versionNameSuffix
+            self.versionCode = versionCode
         }
     }
 
@@ -94,70 +107,42 @@ public enum AndroidTasks {
             }
         }
 
+        let matchNonInterpolated: (String, String) -> String? = { pattern, text in
+            guard let candidate = firstRegexMatch(pattern, in: text),
+                  !candidate.isEmpty,
+                  !candidate.contains("$")
+            else { return nil }
+            return candidate
+        }
+
+        let appIdPattern = #"applicationId\s*=?\s*["']([^"']+)["']"#
+        let vnPattern = #"\bversionName\b\s*(?:=|\s)\s*(?:.*:\s*)?["']([^"']+)["']"#
+        let vcPattern = #"\bversionCode\b\s*(?:=|\s)\s*(?:.*:\s*)?(\d+)"#
+
         // Match defaultConfig applicationId, versionName, and versionCode
         let defaultConfigPattern = #"defaultConfig\s*\{([^}]+)\}"#
         if let regex = try? NSRegularExpression(pattern: defaultConfigPattern, options: .dotMatchesLineSeparators),
            let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
            let range = Range(match.range(at: 1), in: content) {
             let defaultConfigContent = String(content[range])
-            let appIdPattern = #"applicationId\s*=?\s*["']([^"']+)["']"#
-            if let appRegex = try? NSRegularExpression(pattern: appIdPattern),
-               let appMatch = appRegex.firstMatch(in: defaultConfigContent, range: NSRange(defaultConfigContent.startIndex..., in: defaultConfigContent)),
-               let appRange = Range(appMatch.range(at: 1), in: defaultConfigContent) {
-                let candidate = String(defaultConfigContent[appRange]).trimmingCharacters(in: .whitespacesAndNewlines)
-                if !candidate.isEmpty && !candidate.contains("$") {
-                    applicationId = candidate
-                }
-            }
-
-            // Match versionName in defaultConfig (supports direct string, assignment, or ternary like: project.hasProperty('versionName') ? ... : "1.0.0")
-            let vnPattern = #"versionName\s*(?:=|\s)\s*(?:.*:\s*)?["']([^"']+)["']"#
-            if let vnRegex = try? NSRegularExpression(pattern: vnPattern),
-               let vnMatch = vnRegex.firstMatch(in: defaultConfigContent, range: NSRange(defaultConfigContent.startIndex..., in: defaultConfigContent)),
-               let vnRange = Range(vnMatch.range(at: 1), in: defaultConfigContent) {
-                versionName = String(defaultConfigContent[vnRange]).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-
-            // Match versionCode in defaultConfig (supports direct int, assignment, or ternary)
-            let vcPattern = #"versionCode\s*(?:=|\s)\s*(?:.*:\s*)?(\d+)"#
-            if let vcRegex = try? NSRegularExpression(pattern: vcPattern),
-               let vcMatch = vcRegex.firstMatch(in: defaultConfigContent, range: NSRange(defaultConfigContent.startIndex..., in: defaultConfigContent)),
-               let vcRange = Range(vcMatch.range(at: 1), in: defaultConfigContent) {
-                versionCode = String(defaultConfigContent[vcRange]).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
+            applicationId = matchNonInterpolated(appIdPattern, defaultConfigContent)
+            versionName = matchNonInterpolated(vnPattern, defaultConfigContent)
+            versionCode = firstRegexMatch(vcPattern, in: defaultConfigContent)
         }
 
         // Fallback: general applicationId
         if applicationId == nil {
-            let appIdPattern = #"applicationId\s*=?\s*["']([^"']+)["']"#
-            if let regex = try? NSRegularExpression(pattern: appIdPattern),
-               let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-               let range = Range(match.range(at: 1), in: content) {
-                let candidate = String(content[range]).trimmingCharacters(in: .whitespacesAndNewlines)
-                if !candidate.isEmpty && !candidate.contains("$") {
-                    applicationId = candidate
-                }
-            }
+            applicationId = matchNonInterpolated(appIdPattern, content)
         }
 
         // Fallback: general versionName if not found in defaultConfig
         if versionName == nil {
-            let vnPattern = #"versionName\s*(?:=|\s)\s*(?:.*:\s*)?["']([^"']+)["']"#
-            if let regex = try? NSRegularExpression(pattern: vnPattern),
-               let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-               let range = Range(match.range(at: 1), in: content) {
-                versionName = String(content[range]).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
+            versionName = matchNonInterpolated(vnPattern, content)
         }
 
         // Fallback: general versionCode if not found in defaultConfig
         if versionCode == nil {
-            let vcPattern = #"versionCode\s*(?:=|\s)\s*(?:.*:\s*)?(\d+)"#
-            if let regex = try? NSRegularExpression(pattern: vcPattern),
-               let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-               let range = Range(match.range(at: 1), in: content) {
-                versionCode = String(content[range]).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
+            versionCode = firstRegexMatch(vcPattern, in: content)
         }
 
         // Match productFlavors
@@ -184,25 +169,27 @@ public enum AndroidTasks {
 
                     var flavorAppId: String? = nil
                     var flavorSuffix: String? = nil
+                    var flavorVersionName: String? = nil
+                    var flavorVersionNameSuffix: String? = nil
+                    var flavorVersionCode: String? = nil
 
                     if m.range(at: 3).location != NSNotFound, let contentRange = Range(m.range(at: 3), in: flavorBlock) {
                         let fContent = String(flavorBlock[contentRange])
-                        let fAppIdPattern = #"applicationId\s*=?\s*["']([^"']+)["']"#
-                        if let r = try? NSRegularExpression(pattern: fAppIdPattern),
-                           let fMatch = r.firstMatch(in: fContent, range: NSRange(fContent.startIndex..., in: fContent)),
-                           let rRange = Range(fMatch.range(at: 1), in: fContent) {
-                            flavorAppId = String(fContent[rRange]).trimmingCharacters(in: .whitespacesAndNewlines)
-                        }
-
-                        let fSuffixPattern = #"applicationIdSuffix\s*=?\s*["']([^"']+)["']"#
-                        if let r = try? NSRegularExpression(pattern: fSuffixPattern),
-                           let fMatch = r.firstMatch(in: fContent, range: NSRange(fContent.startIndex..., in: fContent)),
-                           let rRange = Range(fMatch.range(at: 1), in: fContent) {
-                            flavorSuffix = String(fContent[rRange]).trimmingCharacters(in: .whitespacesAndNewlines)
-                        }
+                        flavorAppId = matchNonInterpolated(appIdPattern, fContent)
+                        flavorSuffix = matchNonInterpolated(#"applicationIdSuffix\s*=?\s*["']([^"']+)["']"#, fContent)
+                        flavorVersionName = matchNonInterpolated(vnPattern, fContent)
+                        flavorVersionNameSuffix = matchNonInterpolated(#"\bversionNameSuffix\b\s*=?\s*["']([^"']+)["']"#, fContent)
+                        flavorVersionCode = firstRegexMatch(vcPattern, in: fContent)
                     }
 
-                    flavors.append(AndroidFlavor(name: flavorName, applicationId: flavorAppId, applicationIdSuffix: flavorSuffix))
+                    flavors.append(AndroidFlavor(
+                        name: flavorName,
+                        applicationId: flavorAppId,
+                        applicationIdSuffix: flavorSuffix,
+                        versionName: flavorVersionName,
+                        versionNameSuffix: flavorVersionNameSuffix,
+                        versionCode: flavorVersionCode
+                    ))
                 }
             }
         }
@@ -382,12 +369,249 @@ public enum AndroidTasks {
         }
     }
 
+    /// Applies optional flavor overrides (`versionName`, `versionNameSuffix`, `versionCode`) over `defaultConfig` values.
+    internal static func resolveEffectiveVersion(
+        defaultVersionName: String?,
+        defaultVersionCode: String?,
+        flavors: [AndroidFlavor],
+        flavor: String?
+    ) -> (versionName: String?, versionCode: String?) {
+        let matchedFlavor: AndroidFlavor?
+        if let rawFlavor = flavor?.trimmingCharacters(in: .whitespacesAndNewlines), !rawFlavor.isEmpty {
+            matchedFlavor = flavors.first { $0.name.caseInsensitiveCompare(rawFlavor) == .orderedSame }
+        } else {
+            matchedFlavor = nil
+        }
+
+        let effectiveCode = matchedFlavor?.versionCode ?? defaultVersionCode
+        let baseName = matchedFlavor?.versionName ?? defaultVersionName
+        let effectiveName: String?
+        if let baseName, let suffix = matchedFlavor?.versionNameSuffix, !suffix.isEmpty {
+            effectiveName = "\(baseName)\(suffix)"
+        } else {
+            effectiveName = baseName
+        }
+
+        return (versionName: effectiveName, versionCode: effectiveCode)
+    }
+
+    /// Computes effective `applicationId`, `versionName`, and `versionCode` for each flavor (filtering to `selectedFlavor` when provided).
+    public static func resolveFlavorDetails(
+        flavors: [AndroidFlavor],
+        defaultApplicationId: String?,
+        defaultVersionName: String?,
+        defaultVersionCode: String?,
+        selectedFlavor: String? = nil
+    ) -> [AndroidFlavor] {
+        let filtered: [AndroidFlavor]
+        if let rawSelected = selectedFlavor?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !rawSelected.isEmpty
+        {
+            filtered = flavors.filter { $0.name.caseInsensitiveCompare(rawSelected) == .orderedSame }
+        } else {
+            filtered = flavors
+        }
+
+        return filtered.map { flavor in
+            let baseAppId = flavor.applicationId ?? defaultApplicationId
+            let effectiveAppId: String?
+            if let baseAppId, let appIdSuffix = flavor.applicationIdSuffix, !appIdSuffix.isEmpty {
+                effectiveAppId = "\(baseAppId)\(appIdSuffix)"
+            } else {
+                effectiveAppId = baseAppId
+            }
+
+            let effectiveVersion = resolveEffectiveVersion(
+                defaultVersionName: defaultVersionName,
+                defaultVersionCode: defaultVersionCode,
+                flavors: [flavor],
+                flavor: flavor.name
+            )
+
+            return AndroidFlavor(
+                name: flavor.name,
+                applicationId: effectiveAppId,
+                applicationIdSuffix: flavor.applicationIdSuffix,
+                versionName: effectiveVersion.versionName,
+                versionNameSuffix: flavor.versionNameSuffix,
+                versionCode: effectiveVersion.versionCode
+            )
+        }
+    }
+
+    /// Inspects an Android project (static regex + Gradle fallback when dynamic or unparsed flavors exist)
+    /// and resolves per-flavor effective `applicationId`, `versionName`, and `versionCode`.
+    public static func inspectAndroidProject(
+        in workspaceRoot: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
+        flavor: String? = nil
+    ) async throws -> AndroidIdentifiersResult {
+        let raw = try getAndroidIdentifiers(workspaceRoot: workspaceRoot)
+        let requestedFlavor = flavor?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasRequestedFlavor = (requestedFlavor?.isEmpty == false)
+
+        let missingRequestedFlavor: Bool
+        if let req = requestedFlavor, !req.isEmpty {
+            missingRequestedFlavor = !raw.flavors.contains { $0.name.caseInsensitiveCompare(req) == .orderedSame }
+        } else {
+            missingRequestedFlavor = false
+        }
+
+        let mentionsProductFlavors: Bool = {
+            guard raw.flavors.isEmpty,
+                  let path = raw.appBuildGradlePath,
+                  let content = try? String(contentsOfFile: path, encoding: .utf8)
+            else { return false }
+            return content.contains("productFlavors")
+        }()
+
+        var baseAppId = raw.applicationId
+        var baseNamespace = raw.namespace
+        var basePackageName = raw.packageName
+        var baseVersionName = raw.versionName
+        var baseVersionCode = raw.versionCode
+        var baseFlavors = raw.flavors
+
+        let needsGradle = baseVersionName == nil
+            || baseVersionCode == nil
+            || baseAppId == nil
+            || missingRequestedFlavor
+            || mentionsProductFlavors
+
+        if needsGradle {
+            let evaluated: GradleAppInfo?
+            do {
+                evaluated = try await evaluateAppInfoViaGradle(
+                    workspaceRoot: workspaceRoot,
+                    offline: true,
+                    flavor: nil
+                )
+            } catch {
+                evaluated = try? await evaluateAppInfoViaGradle(
+                    workspaceRoot: workspaceRoot,
+                    offline: false,
+                    flavor: nil
+                )
+            }
+
+            if let evaluated {
+                if let appId = evaluated.applicationId, !appId.isEmpty {
+                    baseAppId = appId
+                }
+                if let ns = evaluated.namespace, !ns.isEmpty {
+                    baseNamespace = ns
+                }
+                if let pkg = evaluated.packageName, !pkg.isEmpty {
+                    basePackageName = pkg
+                }
+                if let vn = evaluated.versionName, !vn.isEmpty {
+                    baseVersionName = vn
+                }
+                if let vc = evaluated.versionCode, !vc.isEmpty {
+                    baseVersionCode = vc
+                }
+                if !evaluated.flavors.isEmpty {
+                    baseFlavors = evaluated.flavors
+                }
+            }
+        }
+
+        let resolvedFlavors = resolveFlavorDetails(
+            flavors: baseFlavors,
+            defaultApplicationId: baseAppId,
+            defaultVersionName: baseVersionName,
+            defaultVersionCode: baseVersionCode,
+            selectedFlavor: flavor
+        )
+
+        let finalAppId: String?
+        let finalPackageName: String?
+        let finalVersionName: String?
+        let finalVersionCode: String?
+        if hasRequestedFlavor, let matched = resolvedFlavors.first {
+            finalAppId = matched.applicationId ?? baseAppId
+            finalPackageName = matched.applicationId ?? basePackageName
+            finalVersionName = matched.versionName ?? baseVersionName
+            finalVersionCode = matched.versionCode ?? baseVersionCode
+        } else {
+            finalAppId = baseAppId
+            finalPackageName = basePackageName
+            finalVersionName = baseVersionName
+            finalVersionCode = baseVersionCode
+        }
+
+        return AndroidIdentifiersResult(
+            androidRoot: raw.androidRoot,
+            appBuildGradlePath: raw.appBuildGradlePath,
+            manifestPath: raw.manifestPath,
+            namespace: baseNamespace,
+            applicationId: finalAppId,
+            packageName: finalPackageName,
+            versionName: finalVersionName,
+            versionCode: finalVersionCode,
+            flavors: resolvedFlavors
+        )
+    }
+
+    /// Resolves versionName and versionCode statically first, falling back to Gradle evaluation
+    /// (`--offline` then online retry on failure) when values or the requested flavor are unresolved.
+    public static func resolveProjectVersion(
+        in workspaceRoot: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
+        flavor: String? = nil,
+        identifiers: AndroidIdentifiersResult? = nil
+    ) async -> (versionName: String?, versionCode: String?) {
+        let resolvedIdentifiers = identifiers ?? (try? getAndroidIdentifiers(workspaceRoot: workspaceRoot))
+        let staticFlavors = resolvedIdentifiers?.flavors ?? []
+        let staticEffective = resolveEffectiveVersion(
+            defaultVersionName: resolvedIdentifiers?.versionName,
+            defaultVersionCode: resolvedIdentifiers?.versionCode,
+            flavors: staticFlavors,
+            flavor: flavor
+        )
+
+        let requestedFlavor = flavor?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let missingRequestedFlavor = requestedFlavor.map { req in
+            !req.isEmpty && !staticFlavors.contains { $0.name.caseInsensitiveCompare(req) == .orderedSame }
+        } ?? false
+
+        var versionName = staticEffective.versionName
+        var versionCode = staticEffective.versionCode
+
+        if versionName == nil || versionCode == nil || missingRequestedFlavor {
+            let evaluated: GradleAppInfo?
+            do {
+                evaluated = try await evaluateAppInfoViaGradle(
+                    workspaceRoot: workspaceRoot,
+                    offline: true,
+                    flavor: flavor
+                )
+            } catch {
+                evaluated = try? await evaluateAppInfoViaGradle(
+                    workspaceRoot: workspaceRoot,
+                    offline: false,
+                    flavor: flavor
+                )
+            }
+
+            if let evaluated {
+                if let vName = evaluated.versionName, !vName.isEmpty {
+                    versionName = vName
+                }
+                if let vCode = evaluated.versionCode, !vCode.isEmpty {
+                    versionCode = vCode
+                }
+            }
+        }
+
+        return (versionName: versionName, versionCode: versionCode)
+    }
+
     /// Evaluates the Android project model dynamically by executing Gradle with a temporary init-script.
     /// This captures the runtime-evaluated `versionCode`, `versionName`, `applicationId`, `packageName`, `namespace`, and product flavors
     /// (e.g. when determined by properties, ternaries, or dynamic functions in Gradle).
     public static func evaluateAppInfoViaGradle(
         workspaceRoot: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
-        offline: Bool = false
+        offline: Bool = false,
+        flavor: String? = nil
     ) async throws -> GradleAppInfo {
         guard let androidRoot = findAndroidRoot(in: workspaceRoot) else {
             throw NSError(
@@ -433,7 +657,12 @@ public enum AndroidTasks {
                             println "APPI_NAMESPACE=${ns ?: ''}"
                             if (androidExt?.productFlavors) {
                                 androidExt.productFlavors.each { f ->
-                                    println "APPI_FLAVOR=${f.name}|${f.applicationId ?: ''}|${f.applicationIdSuffix ?: ''}"
+                                    def fAppId = f.hasProperty("applicationId") ? (f.applicationId ?: "") : ""
+                                    def fAppIdSuffix = f.hasProperty("applicationIdSuffix") ? (f.applicationIdSuffix ?: "") : ""
+                                    def fVn = f.hasProperty("versionName") ? (f.versionName ?: "") : ""
+                                    def fVnSuffix = f.hasProperty("versionNameSuffix") ? (f.versionNameSuffix ?: "") : ""
+                                    def fVc = f.hasProperty("versionCode") ? (f.versionCode ?: "") : ""
+                                    println "APPI_FLAVOR=${f.name}|${fAppId}|${fAppIdSuffix}|${fVn}|${fVnSuffix}|${fVc}"
                                 }
                             }
                         }
@@ -466,13 +695,17 @@ public enum AndroidTasks {
             )
         }
 
+        return Self.parseGradleAppInfoOutput(result.stdout, flavor: flavor)
+    }
+
+    internal static func parseGradleAppInfoOutput(_ output: String, flavor: String? = nil) -> GradleAppInfo {
         var versionCode: String?
         var versionName: String?
         var applicationId: String?
         var namespace: String?
         var flavors: [AndroidFlavor] = []
 
-        for line in result.stdout.components(separatedBy: .newlines) {
+        for line in output.components(separatedBy: .newlines) {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.hasPrefix("APPI_VERSION_CODE=") {
                 let val = String(trimmed.dropFirst("APPI_VERSION_CODE=".count)).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -489,20 +722,35 @@ public enum AndroidTasks {
             } else if trimmed.hasPrefix("APPI_FLAVOR=") {
                 let raw = String(trimmed.dropFirst("APPI_FLAVOR=".count))
                 let parts = raw.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
-                if parts.count >= 1 && !parts[0].isEmpty {
-                    let name = parts[0]
-                    let fAppId = parts.count > 1 && !parts[1].isEmpty ? parts[1] : nil
-                    let fSuffix = parts.count > 2 && !parts[2].isEmpty ? parts[2] : nil
-                    flavors.append(AndroidFlavor(name: name, applicationId: fAppId, applicationIdSuffix: fSuffix))
+                let cleanField: (Int) -> String? = { idx in
+                    guard parts.count > idx else { return nil }
+                    let val = parts[idx].trimmingCharacters(in: .whitespacesAndNewlines)
+                    return (!val.isEmpty && val != "null") ? val : nil
+                }
+                if let name = cleanField(0) {
+                    flavors.append(AndroidFlavor(
+                        name: name,
+                        applicationId: cleanField(1),
+                        applicationIdSuffix: cleanField(2),
+                        versionName: cleanField(3),
+                        versionNameSuffix: cleanField(4),
+                        versionCode: cleanField(5)
+                    ))
                 }
             }
         }
 
+        let effective = resolveEffectiveVersion(
+            defaultVersionName: versionName,
+            defaultVersionCode: versionCode,
+            flavors: flavors,
+            flavor: flavor
+        )
         let packageName = applicationId ?? namespace
 
         return GradleAppInfo(
-            versionCode: versionCode,
-            versionName: versionName,
+            versionCode: effective.versionCode,
+            versionName: effective.versionName,
             applicationId: applicationId,
             packageName: packageName,
             namespace: namespace,

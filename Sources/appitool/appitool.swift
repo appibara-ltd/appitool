@@ -17,6 +17,7 @@ struct appitool: AsyncParsableCommand {
             SelfUpdateCommand.self,
             MatchCommand.self,
             AppleCommand.self,
+            GoogleCommand.self,
             FirebaseCommand.self,
             InspectCommand.self,
             NotesCommand.self,

@@ -18,11 +18,11 @@ A unified CLI utility and release orchestration engine for Apple App Store Conne
 - **Multi-Track Distribution:** Deploy seamlessly to TestFlight, App Store, Google Play (Internal, Alpha, Beta, Production), and Firebase App Distribution.
 - **Smart Notifications:** Real-time webhook dispatches to Slack and KokoNo with end-to-end (E2E) encryption support.
 - **Git-Backed Code Signing (`match`):** Encrypted sync of iOS certificates/profiles and Android keystores via a private Git repository.
-- **Store & Firebase Management:** Manage App Store Connect identifiers, capabilities, profiles, certificates, devices, team users, Firebase App Distribution releases/groups, Auth users, and Cloud Firestore.
+- **Store & Firebase Management:** Manage App Store Connect identifiers, capabilities, profiles, certificates, devices, team users, and screenshots; Google Play Console store screenshots and graphics; plus Firebase App Distribution releases/groups, Auth users, and Cloud Firestore.
 - **Release Notes:** Categorized Markdown release notes generated from Git conventional commits.
 - **Built-in Self-Update:** Upgrade the CLI in-place on demand via `appitool self-update` with SHA256 checksum verification.
 - **Dry-Run Mode:** Validate configurations, credentials, and stage workflows without triggering builds or mutating remote state.
-- **CI Mode Guard (`--ci` / `--no-ci`):** Automatically detects CI environments (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, etc.) and skips destructive commands (`delete-*`, `prune-*`, `disable-device`, `cancel-invitation`, `match nuke/prune`) as a safe no-op (exit code `0`).
+- **CI Mode Guard (`--ci` / `--no-ci`):** Automatically detects CI environments (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, etc.) and skips destructive commands (`delete-*`, `prune-*`, `disable-device`, `cancel-invitation`, `screenshots delete`, `match nuke/prune`) as a safe no-op (exit code `0`).
 
 ---
 
@@ -124,9 +124,10 @@ Run `appitool --help` or `appitool <command> --help` to inspect live options. Fu
 | `build` | `ios`, `android` | Compiles and packages iOS (`.xcarchive`/`.ipa`) and Android (`.aab`/`.apk`) artifacts. |
 | `check` | `ios`, `android` | Queries remote store/distribution metadata and latest build numbers. |
 | `match` | `ios` *(default)*, `android` | Syncs, prunes, nukes, or adds Git-encrypted certificates, profiles, and keystores. |
-| `apple` | 22 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, devices, team users, and invitations. |
+| `apple` | 23 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, devices, team users, invitations, and store screenshots. |
+| `google` | `screenshots` (5 subcommands) | Manages Google Play Console store visuals and screenshots (`list`, `upload`, `download`, `delete`, `types`). |
 | `firebase` | 9 subcommands | Manages Firebase App Distribution releases/groups, Firebase Auth users, and Cloud Firestore. |
-| `inspect` | — | Inspects local iOS bundle IDs and Android `applicationId`/`namespace`/flavors (supports `--json`). |
+| `inspect` | — | Inspects local iOS and Android identifiers, versions, build numbers, and flavors (supports `--json`). |
 | `clean` | — | Cleans cached build outputs and Xcode DerivedData under `~/.appitool`. |
 | `notes` | — | Generates categorized Markdown release notes from Git conventional commits. |
 | `kokono` | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |
@@ -189,11 +190,13 @@ appitool match android
 
 See [Code Signing (Match)](docs/guide/code-signing-match.md).
 
-### `apple` / `firebase`
+### `apple` / `google` / `firebase`
 
 ```bash
 appitool apple list-apps -b com.example.app
 appitool apple delete-identifier -a com.example.app
+appitool apple screenshots upload -b com.example.app -l en-US -t iphone-67 ./screenshots/ios/en-US/
+appitool google screenshots upload -p com.example.app -l en-US -t phone ./screenshots/android/en-US/
 appitool firebase list-releases --platform ios -l 10
 appitool firebase create-group -a qa-team -n "QA Team"
 ```

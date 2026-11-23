@@ -34,6 +34,7 @@ const sections = [
       'check.md',
       'match.md',
       'apple.md',
+      'google.md',
       'firebase.md',
       'inspect.md',
       'clean.md',

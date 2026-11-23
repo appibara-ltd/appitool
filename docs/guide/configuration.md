@@ -60,7 +60,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 | Variable | Description | Default / Behavior |
 |:---|:---|:---|
 | `ANDROID_PROJECT_DIR` | Android root directory containing `gradlew` | `./android` if present, else `.` |
-| `ANDROID_FLAVOR` | Gradle product flavor (e.g., `production`, `staging`) | None |
+| `ANDROID_FLAVOR` | Gradle product flavor (e.g., `production`, `staging`); fallback for `build android --flavor` and `flow android --flavor` | None |
 | `ANDROID_CONFIGURATION` | Build type (`Release` or `Debug`) | `Release` |
 | `ANDROID_KEYSTORE_PATH` | Path to local `.keystore` / `.jks` file | None |
 | `ANDROID_KEYSTORE` | Base64-encoded keystore content (decoded to temporary keystore) | None |
@@ -107,7 +107,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 
 ### CI Mode & Destructive Command Guard
 
-`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, `match ios prune`) are skipped as a no-op with a warning and exit code `0`.
+`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, `match ios prune`) are skipped as a no-op with a warning and exit code `0`.
 
 | Variable | Description | Notes |
 |:---|:---|:---|
@@ -125,7 +125,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 ├── ios/
 │   └── <TargetName>/
 │       ├── build/
-│       │   └── <yyyy_MM_dd_HH_mm>/
+│       │   └── <version>_<build>[_adhoc|_development]/  # Falls back to <yyyy_MM_dd_HH_mm>
 │       │       ├── <Scheme>.xcarchive
 │       │       ├── <Scheme>.ipa
 │       │       └── <Scheme>.app.dSYM.zip
@@ -133,7 +133,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 ├── android/
 │   ├── <TargetName>/
 │   │   └── build/
-│   │       └── <yyyy_MM_dd_HH_mm>/
+│   │       └── <version>_<build>[_adhoc|_development]/  # Falls back to <yyyy_MM_dd_HH_mm>
 │   │           ├── <Target>_release.aab
 │   │           └── <Target>_release.apk
 │   ├── keystores/
@@ -141,8 +141,12 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 │   └── tmp/
 ├── certs/
 │   └── <type>/
+├── screenshots/
+│   └── <project>/
+│       ├── apple/<locale>/<type>/    # Used by both download and default bulk upload (01_<name>.png)
+│       └── google/<locale>/<type>/   # Used by both download and default bulk upload (01.png)
 └── match/
     └── <UUID>/                  # Temporary Git clone working directory (auto-cleaned)
 ```
 
-Use [`appitool clean`](/commands/clean) to inspect sizes and prune old build artifacts and iOS `derivedData` directories safely.
+Use [`appitool clean`](/commands/clean) to inspect sizes and prune old build artifacts and iOS `derivedData` directories safely (`~/.appitool/screenshots` and `certs/` are preserved).

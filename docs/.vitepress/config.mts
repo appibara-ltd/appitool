@@ -67,6 +67,7 @@ export default defineConfig({
         text: 'Provider Commands',
         items: [
           { text: 'apple', link: '/commands/apple' },
+          { text: 'google', link: '/commands/google' },
           { text: 'firebase', link: '/commands/firebase' },
         ],
       },

@@ -5,7 +5,7 @@ Direct management of Apple App Store Connect and Apple Developer Portal resource
 All `apple` subcommands accept [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`), falling back to `APPLE_KEY_ID`, `APPLE_ISSUER_ID`, and `APPLE_KEY` in `.env` / environment variables.
 
 > [!NOTE]
-> **CI Guard:** Destructive subcommands (`delete-identifier`, `delete-profile`, `prune-profiles`, `delete-certificate`, `prune-certificates`, `disable-device`, `delete-user`, and `cancel-invitation`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
+> **CI Guard:** Destructive subcommands (`delete-identifier`, `delete-profile`, `prune-profiles`, `delete-certificate`, `prune-certificates`, `disable-device`, `delete-user`, `cancel-invitation`, and `screenshots delete`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
 
 ## Synopsis
 
@@ -23,6 +23,7 @@ appitool apple <subcommand> [options]
 | **Certificates** | `list-certificates`, `create-certificate`, `delete-certificate`, `prune-certificates` |
 | **Devices** | `list-devices`, `add-device`, `disable-device` |
 | **Users & Invitations** | `list-users`, `invite-user`, `update-user`, `delete-user`, `list-invitations`, `cancel-invitation` |
+| **Screenshots** | `screenshots list`, `screenshots upload`, `screenshots download`, `screenshots delete`, `screenshots types` |
 
 ---
 
@@ -387,4 +388,106 @@ Cancels a pending user invitation in App Store Connect (identify invitation with
 
 ```bash
 appitool apple cancel-invitation -e dev@example.com
+```
+
+---
+
+## Screenshots (`appitool apple screenshots`)
+
+Manages App Store Connect screenshot sets and localized screenshot assets using the 3-step reserve → chunked upload → MD5 commit workflow.
+
+All `screenshots` subcommands (except `types`) accept shared app-resolution options:
+
+| Option | Default / `.env` Fallback | Description |
+|:---|:---|:---|
+| `-b, --bundle-id <id>` | `APPLE_BUNDLE_ID` or auto-detected from Xcode project | Target application bundle identifier |
+| `--app-id <id>` | — | Numeric App Store Connect App ID (takes precedence over `--bundle-id`) |
+| `--platform <platform>` | `ios` | Target platform (`ios`, `macos`, `tvos`, `visionos`) |
+| `-v, --app-version <ver>` | Auto-selects editable version (or latest for `list`) | Explicit App Store version string (e.g. `1.2.0`) |
+
+### `appitool apple screenshots list`
+
+Lists screenshot sets and individual screenshots registered on the resolved App Store version.
+
+| Option | Description |
+|:---|:---|
+| `-l, --locale <locale>` | Filter by App Store locale (e.g. `en-US`, `tr`). Omit to list all localizations. |
+| `-t, --type <display-type>` | Filter by screenshot display type (e.g. `iphone-67`, `ipad-pro-129`). |
+
+```bash
+appitool apple screenshots list -b com.example.app
+appitool apple screenshots list -b com.example.app -v 1.2.0 -l en-US -t iphone-67
+```
+
+### `appitool apple screenshots upload`
+
+Uploads screenshots to an editable App Store version (e.g. `PREPARE_FOR_SUBMISSION`) either from explicit flat image paths (`-l` and `-t` required) or symmetrically from a `<locale>/<type>/` directory tree defaulting to `~/.appitool/screenshots/<project>/apple/` (`-l` and `-t` optional filters).
+
+| Option / Flag / Argument | Default | Description |
+|:---|:---|:---|
+| `-l, --locale <locale>` | — | App Store localization locale (e.g. `en-US`, `tr`). Required for flat files; optional filter for `<locale>/<type>/` trees. |
+| `-t, --type <display-type>` | — | Screenshot display type (e.g. `iphone-67`, `ipad-pro-129`, `APP_IPHONE_67`). Required for flat files; optional filter for directory trees. |
+| `-r, --replace` | `false` | Delete existing screenshots in each target set before uploading. |
+| `--wait` / `--no-wait` | `true` (`--wait`) | Wait for App Store Connect to process each uploaded screenshot (`COMPLETE` / `FAILED`). |
+| `-d, --dry-run` | `false` | Validate files and preview upload targets without contacting App Store Connect. |
+| `<paths...>` | `~/.appitool/screenshots/<project>/apple/` | Optional PNG/JPEG file(s), flat directory, or `<locale>/<type>/` directory tree. |
+
+```bash
+# Bulk-upload all locales and display types from ~/.appitool/screenshots/<bundle-id>/apple/
+appitool apple screenshots upload --replace
+
+# Bulk-upload only en-US sets from the default per-project directory
+appitool apple screenshots upload -l en-US -r
+
+# Upload flat directory images for a single locale and display type
+appitool apple screenshots upload \
+  -b com.example.app \
+  -l en-US \
+  -t iphone-67 \
+  --replace \
+  ./screenshots/ios/en-US/iphone-67/
+```
+
+### `appitool apple screenshots download`
+
+Downloads screenshots from App Store Connect (`imageAsset.templateUrl` at full resolution) into `<output>/<locale>/<type>/01_<name>.<ext>`. By default, files are stored per project under `~/.appitool/screenshots/<bundle-or-app-id>/apple/`. Existing leading order prefixes (`01_...`) are stripped before applying the current store order prefix so round-tripping download → upload → download does not double-prefix filenames.
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `-l, --locale <locale>` | — | Filter by App Store locale (e.g. `en-US`, `tr`). Omit to download all locales. |
+| `-t, --type <display-type>` | — | Filter by screenshot display type (e.g. `iphone-67`, `ipad-pro-129`). |
+| `-o, --output <dir>` | `~/.appitool/screenshots/<project>/apple/` | Custom destination root directory. |
+| `-d, --dry-run` | `false` | Preview target local paths and CDN URLs without downloading files. |
+
+```bash
+# Download all locales and display types for the project to ~/.appitool/screenshots/<bundle-id>/apple/
+appitool apple screenshots download
+
+# Download only en-US iPhone 6.7" screenshots into a custom folder
+appitool apple screenshots download -b com.example.app -l en-US -t iphone-67 -o ./downloads/ios
+```
+
+### `appitool apple screenshots delete`
+
+Deletes an individual screenshot by resource ID or all screenshots for `--locale` (and optional `--type`) on an editable App Store version (guarded in CI mode).
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `-i, --id <screenshot-id>` | — | Specific App Store screenshot resource ID to delete (mutually exclusive with `-a`). |
+| `-l, --locale <locale>` | — | App Store localization locale when deleting with `-a, --all`. |
+| `-t, --type <display-type>` | — | Optional screenshot display type filter when deleting with `-a, --all`. |
+| `-a, --all` | `false` | Delete all screenshots matching `--locale` (and optional `--type`). |
+| `-d, --dry-run` | `false` | Preview matching screenshot(s) without deleting them. |
+
+```bash
+appitool apple screenshots delete -i "<screenshot-id>"
+appitool apple screenshots delete -b com.example.app -l en-US -t iphone-67 --all --dry-run
+```
+
+### `appitool apple screenshots types`
+
+Lists all 33 supported App Store Connect screenshot display types and their CLI aliases (no credentials required).
+
+```bash
+appitool apple screenshots types
 ```

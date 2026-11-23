@@ -27,3 +27,10 @@ filter:
     - /v1/users/{id}
     - /v1/userInvitations
     - /v1/userInvitations/{id}
+    - /v1/apps/{id}/appStoreVersions
+    - /v1/appStoreVersions/{id}/appStoreVersionLocalizations
+    - /v1/appStoreVersionLocalizations/{id}/appScreenshotSets
+    - /v1/appScreenshotSets
+    - /v1/appScreenshotSets/{id}/appScreenshots
+    - /v1/appScreenshots
+    - /v1/appScreenshots/{id}

@@ -244,7 +244,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 
 ### CI Mode & Destructive Command Guard
 
-`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, `match ios prune`) are skipped as a no-op with a warning and exit code `0`.
+`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, `match ios prune`) are skipped as a no-op with a warning and exit code `0`.
 
 | Variable | Description | Notes |
 |:---|:---|:---|
@@ -262,7 +262,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 ├── ios/
 │   └── <TargetName>/
 │       ├── build/
-│       │   └── <yyyy_MM_dd_HH_mm>/
+│       │   └── <version>_<build>[_adhoc|_development]/  # Falls back to <yyyy_MM_dd_HH_mm>
 │       │       ├── <Scheme>.xcarchive
 │       │       ├── <Scheme>.ipa
 │       │       └── <Scheme>.app.dSYM.zip
@@ -270,7 +270,7 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 ├── android/
 │   ├── <TargetName>/
 │   │   └── build/
-│   │       └── <yyyy_MM_dd_HH_mm>/
+│   │       └── <version>_<build>[_adhoc|_development]/  # Falls back to <yyyy_MM_dd_HH_mm>
 │   │           ├── <Target>_release.aab
 │   │           └── <Target>_release.apk
 │   ├── keystores/
@@ -278,11 +278,15 @@ The built-in `EnvLoader` parses `.env` files without external dependencies and s
 │   └── tmp/
 ├── certs/
 │   └── <type>/
+├── screenshots/
+│   └── <project>/
+│       ├── apple/<locale>/<type>/    # Used by both download and default bulk upload (01_<name>.png)
+│       └── google/<locale>/<type>/   # Used by both download and default bulk upload (01.png)
 └── match/
     └── <UUID>/                  # Temporary Git clone working directory (auto-cleaned)
 ```
 
-Use [`appitool clean`](https://appitool.appibara.com/commands/clean) to inspect sizes and prune old build artifacts and iOS `derivedData` directories safely.
+Use [`appitool clean`](https://appitool.appibara.com/commands/clean) to inspect sizes and prune old build artifacts and iOS `derivedData` directories safely (`~/.appitool/screenshots` and `certs/` are preserved).
 
 ---
 
@@ -504,9 +508,10 @@ Notice the difference between standalone `appitool match ios` and `appitool flow
 | [`build`](https://appitool.appibara.com/commands/build) | `ios`, `android` | Compiles and packages iOS (`.xcarchive`/`.ipa`) and Android (`.aab`/`.apk`) artifacts directly. |
 | [`check`](https://appitool.appibara.com/commands/check) | `ios`, `android` | Queries remote store/distribution metadata and latest build numbers. |
 | [`match`](https://appitool.appibara.com/commands/match) | `ios` *(default)*, `android` | Syncs, prunes, nukes, or adds Git-encrypted certificates, profiles, and keystores. |
-| [`apple`](https://appitool.appibara.com/commands/apple) | 22 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, devices, team users, and user invitations. |
+| [`apple`](https://appitool.appibara.com/commands/apple) | 23 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, devices, team users, invitations, and store screenshots. |
+| [`google`](https://appitool.appibara.com/commands/google) | `screenshots` (5 subcommands) | Manages Google Play Console store visuals and screenshots (`list`, `upload`, `download`, `delete`, `types`). |
 | [`firebase`](https://appitool.appibara.com/commands/firebase) | 9 subcommands | Manages Firebase App Distribution releases/groups, Firebase Auth users, and Cloud Firestore collections/documents. |
-| [`inspect`](https://appitool.appibara.com/commands/inspect) | — | Inspects local iOS bundle IDs and Android `applicationId`/`namespace`/flavors (supports `--json`). |
+| [`inspect`](https://appitool.appibara.com/commands/inspect) | — | Inspects local iOS and Android identifiers, versions, build numbers, and flavors (supports `--json`). |
 | [`clean`](https://appitool.appibara.com/commands/clean) | — | Cleans cached build outputs and Xcode DerivedData under `~/.appitool`. |
 | [`notes`](https://appitool.appibara.com/commands/notes) | — | Generates categorized Markdown release notes from Git conventional commits. |
 | [`kokono`](https://appitool.appibara.com/commands/kokono) | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |
@@ -543,11 +548,20 @@ Used by `flow ios`, `build ios`, `check ios`, `match ios`, and all `apple` subco
 
 ### `GoogleCredentialsOptions`
 
-Used by `flow ios`, `flow android`, `check ios`, `check android`, and `FirebaseProjectOptions`.
+Used by `flow ios`, `flow android`, `check ios`, `check android`, `GooglePlayAppOptions`, and `FirebaseProjectOptions`.
 
 | Flag | `.env` Fallback | Description |
 |:---|:---|:---|
 | `-g, --google-key <key>` | `GOOGLE_KEY` | Service Account JSON path, raw JSON string, or Base64 string |
+
+### `GooglePlayAppOptions`
+
+Includes `GoogleCredentialsOptions` and resolves the Android application package name. Used by `google screenshots <list|upload|download|delete>`.
+
+| Flag | `.env` Fallback | Description |
+|:---|:---|:---|
+| `-g, --google-key <key>` | `GOOGLE_KEY` | Inherited from `GoogleCredentialsOptions` |
+| `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` or local Android project | Target Android application package name |
 
 ### `FirebaseProjectOptions`
 
@@ -607,7 +621,7 @@ Used by `flow ios` and `flow android`.
 
 ### `GlobalCIOptions`
 
-Available globally on `appitool` (can be placed before or after subcommands, as well as directly on guarded destructive subcommands and `match ios`). Auto-detects CI environment variables (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD`) when omitted. In CI mode, destructive commands (`apple delete-identifier`, `apple delete-profile`, `apple prune-profiles`, `apple delete-certificate`, `apple prune-certificates`, `apple disable-device`, `apple delete-user`, `apple cancel-invitation`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, and `match ios prune`) are skipped as a no-op with a warning (exit code `0`).
+Available globally on `appitool` (can be placed before or after subcommands, as well as directly on guarded destructive subcommands and `match ios`). Auto-detects CI environment variables (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD`) when omitted. In CI mode, destructive commands (`apple delete-identifier`, `apple delete-profile`, `apple prune-profiles`, `apple delete-certificate`, `apple prune-certificates`, `apple disable-device`, `apple delete-user`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, and `match ios prune`) are skipped as a no-op with a warning (exit code `0`).
 
 | Flag | Default / Env Fallback | Description |
 |:---|:---|:---|
@@ -742,7 +756,7 @@ appitool build android [options]
 
 Builds and packages an iOS application using `xcodebuild` (comparable to Fastlane `build_app` / `gym`).
 
-Artifacts are written under `~/.appitool/ios/<MainTarget>/build/<yyyy_MM_dd_HH_mm>/` with DerivedData isolated in `~/.appitool/ios/<MainTarget>/derivedData/`.
+Artifacts are written under `~/.appitool/ios/<MainTarget>/build/<version>_<build>[_adhoc|_development]/` (falling back to `<yyyy_MM_dd_HH_mm>` when version or build number cannot be resolved) with DerivedData isolated in `~/.appitool/ios/<MainTarget>/derivedData/`.
 
 ### Options
 
@@ -784,7 +798,7 @@ appitool build ios -d adhoc --skip-build-archive
 
 Builds an Android App Bundle (`.aab`) or APK (`.apk`) using Gradle (`./gradlew`).
 
-Artifacts are written under `~/.appitool/android/<Target>/build/<yyyy_MM_dd_HH_mm>/` named `<Target>_<flavor_><buildType>.<aab|apk>`.
+Artifacts are written under `~/.appitool/android/<Target>/build/<version>_<build>[_adhoc|_development]/` (falling back to `<yyyy_MM_dd_HH_mm>` when version or build number cannot be resolved) named `<Target>_<flavor_><buildType>.<aab|apk>`.
 
 ### Signing Resolution Order
 
@@ -1022,7 +1036,7 @@ Direct management of Apple App Store Connect and Apple Developer Portal resource
 All `apple` subcommands accept [`AppleCredentialsOptions`](https://appitool.appibara.com/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`), falling back to `APPLE_KEY_ID`, `APPLE_ISSUER_ID`, and `APPLE_KEY` in `.env` / environment variables.
 
 > [!NOTE]
-> **CI Guard:** Destructive subcommands (`delete-identifier`, `delete-profile`, `prune-profiles`, `delete-certificate`, `prune-certificates`, `disable-device`, `delete-user`, and `cancel-invitation`) accept [`GlobalCIOptions`](https://appitool.appibara.com/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
+> **CI Guard:** Destructive subcommands (`delete-identifier`, `delete-profile`, `prune-profiles`, `delete-certificate`, `prune-certificates`, `disable-device`, `delete-user`, `cancel-invitation`, and `screenshots delete`) accept [`GlobalCIOptions`](https://appitool.appibara.com/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
 
 ## Synopsis
 
@@ -1040,6 +1054,7 @@ appitool apple <subcommand> [options]
 | **Certificates** | `list-certificates`, `create-certificate`, `delete-certificate`, `prune-certificates` |
 | **Devices** | `list-devices`, `add-device`, `disable-device` |
 | **Users & Invitations** | `list-users`, `invite-user`, `update-user`, `delete-user`, `list-invitations`, `cancel-invitation` |
+| **Screenshots** | `screenshots list`, `screenshots upload`, `screenshots download`, `screenshots delete`, `screenshots types` |
 
 ---
 
@@ -1408,6 +1423,255 @@ appitool apple cancel-invitation -e dev@example.com
 
 ---
 
+## Screenshots (`appitool apple screenshots`)
+
+Manages App Store Connect screenshot sets and localized screenshot assets using the 3-step reserve → chunked upload → MD5 commit workflow.
+
+All `screenshots` subcommands (except `types`) accept shared app-resolution options:
+
+| Option | Default / `.env` Fallback | Description |
+|:---|:---|:---|
+| `-b, --bundle-id <id>` | `APPLE_BUNDLE_ID` or auto-detected from Xcode project | Target application bundle identifier |
+| `--app-id <id>` | — | Numeric App Store Connect App ID (takes precedence over `--bundle-id`) |
+| `--platform <platform>` | `ios` | Target platform (`ios`, `macos`, `tvos`, `visionos`) |
+| `-v, --app-version <ver>` | Auto-selects editable version (or latest for `list`) | Explicit App Store version string (e.g. `1.2.0`) |
+
+### `appitool apple screenshots list`
+
+Lists screenshot sets and individual screenshots registered on the resolved App Store version.
+
+| Option | Description |
+|:---|:---|
+| `-l, --locale <locale>` | Filter by App Store locale (e.g. `en-US`, `tr`). Omit to list all localizations. |
+| `-t, --type <display-type>` | Filter by screenshot display type (e.g. `iphone-67`, `ipad-pro-129`). |
+
+```bash
+appitool apple screenshots list -b com.example.app
+appitool apple screenshots list -b com.example.app -v 1.2.0 -l en-US -t iphone-67
+```
+
+### `appitool apple screenshots upload`
+
+Uploads screenshots to an editable App Store version (e.g. `PREPARE_FOR_SUBMISSION`) either from explicit flat image paths (`-l` and `-t` required) or symmetrically from a `<locale>/<type>/` directory tree defaulting to `~/.appitool/screenshots/<project>/apple/` (`-l` and `-t` optional filters).
+
+| Option / Flag / Argument | Default | Description |
+|:---|:---|:---|
+| `-l, --locale <locale>` | — | App Store localization locale (e.g. `en-US`, `tr`). Required for flat files; optional filter for `<locale>/<type>/` trees. |
+| `-t, --type <display-type>` | — | Screenshot display type (e.g. `iphone-67`, `ipad-pro-129`, `APP_IPHONE_67`). Required for flat files; optional filter for directory trees. |
+| `-r, --replace` | `false` | Delete existing screenshots in each target set before uploading. |
+| `--wait` / `--no-wait` | `true` (`--wait`) | Wait for App Store Connect to process each uploaded screenshot (`COMPLETE` / `FAILED`). |
+| `-d, --dry-run` | `false` | Validate files and preview upload targets without contacting App Store Connect. |
+| `<paths...>` | `~/.appitool/screenshots/<project>/apple/` | Optional PNG/JPEG file(s), flat directory, or `<locale>/<type>/` directory tree. |
+
+```bash
+# Bulk-upload all locales and display types from ~/.appitool/screenshots/<bundle-id>/apple/
+appitool apple screenshots upload --replace
+
+# Bulk-upload only en-US sets from the default per-project directory
+appitool apple screenshots upload -l en-US -r
+
+# Upload flat directory images for a single locale and display type
+appitool apple screenshots upload \
+  -b com.example.app \
+  -l en-US \
+  -t iphone-67 \
+  --replace \
+  ./screenshots/ios/en-US/iphone-67/
+```
+
+### `appitool apple screenshots download`
+
+Downloads screenshots from App Store Connect (`imageAsset.templateUrl` at full resolution) into `<output>/<locale>/<type>/01_<name>.<ext>`. By default, files are stored per project under `~/.appitool/screenshots/<bundle-or-app-id>/apple/`. Existing leading order prefixes (`01_...`) are stripped before applying the current store order prefix so round-tripping download → upload → download does not double-prefix filenames.
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `-l, --locale <locale>` | — | Filter by App Store locale (e.g. `en-US`, `tr`). Omit to download all locales. |
+| `-t, --type <display-type>` | — | Filter by screenshot display type (e.g. `iphone-67`, `ipad-pro-129`). |
+| `-o, --output <dir>` | `~/.appitool/screenshots/<project>/apple/` | Custom destination root directory. |
+| `-d, --dry-run` | `false` | Preview target local paths and CDN URLs without downloading files. |
+
+```bash
+# Download all locales and display types for the project to ~/.appitool/screenshots/<bundle-id>/apple/
+appitool apple screenshots download
+
+# Download only en-US iPhone 6.7" screenshots into a custom folder
+appitool apple screenshots download -b com.example.app -l en-US -t iphone-67 -o ./downloads/ios
+```
+
+### `appitool apple screenshots delete`
+
+Deletes an individual screenshot by resource ID or all screenshots for `--locale` (and optional `--type`) on an editable App Store version (guarded in CI mode).
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `-i, --id <screenshot-id>` | — | Specific App Store screenshot resource ID to delete (mutually exclusive with `-a`). |
+| `-l, --locale <locale>` | — | App Store localization locale when deleting with `-a, --all`. |
+| `-t, --type <display-type>` | — | Optional screenshot display type filter when deleting with `-a, --all`. |
+| `-a, --all` | `false` | Delete all screenshots matching `--locale` (and optional `--type`). |
+| `-d, --dry-run` | `false` | Preview matching screenshot(s) without deleting them. |
+
+```bash
+appitool apple screenshots delete -i "<screenshot-id>"
+appitool apple screenshots delete -b com.example.app -l en-US -t iphone-67 --all --dry-run
+```
+
+### `appitool apple screenshots types`
+
+Lists all 33 supported App Store Connect screenshot display types and their CLI aliases (no credentials required).
+
+```bash
+appitool apple screenshots types
+```
+
+---
+
+<!-- source: commands/google.md -->
+
+# `appitool google`
+
+Direct management of Google Play Console store visuals and resources via the Google Play Developer API v3.
+
+All `google screenshots` subcommands (except `types`) accept [`GooglePlayAppOptions`](https://appitool.appibara.com/commands/overview#googleplayappoptions) (`-g, --google-key`, `-p, --package-name`), falling back to `GOOGLE_KEY`, `GOOGLE_PACKAGE_NAME` in `.env`, or auto-detection from the local Android project.
+
+> [!NOTE]
+> **CI Guard:** Destructive subcommand `screenshots delete` accepts [`GlobalCIOptions`](https://appitool.appibara.com/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and is skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
+
+## Synopsis
+
+```bash
+appitool google <subcommand> [options]
+```
+
+## Subcommands Summary
+
+| Domain | Subcommand | Description |
+|:---|:---|:---|
+| **Store Visuals (`screenshots`)** | `screenshots list` | Lists existing store screenshots and graphic assets by locale and image type. |
+| | `screenshots upload` | Uploads PNG/JPEG screenshots, icons, feature graphics, or banners and commits an edit. |
+| | `screenshots download` | Downloads store screenshots and graphics locally to `~/.appitool/screenshots/<package>/google/` (or `-o`). |
+| | `screenshots delete` | Deletes an individual image by ID or all images of a given type for a locale. |
+| | `screenshots types` | Lists all supported Google Play `imageType` keys, aliases, and descriptions. |
+
+---
+
+## Supported Store Visual Types
+
+| CLI Key | Aliases | API `imageType` | Description |
+|:---|:---|:---|:---|
+| `phone` | `phone-screenshots`, `phone_screenshots` | `phoneScreenshots` | Phone screenshots (PNG/JPEG, 2–8 images) |
+| `tablet7` | `seven-inch`, `7-inch`, `seven-inch-screenshots` | `sevenInchScreenshots` | 7-inch tablet screenshots (PNG/JPEG) |
+| `tablet10` | `ten-inch`, `10-inch`, `ten-inch-screenshots` | `tenInchScreenshots` | 10-inch tablet screenshots (PNG/JPEG) |
+| `tv` | `tv-screenshots`, `tv_screenshots` | `tvScreenshots` | Android TV screenshots (PNG/JPEG) |
+| `wear` | `watch`, `wear-screenshots`, `wear_screenshots` | `wearScreenshots` | Wear OS screenshots (PNG/JPEG) |
+| `icon` | `app-icon` | `icon` | High-res app icon (512x512 PNG/JPEG) |
+| `feature-graphic` | `feature`, `feature_graphic` | `featureGraphic` | Feature graphic banner (1024x500 PNG/JPEG) |
+| `tv-banner` | `banner`, `tv_banner` | `tvBanner` | Android TV banner (1280x720 PNG/JPEG) |
+
+---
+
+## Screenshots & Visuals (`appitool google screenshots`)
+
+### `appitool google screenshots list`
+
+Opens a temporary read-only Google Play edit session (deleted automatically after reading), lists configured store listing languages (or the specified `--locale`), and prints images for each matching `(language, imageType)` slot.
+
+| Option | Description |
+|:---|:---|
+| `-l, --locale <bcp47>` | Filter by BCP-47 language code (e.g. `en-US`, `tr-TR`). Omit to inspect all listing languages. |
+| `-t, --type <type>` | Filter by image type (e.g. `phone`, `tablet7`, `feature-graphic`, `icon`). Omit to inspect all types. |
+
+```bash
+appitool google screenshots list -p com.example.app
+appitool google screenshots list -l en-US -t phone
+```
+
+### `appitool google screenshots upload`
+
+Uploads PNG/JPEG screenshots and graphics to Google Play Console inside a single atomic edit transaction—either for flat image path(s) (`-l` required, `-t` defaults to `phone`) or symmetrically from a `<locale>/<type>/` directory tree defaulting to `~/.appitool/screenshots/<package-name>/google/` (`-l` and `-t` optional filters).
+
+| Option / Flag / Argument | Default | Description |
+|:---|:---|:---|
+| `-l, --locale <bcp47>` | — | BCP-47 language code (e.g. `en-US`, `tr-TR`). Required for flat files; optional filter for `<locale>/<type>/` trees. |
+| `-t, --type <type>` | `phone` (flat) / all (tree) | Target image type (`phone`, `tablet7`, `tablet10`, `tv`, `wear`, `icon`, `feature-graphic`, `tv-banner`). |
+| `-r, --replace` | `false` | Delete existing images in each target slot before uploading. |
+| `--validate-only` | `false` | Validate the edit session (`edits.validate`) without committing changes. |
+| `--changes-not-sent-for-review` | `false` | Commit changes without automatically sending them for Google Play review. |
+| `-d, --dry-run` | `false` | Validate local image files and preview target slots without contacting Google Play. |
+| `<paths...>` | `~/.appitool/screenshots/<package-name>/google/` | Optional PNG/JPEG file(s), flat directory, or `<locale>/<type>/` directory tree. |
+
+```bash
+# Bulk-upload all locales and image types from ~/.appitool/screenshots/<package-name>/google/
+appitool google screenshots upload --replace
+
+# Bulk-upload only phone screenshots across all locales in the default folder
+appitool google screenshots upload -t phone -r
+
+# Replace phone screenshots for en-US from a flat directory
+appitool google screenshots upload \
+  -p com.example.app \
+  -l en-US \
+  -t phone \
+  --replace \
+  ./screenshots/android/en-US/phone/
+
+# Upload a feature graphic banner
+appitool google screenshots upload \
+  -p com.example.app \
+  -l en-US \
+  -t feature-graphic \
+  ./assets/feature-graphic.png
+```
+
+### `appitool google screenshots download`
+
+Downloads store screenshots and graphics from Google Play Console into `<output>/<locale>/<type>/01.<ext>` (rewriting CDN URLs to `=s0` for full original resolution). Opens a short-lived read-only edit session that is deleted before downloading binaries. By default, files are stored per project under `~/.appitool/screenshots/<package-name>/google/`.
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `-l, --locale <bcp47>` | — | Filter by BCP-47 language code (e.g. `en-US`, `tr-TR`). Omit to download all listing languages. |
+| `-t, --type <type>` | — | Filter by image type (e.g. `phone`, `tablet7`, `feature-graphic`, `icon`). Omit to download all types. |
+| `-o, --output <dir>` | `~/.appitool/screenshots/<package-name>/google/` | Custom destination root directory. |
+| `-d, --dry-run` | `false` | Preview target local paths and CDN URLs without downloading files. |
+
+```bash
+# Download all Google Play visuals to ~/.appitool/screenshots/<package-name>/google/
+appitool google screenshots download
+
+# Download only en-US phone screenshots into a custom folder
+appitool google screenshots download -p com.example.app -l en-US -t phone -o ./downloads/android
+```
+
+### `appitool google screenshots delete`
+
+Deletes a specific image by ID or all images of a given type for a locale in Google Play Console (guarded in CI mode).
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `-l, --locale <bcp47>` | **Required** | BCP-47 language code (e.g. `en-US`, `tr-TR`). |
+| `-t, --type <type>` | **Required** | Target image type (`phone`, `tablet7`, `tablet10`, `tv`, `wear`, `icon`, `feature-graphic`, `tv-banner`). |
+| `-i, --id <image-id>` | — | Specific Google Play image ID to delete (mutually exclusive with `-a`). |
+| `-a, --all` | `false` | Delete all images of the specified type for the language (mutually exclusive with `-i`). |
+| `--changes-not-sent-for-review` | `false` | Commit changes without automatically sending them for Google Play review. |
+| `-d, --dry-run` | `false` | Preview matching image(s) without deleting or committing changes. |
+
+```bash
+# Preview images that would be removed
+appitool google screenshots delete -l en-US -t phone --all --dry-run
+
+# Delete a single image by ID
+appitool google screenshots delete -l en-US -t phone -i AO7oq_example_id
+```
+
+### `appitool google screenshots types`
+
+Prints all supported Google Play `imageType` keys, aliases, API names, and descriptions (no credentials required).
+
+```bash
+appitool google screenshots types
+```
+
+---
+
 <!-- source: commands/firebase.md -->
 
 # `appitool firebase`
@@ -1696,7 +1960,7 @@ appitool firebase firestore query users \
 
 # `appitool inspect`
 
-Inspects local iOS (Xcode) and Android (Gradle) project files in a workspace and prints resolved bundle identifiers, targets, `applicationId`, `namespace`, package name, and product flavors.
+Inspects local iOS (Xcode) and Android (Gradle) project files in a workspace and prints resolved identifiers, versions, build numbers / version codes, targets, schemes, and product flavors. When `-s, --scheme` is omitted on iOS, all distributable schemes are inspected and listed; when `-f, --flavor` is omitted on Android, all product flavors are listed with their effective application IDs, versions, and version codes.
 
 ## Synopsis
 
@@ -1710,19 +1974,23 @@ appitool inspect [options]
 |:---|:---|:---|
 | `-p, --platform <platform>` | `all` | Platform to inspect: `all`, `ios`, or `android`. |
 | `-w, --workspace-name <name>` | Auto-detected | Custom Xcode workspace or project name. |
-| `-s, --scheme <scheme>` | Auto-inferred | Xcode scheme name. |
+| `-s, --scheme <scheme>` | All distributable schemes | Specific Xcode scheme name to inspect (omit to list every distributable scheme). |
 | `-c, --configuration <config>` | Auto-inferred | Xcode build configuration (e.g., `Debug`, `Release`). |
+| `-f, --flavor <name>` | All product flavors | Specific Android product flavor to resolve (omit to list all `productFlavors` with resolved overrides). |
 | `-d, --project-dir <path>` / `--workspace-root <path>` | Current directory | Path to the project root directory. |
-| `--json` | `false` | Output results as pretty-printed, key-sorted JSON (ideal for CI scripts and AI agents). |
+| `--json` | `false` | Output results as pretty-printed, key-sorted JSON (`ios.schemes[]`, `ios.version`, `ios.buildNumber`, `android.versionName`, `android.versionCode`, and resolved `android.flavors[]`). |
 
 ## Examples
 
 ```bash
-# Inspect both iOS and Android identifiers in current directory
+# Inspect all iOS schemes and all Android flavors (including versions and build numbers)
 appitool inspect
 
-# Inspect only iOS identifiers for Release configuration as JSON
-appitool inspect -p ios -c Release --json
+# Inspect a single iOS scheme as JSON
+appitool inspect -p ios -s MyApp -c Release --json
+
+# Inspect Android metadata filtered to a single product flavor
+appitool inspect -p android -f staging
 
 # Inspect a project located in another directory
 appitool inspect --workspace-root ~/projects/my-mobile-app

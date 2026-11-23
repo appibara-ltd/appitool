@@ -10,9 +10,10 @@
 | [`build`](/commands/build) | `ios`, `android` | Compiles and packages iOS (`.xcarchive`/`.ipa`) and Android (`.aab`/`.apk`) artifacts directly. |
 | [`check`](/commands/check) | `ios`, `android` | Queries remote store/distribution metadata and latest build numbers. |
 | [`match`](/commands/match) | `ios` *(default)*, `android` | Syncs, prunes, nukes, or adds Git-encrypted certificates, profiles, and keystores. |
-| [`apple`](/commands/apple) | 22 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, devices, team users, and user invitations. |
+| [`apple`](/commands/apple) | 23 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, devices, team users, invitations, and store screenshots. |
+| [`google`](/commands/google) | `screenshots` (5 subcommands) | Manages Google Play Console store visuals and screenshots (`list`, `upload`, `download`, `delete`, `types`). |
 | [`firebase`](/commands/firebase) | 9 subcommands | Manages Firebase App Distribution releases/groups, Firebase Auth users, and Cloud Firestore collections/documents. |
-| [`inspect`](/commands/inspect) | — | Inspects local iOS bundle IDs and Android `applicationId`/`namespace`/flavors (supports `--json`). |
+| [`inspect`](/commands/inspect) | — | Inspects local iOS and Android identifiers, versions, build numbers, and flavors (supports `--json`). |
 | [`clean`](/commands/clean) | — | Cleans cached build outputs and Xcode DerivedData under `~/.appitool`. |
 | [`notes`](/commands/notes) | — | Generates categorized Markdown release notes from Git conventional commits. |
 | [`kokono`](/commands/kokono) | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |
@@ -49,11 +50,20 @@ Used by `flow ios`, `build ios`, `check ios`, `match ios`, and all `apple` subco
 
 ### `GoogleCredentialsOptions`
 
-Used by `flow ios`, `flow android`, `check ios`, `check android`, and `FirebaseProjectOptions`.
+Used by `flow ios`, `flow android`, `check ios`, `check android`, `GooglePlayAppOptions`, and `FirebaseProjectOptions`.
 
 | Flag | `.env` Fallback | Description |
 |:---|:---|:---|
 | `-g, --google-key <key>` | `GOOGLE_KEY` | Service Account JSON path, raw JSON string, or Base64 string |
+
+### `GooglePlayAppOptions`
+
+Includes `GoogleCredentialsOptions` and resolves the Android application package name. Used by `google screenshots <list|upload|download|delete>`.
+
+| Flag | `.env` Fallback | Description |
+|:---|:---|:---|
+| `-g, --google-key <key>` | `GOOGLE_KEY` | Inherited from `GoogleCredentialsOptions` |
+| `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` or local Android project | Target Android application package name |
 
 ### `FirebaseProjectOptions`
 
@@ -113,7 +123,7 @@ Used by `flow ios` and `flow android`.
 
 ### `GlobalCIOptions`
 
-Available globally on `appitool` (can be placed before or after subcommands, as well as directly on guarded destructive subcommands and `match ios`). Auto-detects CI environment variables (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD`) when omitted. In CI mode, destructive commands (`apple delete-identifier`, `apple delete-profile`, `apple prune-profiles`, `apple delete-certificate`, `apple prune-certificates`, `apple disable-device`, `apple delete-user`, `apple cancel-invitation`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, and `match ios prune`) are skipped as a no-op with a warning (exit code `0`).
+Available globally on `appitool` (can be placed before or after subcommands, as well as directly on guarded destructive subcommands and `match ios`). Auto-detects CI environment variables (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD`) when omitted. In CI mode, destructive commands (`apple delete-identifier`, `apple delete-profile`, `apple prune-profiles`, `apple delete-certificate`, `apple prune-certificates`, `apple disable-device`, `apple delete-user`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, and `match ios prune`) are skipped as a no-op with a warning (exit code `0`).
 
 | Flag | Default / Env Fallback | Description |
 |:---|:---|:---|

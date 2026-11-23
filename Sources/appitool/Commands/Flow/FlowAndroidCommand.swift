@@ -18,8 +18,11 @@ struct FlowAndroidCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Target Android package name (defaults to GOOGLE_PACKAGE_NAME in .env).")
     var packageName: String?
 
-    @Option(name: .shortAndLong, help: "Packaging format (aab or apk). Defaults to apk for adhoc/development, aab for appstore.")
+    @Option(name: .long, help: "Packaging format (aab or apk). Defaults to apk for adhoc/development, aab for appstore.")
     var format: GradleTask.BuildFormat?
+
+    @Option(name: .long, help: "Gradle product flavor (e.g. production, staging). Defaults to ANDROID_FLAVOR in .env.")
+    var flavor: String?
 
     @Option(name: .long, help: "Firebase App ID for Android (defaults to FIREBASE_ANDROID_APP_ID in .env).")
     var firebaseAppId: String?
@@ -39,6 +42,8 @@ struct FlowAndroidCommand: BaseCommand {
         let resolvedFirebaseAppId = firebaseAppId ?? EnvLoader.value(for: "FIREBASE_ANDROID_APP_ID")
         let resolvedGoogleKey = googleCredentials.resolveKey()
         let resolvedFormat = format ?? (distribution == .appstore ? .aab : .apk)
+        let resolvedFlavor = (flavor ?? EnvLoader.value(for: "ANDROID_FLAVOR"))?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         let match = matchOptions.resolve()
 
         let preset: (any FlowPreset) = {
@@ -65,6 +70,7 @@ struct FlowAndroidCommand: BaseCommand {
             kokonoUrl: notifications.kokonoUrl,
             kokonoPublicKey: notifications.kokonoPublicKey,
             preset: preset,
+            androidFlavor: (resolvedFlavor?.isEmpty == false) ? resolvedFlavor : nil,
             androidFormat: resolvedFormat,
             changelog: resolvedNotes.releaseNotes,
             releaseNotesFrom: resolvedNotes.notesFrom,

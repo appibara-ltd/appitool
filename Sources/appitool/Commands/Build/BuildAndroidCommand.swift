@@ -19,13 +19,13 @@ struct BuildAndroidCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Target Android package name (defaults to GOOGLE_PACKAGE_NAME in .env).")
     var packageName: String?
 
-    @Option(name: .shortAndLong, help: "Product flavor (e.g. production, staging). Defaults to ANDROID_FLAVOR in .env.")
+    @Option(name: .long, help: "Gradle product flavor (e.g. production, staging). Defaults to ANDROID_FLAVOR in .env.")
     var flavor: String?
 
     @Option(name: .shortAndLong, help: "Build configuration/type (Release or Debug). Defaults to Release or ANDROID_CONFIGURATION in .env.")
     var configuration: String?
 
-    @Option(name: .long, help: "Packaging format (aab or apk). Defaults to aab for appstore, apk for adhoc/development.")
+    @Option(name: .long, help: "Packaging format (aab or apk). Defaults to apk for adhoc/development, aab for appstore.")
     var format: Format?
 
     @Flag(name: .long, help: "Clean project before building.")
@@ -75,9 +75,14 @@ struct BuildAndroidCommand: BaseCommand {
 
         // 2. Resolve package name (applicationId) & target app name
         let projectURL = URL(fileURLWithPath: resolvedProjectDir)
+        let androidIdentifiers = try? AndroidTasks.getAndroidIdentifiers(workspaceRoot: projectURL)
+        let detectedPackageName: String? = {
+            let candidate = androidIdentifiers?.applicationId ?? androidIdentifiers?.packageName
+            return (candidate?.isEmpty == false) ? candidate : nil
+        }()
         let resolvedPackageName = packageName
             ?? EnvLoader.value(for: "GOOGLE_PACKAGE_NAME")
-            ?? AndroidTasks.resolvePackageName(in: projectURL)
+            ?? detectedPackageName
 
         let appName = AndroidTasks.resolveAppName(in: projectURL)
         let mainTarget: String
@@ -130,7 +135,21 @@ struct BuildAndroidCommand: BaseCommand {
         )
 
         // 5. Resolve opinionated output directory and artifact name
-        let resolvedOutputDir = AppitoolPaths.buildDirectory(platform: "android", target: mainTarget).path
+        let resolvedAndroidVersion = await AndroidTasks.resolveProjectVersion(
+            in: projectURL,
+            flavor: resolvedFlavor,
+            identifiers: androidIdentifiers
+        )
+        let buildTagName = AppitoolPaths.buildTagName(
+            version: resolvedAndroidVersion.versionName,
+            buildNumber: resolvedAndroidVersion.versionCode,
+            distribution: distribution
+        )
+        let resolvedOutputDir = AppitoolPaths.buildDirectory(
+            platform: "android",
+            target: mainTarget,
+            name: buildTagName
+        ).path
 
         let flavorSuffix = (resolvedFlavor?.isEmpty == false) ? "\(resolvedFlavor!)_" : ""
         let artifactBaseName = "\(mainTarget)_\(flavorSuffix)\(resolvedBuildType.lowercased())"
@@ -141,6 +160,7 @@ struct BuildAndroidCommand: BaseCommand {
         if let pkg = resolvedPackageName {
             Log("   Package:     ".dim + "\(pkg)".yellow)
         }
+        Log("   Output:      ".dim + "\(resolvedOutputDir)".bold)
 
         var gradleEnvironment: [String: String]? = nil
         if let gradleOpts, !gradleOpts.isEmpty {

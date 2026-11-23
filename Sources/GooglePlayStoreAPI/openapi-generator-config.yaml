@@ -11,4 +11,7 @@ filter:
     - /androidpublisher/v3/applications/{packageName}/edits/{editId}/tracks/{track}
     - /androidpublisher/v3/applications/{packageName}/edits/{editId}:commit
     - /androidpublisher/v3/applications/{packageName}/edits/{editId}:validate
+    - /androidpublisher/v3/applications/{packageName}/edits/{editId}/listings
+    - /androidpublisher/v3/applications/{packageName}/edits/{editId}/listings/{language}/{imageType}
+    - /androidpublisher/v3/applications/{packageName}/edits/{editId}/listings/{language}/{imageType}/{imageId}
 

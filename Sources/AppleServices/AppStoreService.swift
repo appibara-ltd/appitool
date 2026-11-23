@@ -38,12 +38,16 @@ package struct AppStoreService: Sendable {
     /// The authentication middleware used for signed JWT generation.
     package let authMiddleware: AppStoreConnectAuthMiddleware
 
+    /// Underlying URLSession used for direct binary asset uploads and paginated fetches.
+    package let urlSession: URLSession
+
     /// Initializes AppStoreService with credentials (key can be a .p8 file path, raw PEM string, or Base64).
     package init(
         keyId: String,
         issuerId: String,
         key: String,
-        transport: any ClientTransport = Self.sharedTransport
+        transport: any ClientTransport = Self.sharedTransport,
+        urlSession: URLSession = .shared
     ) throws {
         let authMiddleware = try AppStoreConnectAuthMiddleware(
             keyId: keyId,
@@ -51,6 +55,7 @@ package struct AppStoreService: Sendable {
             key: key
         )
         self.authMiddleware = authMiddleware
+        self.urlSession = urlSession
         let configuration = Configuration(dateTranscoder: FlexibleDateTranscoder())
         self.client = Client(
             serverURL: try Servers.Server1.url(),
@@ -85,7 +90,7 @@ package struct AppStoreService: Sendable {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AppStoreServiceError.invalidResponse("Invalid HTTP response from \(urlString)")
         }

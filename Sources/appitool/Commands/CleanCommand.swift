@@ -80,7 +80,7 @@ struct CleanCommand: AsyncParsableCommand {
                     }
                 }
 
-                // Check build timestamps
+                // Check build directories
                 if !derivedDataOnly {
                     let buildDir = projUrl.appendingPathComponent("build")
                     if fm.fileExists(atPath: buildDir.path) {
@@ -111,7 +111,7 @@ struct CleanCommand: AsyncParsableCommand {
                 // Ignore reserved/system folders like "keystores" or "tmp"
                 if projectName == "keystores" || projectName == "tmp" { continue }
 
-                // Check build timestamps
+                // Check build directories
                 let buildDir = projUrl.appendingPathComponent("build")
                 if fm.fileExists(atPath: buildDir.path) {
                     let buildEntries = (try? fm.contentsOfDirectory(at: buildDir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []

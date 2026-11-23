@@ -76,7 +76,8 @@ struct AndroidInternalPreset: FlowPreset {
     }
 
     func build(context: inout FlowContext) async throws {
-        Log("🔨 Running Gradle bundleRelease to produce Android App Bundle (AAB)...".dim)
+        let taskName = GradleTask.resolveTaskName(format: .aab, buildType: "release", flavor: context.androidFlavor)
+        Log("🔨 Running Gradle \(taskName) to produce Android App Bundle (AAB)...".dim)
 
         if context.isDryRun {
             Log("🟡 Dry-run enabled: skipping Gradle build.".yellow)
@@ -94,13 +95,14 @@ struct AndroidInternalPreset: FlowPreset {
         }
 
         let targetName = context.targetName ?? context.bundleId ?? "AndroidApp"
-        let outputDir = AppitoolPaths.buildDirectory(platform: "android", target: targetName).path
-        let artifactName = "\(targetName)_release"
+        let outputDir = AppitoolPaths.buildDirectory(platform: "android", target: targetName, name: context.buildDirectoryName).path
+        let artifactName = AndroidPresetHelpers.artifactName(targetName: targetName, flavor: context.androidFlavor)
 
         let output = try await GradleTask().run(
             .init(
                 projectDirectory: projectDir,
                 buildType: "release",
+                flavor: context.androidFlavor,
                 format: .aab,
                 outputDirectory: outputDir,
                 artifactName: artifactName,

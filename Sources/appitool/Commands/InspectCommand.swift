@@ -2,11 +2,11 @@ import ArgumentParser
 import Foundation
 import Rainbow
 
-/// Command that inspects local iOS bundle identifiers and Android applicationId/namespace.
+/// Command that inspects local iOS and Android project metadata (identifiers, versions, build numbers, targets, and flavors).
 struct InspectCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "inspect",
-        abstract: "Inspects local iOS bundle identifiers and Android applicationId/namespace."
+        abstract: "Inspects local iOS and Android project metadata (identifiers, versions, build numbers, targets, and flavors)."
     )
 
     enum Platform: String, ExpressibleByArgument, CaseIterable, Sendable {
@@ -26,6 +26,9 @@ struct InspectCommand: BaseCommand {
 
     @Option(name: .shortAndLong, help: "Xcode configuration name (e.g. Debug, Release).")
     var configuration: String?
+
+    @Option(name: .long, help: "Android product flavor for resolving flavor-specific version info (e.g. staging, production).")
+    var flavor: String?
 
     @Option(name: [.customShort("d"), .long, .customLong("workspace-root")], help: "Path to project root directory (defaults to current directory).")
     var projectDir: String?
@@ -48,12 +51,21 @@ struct InspectCommand: BaseCommand {
             }
 
             if hasIos {
-                iosResult = try await XCodeTasks.getIosIdentifiers(
-                    workspaceRoot: root,
-                    workspaceName: workspaceName,
-                    scheme: scheme,
-                    configuration: configuration
-                )
+                let explicitScheme = scheme?.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let explicitScheme, !explicitScheme.isEmpty {
+                    iosResult = try await XCodeTasks.getIosIdentifiers(
+                        workspaceRoot: root,
+                        workspaceName: workspaceName,
+                        scheme: explicitScheme,
+                        configuration: configuration
+                    )
+                } else {
+                    iosResult = try await XCodeTasks.inspectAllIosSchemes(
+                        workspaceRoot: root,
+                        workspaceName: workspaceName,
+                        configuration: configuration
+                    )
+                }
             }
         }
 
@@ -64,7 +76,10 @@ struct InspectCommand: BaseCommand {
             }
 
             if hasAndroid {
-                androidResult = try AndroidTasks.getAndroidIdentifiers(workspaceRoot: root)
+                androidResult = try await AndroidTasks.inspectAndroidProject(
+                    in: root,
+                    flavor: flavor
+                )
             }
         }
 
@@ -105,14 +120,53 @@ struct InspectCommand: BaseCommand {
         print("\n" + "◆ ".blue.bold + "iOS".bold)
         let relRoot = relativePath(from: root, to: result.iosRoot)
         print("  Path: ".dim + relRoot.bold)
-        print("  Workspace: ".dim + result.workspaceName.bold + " | Scheme: ".dim + result.scheme.bold + " | Configuration: ".dim + result.configuration.bold)
 
-        if let mainApp = result.mainAppTargetName {
-            print("  🎯 Main App Target: ".dim + mainApp.cyan)
+        if let schemes = result.schemes, schemes.count > 1 {
+            let names = schemes.map(\.scheme).joined(separator: ", ")
+            print("  Workspace: ".dim + result.workspaceName.bold + " | Schemes (\(schemes.count)): ".dim + names.bold)
+            for s in schemes {
+                print("")
+                print("  🧭 Scheme: ".dim + s.scheme.cyan.bold + " | Configuration: ".dim + s.configuration.bold)
+                printIosTargetSection(
+                    mainAppTargetName: s.mainAppTargetName,
+                    version: s.version,
+                    buildNumber: s.buildNumber,
+                    targets: s.targets,
+                    indent: "    "
+                )
+            }
+        } else {
+            print("  Workspace: ".dim + result.workspaceName.bold + " | Scheme: ".dim + result.scheme.bold + " | Configuration: ".dim + result.configuration.bold)
+            printIosTargetSection(
+                mainAppTargetName: result.mainAppTargetName,
+                version: result.version,
+                buildNumber: result.buildNumber,
+                targets: result.targets,
+                indent: "  "
+            )
+        }
+    }
+
+    private func printIosTargetSection(
+        mainAppTargetName: String?,
+        version: String?,
+        buildNumber: String?,
+        targets: [XCodeTasks.ResolvedTargetInfo],
+        indent: String
+    ) {
+        if let mainApp = mainAppTargetName {
+            print("\(indent)🎯 Main App Target: ".dim + mainApp.cyan)
         }
 
-        for target in result.targets {
-            let isMain = target.name == result.mainAppTargetName
+        if let version {
+            let buildSuffix = buildNumber.map { " (\($0))" } ?? ""
+            print("\(indent)🏷️  Version:         ".dim + "\(version)\(buildSuffix)".green.bold)
+        } else if let buildNumber {
+            print("\(indent)🔢 Build Number:    ".dim + buildNumber.green.bold)
+        }
+
+        for target in targets {
+            let isMain = target.name == mainAppTargetName
             let targetLabel = isMain
                 ? "\(target.name.green.bold) \("(main)".dim)"
                 : target.name.bold
@@ -121,9 +175,9 @@ struct InspectCommand: BaseCommand {
                 : ""
             let pType = target.productType ?? "unknown"
 
-            print("  📦 " + targetLabel)
-            print("     Bundle ID: ".dim + target.bundleId.cyan + sourceLabel)
-            print("     Type:      ".dim + pType.dim)
+            print("\(indent)📦 " + targetLabel)
+            print("\(indent)   Bundle ID: ".dim + target.bundleId.cyan + sourceLabel)
+            print("\(indent)   Type:      ".dim + pType.dim)
         }
     }
 
@@ -144,14 +198,35 @@ struct InspectCommand: BaseCommand {
             print("  📦 Package Name:   ".dim + pkg.yellow)
         }
 
+        let trimmedFlavor = flavor?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasFlavorFilter = (trimmedFlavor?.isEmpty == false)
+        let flavorBadge = hasFlavorFilter ? " [\(trimmedFlavor!)]".dim : ""
+        if let versionName = result.versionName {
+            let codeSuffix = result.versionCode.map { " (\($0))" } ?? ""
+            print("  📌 Version:        ".dim + "\(versionName)\(codeSuffix)".green.bold + flavorBadge)
+        } else if let versionCode = result.versionCode {
+            print("  🔢 Version Code:   ".dim + versionCode.green.bold + flavorBadge)
+        }
+
         if !result.flavors.isEmpty {
-            let flavorStrings = result.flavors.map { f in
-                var parts = [f.name.cyan]
-                if let aId = f.applicationId { parts.append("appId: \(aId)") }
-                if let suffix = f.applicationIdSuffix { parts.append("suffix: \(suffix)") }
-                return parts.joined(separator: " ")
+            print("  🎨 Flavors (\(result.flavors.count)):".dim)
+            for f in result.flavors {
+                print("     • ".dim + f.name.cyan.bold)
+                if f.applicationId != nil || f.applicationIdSuffix != nil {
+                    let appIdStr = f.applicationId ?? "—"
+                    let suffixNote = f.applicationIdSuffix.map { " (suffix: \($0))".dim } ?? ""
+                    print("       Application ID: ".dim + appIdStr.cyan + suffixNote)
+                }
+                if let vn = f.versionName {
+                    let vcPart = f.versionCode.map { " (\($0))" } ?? ""
+                    let suffixNote = f.versionNameSuffix.map { " (suffix: \($0))".dim } ?? ""
+                    print("       Version:        ".dim + "\(vn)\(vcPart)".green + suffixNote)
+                } else if let vc = f.versionCode {
+                    print("       Version Code:   ".dim + vc.green)
+                }
             }
-            print("  🎨 Flavors:        ".dim + flavorStrings.joined(separator: " | "))
+        } else if hasFlavorFilter, let reqFlavor = trimmedFlavor {
+            print("  🟡 Requested flavor '\(reqFlavor)' was not found in productFlavors.".yellow)
         }
     }
 

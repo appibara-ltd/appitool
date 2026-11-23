@@ -29,16 +29,21 @@ enum IOSPresetHelpers {
         context.targetName ??= result.mainAppTargetName
         context.bundleId ??= result.bundleId
 
-        // Read project's current version and build number
-        if let projVersionInfo = try? XCodeTasks.getProjectVersion(
-            projectPath: context.xcodeProjectPath,
-            workspacePath: context.workspacePath,
-            targetName: context.targetName,
-            configuration: context.configuration,
-            in: context.projectDirectory
-        ) {
-            context.version = projVersionInfo.version
-            context.buildNumber = projVersionInfo.buildNumber
+        // Read project's current version and build number (reusing getIosIdentifiers result when complete)
+        if let version = result.version, let buildNumber = result.buildNumber {
+            context.version = version
+            context.buildNumber = buildNumber
+        } else {
+            let projVersionInfo = await XCodeTasks.resolveProjectVersion(
+                projectPath: context.xcodeProjectPath,
+                workspacePath: context.workspacePath,
+                scheme: context.scheme,
+                targetName: context.targetName,
+                configuration: context.configuration,
+                in: context.projectDirectory
+            )
+            context.version = projVersionInfo.version ?? result.version
+            context.buildNumber = projVersionInfo.buildNumber ?? result.buildNumber
         }
 
         // Collect all target bundle identifiers to sync profiles for
@@ -130,15 +135,24 @@ enum IOSPresetHelpers {
 enum AndroidPresetHelpers {
     /// Inspects and evaluates Android app info, storing results in `context`.
     static func setupAndroidProject(context: inout FlowContext) async throws {
+        let flavor = context.androidFlavor
+        let hasExplicitPackageName = (context.bundleId?.isEmpty == false)
+        if let flavor {
+            Log("   • Selected product flavor: \(flavor.bold)".dim)
+        }
+
         // 1. Fast regex inspection
         if let identifiers = try? AndroidTasks.getAndroidIdentifiers(workspaceRoot: context.projectDirectory) {
-            context.bundleId ??= identifiers.packageName
-            if let versionName = identifiers.versionName {
-                context.version ??= versionName
-            }
-            if let versionCode = identifiers.versionCode {
-                context.buildNumber ??= versionCode
-            }
+            let selected = selectedFlavorDetails(
+                flavors: identifiers.flavors,
+                flavor: flavor,
+                defaultApplicationId: identifiers.packageName,
+                defaultVersionName: identifiers.versionName,
+                defaultVersionCode: identifiers.versionCode
+            )
+            context.bundleId ??= selected?.applicationId ?? identifiers.packageName
+            context.version ??= selected?.versionName ?? identifiers.versionName
+            context.buildNumber ??= selected?.versionCode ?? identifiers.versionCode
             if let ns = identifiers.namespace {
                 context.metadata["android_namespace"] = ns
             }
@@ -152,10 +166,42 @@ enum AndroidPresetHelpers {
         }
 
         // 2. Evaluate dynamically via Gradle for exact runtime values (package, namespace, version, flavors)
-        if let evaluated = try? await AndroidTasks.evaluateAppInfoViaGradle(workspaceRoot: context.projectDirectory, offline: true) {
+        var evaluated: AndroidTasks.GradleAppInfo?
+        do {
+            evaluated = try await AndroidTasks.evaluateAppInfoViaGradle(
+                workspaceRoot: context.projectDirectory,
+                offline: true,
+                flavor: flavor
+            )
+        } catch {
+            if context.version == nil || context.buildNumber == nil || context.bundleId == nil {
+                evaluated = try? await AndroidTasks.evaluateAppInfoViaGradle(
+                    workspaceRoot: context.projectDirectory,
+                    offline: false,
+                    flavor: flavor
+                )
+            }
+        }
+
+        if let evaluated {
+            // `versionName` / `versionCode` are already flavor-resolved by `evaluateAppInfoViaGradle(flavor:)`.
+            let selected = selectedFlavorDetails(
+                flavors: evaluated.flavors,
+                flavor: flavor,
+                defaultApplicationId: evaluated.applicationId,
+                defaultVersionName: evaluated.versionName,
+                defaultVersionCode: evaluated.versionCode
+            )
+            if !hasExplicitPackageName, let flavorAppId = selected?.applicationId, !flavorAppId.isEmpty {
+                context.bundleId = flavorAppId
+            }
             context.bundleId ??= evaluated.packageName ?? evaluated.applicationId
-            context.version ??= evaluated.versionName
-            context.buildNumber ??= evaluated.versionCode
+            if let vn = evaluated.versionName, !vn.isEmpty {
+                context.version = vn
+            }
+            if let vc = evaluated.versionCode, !vc.isEmpty {
+                context.buildNumber = vc
+            }
 
             if let pkg = evaluated.packageName {
                 context.metadata["android_package_name"] = pkg
@@ -181,5 +227,42 @@ enum AndroidPresetHelpers {
                 Log("   • Evaluated Gradle flavors: \(flavorsList.bold)".dim)
             }
         }
+
+        if let flavor {
+            let known = context.androidFlavors
+            if known.isEmpty {
+                Log("🟡 Product flavor '\(flavor)' was requested but no productFlavors were detected.".yellow)
+            } else if !known.contains(where: { $0.name.caseInsensitiveCompare(flavor) == .orderedSame }) {
+                let list = known.map(\.name).joined(separator: ", ")
+                Log("🟡 Product flavor '\(flavor)' was not found in productFlavors (\(list)).".yellow)
+            }
+        }
+    }
+
+    /// Returns the effective `applicationId`, `versionName`, and `versionCode` for `flavor`, or `nil` when no flavor is selected or matched.
+    private static func selectedFlavorDetails(
+        flavors: [AndroidTasks.AndroidFlavor],
+        flavor: String?,
+        defaultApplicationId: String?,
+        defaultVersionName: String?,
+        defaultVersionCode: String?
+    ) -> AndroidTasks.AndroidFlavor? {
+        guard let flavor, !flavor.isEmpty else { return nil }
+        return AndroidTasks.resolveFlavorDetails(
+            flavors: flavors,
+            defaultApplicationId: defaultApplicationId,
+            defaultVersionName: defaultVersionName,
+            defaultVersionCode: defaultVersionCode,
+            selectedFlavor: flavor
+        ).first
+    }
+}
+
+/// Shared Gradle naming helpers for Android presets.
+extension AndroidPresetHelpers {
+    /// Artifact base name (`<Target>_[<flavor>_]release`), matching `build android` naming.
+    static func artifactName(targetName: String, flavor: String?) -> String {
+        let flavorSuffix = (flavor?.isEmpty == false) ? "\(flavor!)_" : ""
+        return "\(targetName)_\(flavorSuffix)release"
     }
 }
