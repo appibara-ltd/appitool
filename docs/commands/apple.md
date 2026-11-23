@@ -54,7 +54,7 @@ Lists App/Bundle Identifiers registered on Apple Developer Portal.
 
 | Option | Description |
 |:---|:---|
-| `-i, --identifier <id>` | Filter by bundle identifier. |
+| `-b, --bundle-id <id>` | Filter by bundle identifier. |
 | `-l, --limit <count>` | Maximum number of items to return. |
 
 ```bash
@@ -68,16 +68,15 @@ Registers a new App/Bundle Identifier with optional capabilities on Apple Develo
 | Option | Default | Description |
 |:---|:---|:---|
 | `-b, --bundle-id <id>` | — | App/Bundle identifier (e.g. `com.example.app`). |
-| `-a, --app-identifier <id>` | — | Alternative flag for bundle identifier. |
 | `-n, --name <name>` | Bundle ID | Description or name of the App Identifier. |
-| `--platform <platform>` | `universal` | Platform: `universal`, `ios`, or `macos`. |
-| `-c, --capabilities <list>` | — | Comma-separated capability keys (e.g. `push-notifications,in-app-purchase`). |
+| `-p, --platform <platform>` | `universal` | Platform: `universal`, `ios`, or `macos`. |
+| `--capabilities <list>` | — | Comma-separated capability keys (e.g. `push-notifications,in-app-purchase`). |
 
 ```bash
 appitool apple create-identifier \
   -b com.example.app \
   -n "Example App" \
-  -c "push-notifications,sign-in-with-apple,associated-domains"
+  --capabilities "push-notifications,sign-in-with-apple,associated-domains"
 ```
 
 ### `appitool apple delete-identifier`
@@ -86,10 +85,10 @@ Deletes an App/Bundle Identifier from Apple Developer Portal. Any provisioning p
 
 | Option | Description |
 |:---|:---|
-| `-a, --app-identifier <id>` | App/Bundle identifier to delete (required). |
+| `-b, --bundle-id <id>` | App/Bundle identifier to delete (required). |
 
 ```bash
-appitool apple delete-identifier -a com.example.app
+appitool apple delete-identifier -b com.example.app
 ```
 
 ### `appitool apple list-capabilities`
@@ -160,9 +159,9 @@ Creates and optionally downloads a provisioning profile on Apple Developer Porta
 | `-b, --bundle-id <id>` | **Required** | Application Bundle Identifier. |
 | `-n, --name <name>` | `match <type> <bundle-id>` | Provisioning profile name. |
 | `-t, --type <type>` | `appstore` | Profile type: `appstore`, `development`, `adhoc`, `enterprise`, `developer_id`. |
-| `--platform <platform>` | `ios` | Target platform: `ios`, `macos`, `tvos`, `catalyst`. |
-| `-c, --certificate-id <id>` | First active matching cert | Certificate Portal ID to embed in the profile. |
-| `-d, --device-ids <ids>` | All enabled matching devices | Comma-separated device Portal IDs for `development`/`adhoc` profiles. |
+| `-p, --platform <platform>` | `ios` | Target platform: `ios`, `macos`, `tvos`, `catalyst`. |
+| `--certificate-id <id>` | First active matching cert | Certificate Portal ID to embed in the profile. |
+| `--device-ids <ids>` | All enabled matching devices | Comma-separated device Portal IDs for `development`/`adhoc` profiles. |
 | `-o, --output <path>` | — | File path to save the generated `.mobileprovision` / `.provisionprofile`. |
 
 ```bash
@@ -176,8 +175,8 @@ Deletes a single provisioning profile by name, UUID, or Portal ID.
 | Option | Description |
 |:---|:---|
 | `-n, --name <name>` | Provisioning profile name. |
-| `-u, --uuid <uuid>` | Provisioning profile UUID. |
-| `-p, --portal-id <id>` | Provisioning profile Portal ID. |
+| `--uuid <uuid>` | Provisioning profile UUID. |
+| `--portal-id <id>` | Provisioning profile Portal ID. |
 
 ### `appitool apple prune-profiles`
 
@@ -185,8 +184,8 @@ Deletes all `INVALID` (and optionally expired) provisioning profiles from Apple 
 
 | Flag | Default | Description |
 |:---|:---|:---|
-| `-d, --dry-run` | `false` | Preview candidate profiles without deleting them. |
-| `-i, --include-expired` | `false` | Also prune expired profiles in addition to `INVALID` profiles. |
+| `--dry-run` | `false` | Preview candidate profiles without deleting them. |
+| `--include-expired` | `false` | Also prune expired profiles in addition to `INVALID` profiles. |
 
 ```bash
 appitool apple prune-profiles --include-expired --dry-run
@@ -231,9 +230,9 @@ Revokes/deletes a certificate from Apple Developer Portal by Portal ID, name, or
 
 | Option | Description |
 |:---|:---|
-| `-p, --portal-id <id>` | Certificate Portal ID. |
+| `--portal-id <id>` | Certificate Portal ID. |
 | `-n, --name <name>` | Certificate name. |
-| `-s, --serial-number <serial>` | Certificate serial number. |
+| `--serial-number <serial>` | Certificate serial number. |
 
 ### `appitool apple prune-certificates`
 
@@ -241,7 +240,7 @@ Deletes/revokes all expired certificates from Apple Developer Portal.
 
 | Option / Flag | Default | Description |
 |:---|:---|:---|
-| `-d, --dry-run` | `false` | Preview expired certificates without revoking them. |
+| `--dry-run` | `false` | Preview expired certificates without revoking them. |
 | `-t, --type <type>` | — | Filter pruning by certificate type (e.g. `distribution`, `development`). |
 
 ---
@@ -255,7 +254,7 @@ Lists registered devices on Apple Developer Portal.
 | Option | Description |
 |:---|:---|
 | `-p, --platform <platform>` | Filter by platform (`ios`, `macos`, `universal`). |
-| `-s, --status <status>` | Filter by status (`enabled`, `disabled`). |
+| `--status <status>` | Filter by status (`enabled`, `disabled`). |
 | `-n, --name <query>` | Case-insensitive substring filter on device name. |
 | `-l, --limit <count>` | Maximum number of items to return. |
 
@@ -266,11 +265,11 @@ Registers a new test device on Apple Developer Portal.
 | Option | Default | Description |
 |:---|:---|:---|
 | `-n, --name <name>` | **Required** | Device display name (e.g. `"QA iPhone 16"`). |
-| `-u, --udid <udid>` | **Required** | Device Unique Device Identifier (UDID). |
+| `--udid <udid>` | **Required** | Device Unique Device Identifier (UDID). |
 | `-p, --platform <platform>` | `ios` | Platform: `ios`, `macos`, `universal`. |
 
 ```bash
-appitool apple add-device -n "QA iPhone" -u 00008130-001234567890001E
+appitool apple add-device -n "QA iPhone" --udid 00008130-001234567890001E
 ```
 
 ### `appitool apple disable-device`
@@ -279,10 +278,10 @@ Disables a registered device by UDID on Apple Developer Portal so it is excluded
 
 | Option | Description |
 |:---|:---|
-| `-u, --udid <udid>` | Device UDID to disable (**Required**). |
+| `--udid <udid>` | Device UDID to disable (**Required**). |
 
 ```bash
-appitool apple disable-device -u 00008130-001234567890001E
+appitool apple disable-device --udid 00008130-001234567890001E
 ```
 
 ---
@@ -300,7 +299,7 @@ Lists active team users in App Store Connect.
 
 | Option | Description |
 |:---|:---|
-| `-u, --username <email>` | Filter by username (Apple ID email). |
+| `--username <email>` | Filter by username (Apple ID email). |
 | `-r, --roles <roles>` | Filter by comma-separated roles (e.g. `admin,developer`). |
 | `-l, --limit <count>` | Maximum number of items to return (omit to fetch all). |
 
@@ -316,51 +315,51 @@ Sends an email invitation to add a new user to your App Store Connect team.
 | Option / Flag | Default | Description |
 |:---|:---|:---|
 | `-e, --email <email>` | **Required** | Invitee email address. |
-| `-f, --first-name <name>` | **Required** | Invitee first name. |
-| `-l, --last-name <name>` | **Required** | Invitee last name. |
+| `--first-name <name>` | **Required** | Invitee first name. |
+| `--last-name <name>` | **Required** | Invitee last name. |
 | `-r, --roles <roles>` | **Required** | Comma-separated roles to assign (e.g. `developer,app-manager`). |
-| `-a, --visible-apps <apps>` | — | Comma-separated App Store Connect App IDs or bundle IDs to grant access. |
+| `--visible-apps <apps>` | — | Comma-separated App Store Connect App IDs or bundle IDs to grant access. |
 | `--all-apps-visible` / `--no-all-apps-visible` | `true` (or `false` if `--visible-apps` is set) | Grant visibility to all apps. |
 | `--provisioning-allowed` / `--no-provisioning-allowed` | Role default | Allow access to certificates, identifiers, and profiles. |
 
 ```bash
 appitool apple invite-user \
   -e dev@example.com \
-  -f Jane \
-  -l Doe \
+  --first-name Jane \
+  --last-name Doe \
   -r developer \
-  -a com.example.app \
+  --visible-apps com.example.app \
   --provisioning-allowed
 ```
 
 ### `appitool apple update-user`
 
-Updates an active team user's roles, app visibility, or provisioning access (identify user with `-i, --id` or `-u, --username`).
+Updates an active team user's roles, app visibility, or provisioning access (identify user with `--id` or `--username`).
 
 | Option / Flag | Description |
 |:---|:---|
-| `-i, --id <id>` | User resource ID in App Store Connect. |
-| `-u, --username <email>` | User username (Apple ID email). |
+| `--id <id>` | User resource ID in App Store Connect. |
+| `--username <email>` | User username (Apple ID email). |
 | `-r, --roles <roles>` | Comma-separated roles to assign. |
-| `-a, --visible-apps <apps>` | Comma-separated App Store Connect App IDs or bundle IDs for visible apps. |
+| `--visible-apps <apps>` | Comma-separated App Store Connect App IDs or bundle IDs for visible apps. |
 | `--all-apps-visible` / `--no-all-apps-visible` | Grant or restrict visibility to all apps. |
 | `--provisioning-allowed` / `--no-provisioning-allowed` | Allow or disallow access to certificates, identifiers, and profiles. |
 
 ```bash
-appitool apple update-user -u dev@example.com -r app-manager --all-apps-visible
+appitool apple update-user --username dev@example.com -r app-manager --all-apps-visible
 ```
 
 ### `appitool apple delete-user`
 
-Removes an active team user from App Store Connect (identify user with `-i, --id` or `-u, --username`).
+Removes an active team user from App Store Connect (identify user with `--id` or `--username`).
 
 | Option | Description |
 |:---|:---|
-| `-i, --id <id>` | User resource ID to remove. |
-| `-u, --username <email>` | User username (Apple ID email) to remove. |
+| `--id <id>` | User resource ID to remove. |
+| `--username <email>` | User username (Apple ID email) to remove. |
 
 ```bash
-appitool apple delete-user -u dev@example.com
+appitool apple delete-user --username dev@example.com
 ```
 
 ### `appitool apple list-invitations`
@@ -379,11 +378,11 @@ appitool apple list-invitations
 
 ### `appitool apple cancel-invitation`
 
-Cancels a pending user invitation in App Store Connect (identify invitation with `-i, --id` or `-e, --email`).
+Cancels a pending user invitation in App Store Connect (identify invitation with `--id` or `-e, --email`).
 
 | Option | Description |
 |:---|:---|
-| `-i, --id <id>` | Invitation resource ID to cancel. |
+| `--id <id>` | Invitation resource ID to cancel. |
 | `-e, --email <email>` | Invitee email address whose pending invitation should be canceled. |
 
 ```bash
@@ -402,8 +401,8 @@ All `screenshots` subcommands (except `types`) accept shared app-resolution opti
 |:---|:---|:---|
 | `-b, --bundle-id <id>` | `APPLE_BUNDLE_ID` or auto-detected from Xcode project | Target application bundle identifier |
 | `--app-id <id>` | — | Numeric App Store Connect App ID (takes precedence over `--bundle-id`) |
-| `--platform <platform>` | `ios` | Target platform (`ios`, `macos`, `tvos`, `visionos`) |
-| `-v, --app-version <ver>` | Auto-selects editable version (or latest for `list`) | Explicit App Store version string (e.g. `1.2.0`) |
+| `-p, --platform <platform>` | `ios` | Target platform (`ios`, `macos`, `tvos`, `visionos`) |
+| `--app-version <ver>` | Auto-selects editable version (or latest for `list`) | Explicit App Store version string (e.g. `1.2.0`) |
 
 ### `appitool apple screenshots list`
 
@@ -411,25 +410,25 @@ Lists screenshot sets and individual screenshots registered on the resolved App 
 
 | Option | Description |
 |:---|:---|
-| `-l, --locale <locale>` | Filter by App Store locale (e.g. `en-US`, `tr`). Omit to list all localizations. |
+| `--locale <locale>` | Filter by App Store locale (e.g. `en-US`, `tr`). Omit to list all localizations. |
 | `-t, --type <display-type>` | Filter by screenshot display type (e.g. `iphone-67`, `ipad-pro-129`). |
 
 ```bash
 appitool apple screenshots list -b com.example.app
-appitool apple screenshots list -b com.example.app -v 1.2.0 -l en-US -t iphone-67
+appitool apple screenshots list -b com.example.app --app-version 1.2.0 --locale en-US -t iphone-67
 ```
 
 ### `appitool apple screenshots upload`
 
-Uploads screenshots to an editable App Store version (e.g. `PREPARE_FOR_SUBMISSION`) either from explicit flat image paths (`-l` and `-t` required) or symmetrically from a `<locale>/<type>/` directory tree defaulting to `~/.appitool/screenshots/<project>/apple/` (`-l` and `-t` optional filters).
+Uploads screenshots to an editable App Store version (e.g. `PREPARE_FOR_SUBMISSION`) either from explicit flat image paths (`--locale` and `-t` required) or symmetrically from a `<locale>/<type>/` directory tree defaulting to `~/.appitool/screenshots/<project>/apple/` (`--locale` and `-t` optional filters).
 
 | Option / Flag / Argument | Default | Description |
 |:---|:---|:---|
-| `-l, --locale <locale>` | — | App Store localization locale (e.g. `en-US`, `tr`). Required for flat files; optional filter for `<locale>/<type>/` trees. |
+| `--locale <locale>` | — | App Store localization locale (e.g. `en-US`, `tr`). Required for flat files; optional filter for `<locale>/<type>/` trees. |
 | `-t, --type <display-type>` | — | Screenshot display type (e.g. `iphone-67`, `ipad-pro-129`, `APP_IPHONE_67`). Required for flat files; optional filter for directory trees. |
-| `-r, --replace` | `false` | Delete existing screenshots in each target set before uploading. |
-| `--wait` / `--no-wait` | `true` (`--wait`) | Wait for App Store Connect to process each uploaded screenshot (`COMPLETE` / `FAILED`). |
-| `-d, --dry-run` | `false` | Validate files and preview upload targets without contacting App Store Connect. |
+| `--replace` | `false` | Delete existing screenshots in each target set before uploading. |
+| `--wait-processing` / `--no-wait-processing` | `true` (`--wait-processing`) | Wait for App Store Connect to process each uploaded screenshot (`COMPLETE` / `FAILED`). |
+| `--dry-run` | `false` | Validate files and preview upload targets without contacting App Store Connect. |
 | `<paths...>` | `~/.appitool/screenshots/<project>/apple/` | Optional PNG/JPEG file(s), flat directory, or `<locale>/<type>/` directory tree. |
 
 ```bash
@@ -437,12 +436,12 @@ Uploads screenshots to an editable App Store version (e.g. `PREPARE_FOR_SUBMISSI
 appitool apple screenshots upload --replace
 
 # Bulk-upload only en-US sets from the default per-project directory
-appitool apple screenshots upload -l en-US -r
+appitool apple screenshots upload --locale en-US --replace
 
 # Upload flat directory images for a single locale and display type
 appitool apple screenshots upload \
   -b com.example.app \
-  -l en-US \
+  --locale en-US \
   -t iphone-67 \
   --replace \
   ./screenshots/ios/en-US/iphone-67/
@@ -454,17 +453,17 @@ Downloads screenshots from App Store Connect (`imageAsset.templateUrl` at full r
 
 | Option / Flag | Default | Description |
 |:---|:---|:---|
-| `-l, --locale <locale>` | — | Filter by App Store locale (e.g. `en-US`, `tr`). Omit to download all locales. |
+| `--locale <locale>` | — | Filter by App Store locale (e.g. `en-US`, `tr`). Omit to download all locales. |
 | `-t, --type <display-type>` | — | Filter by screenshot display type (e.g. `iphone-67`, `ipad-pro-129`). |
 | `-o, --output <dir>` | `~/.appitool/screenshots/<project>/apple/` | Custom destination root directory. |
-| `-d, --dry-run` | `false` | Preview target local paths and CDN URLs without downloading files. |
+| `--dry-run` | `false` | Preview target local paths and CDN URLs without downloading files. |
 
 ```bash
 # Download all locales and display types for the project to ~/.appitool/screenshots/<bundle-id>/apple/
 appitool apple screenshots download
 
 # Download only en-US iPhone 6.7" screenshots into a custom folder
-appitool apple screenshots download -b com.example.app -l en-US -t iphone-67 -o ./downloads/ios
+appitool apple screenshots download -b com.example.app --locale en-US -t iphone-67 -o ./downloads/ios
 ```
 
 ### `appitool apple screenshots delete`
@@ -473,15 +472,15 @@ Deletes an individual screenshot by resource ID or all screenshots for `--locale
 
 | Option / Flag | Default | Description |
 |:---|:---|:---|
-| `-i, --id <screenshot-id>` | — | Specific App Store screenshot resource ID to delete (mutually exclusive with `-a`). |
-| `-l, --locale <locale>` | — | App Store localization locale when deleting with `-a, --all`. |
-| `-t, --type <display-type>` | — | Optional screenshot display type filter when deleting with `-a, --all`. |
-| `-a, --all` | `false` | Delete all screenshots matching `--locale` (and optional `--type`). |
-| `-d, --dry-run` | `false` | Preview matching screenshot(s) without deleting them. |
+| `--id <screenshot-id>` | — | Specific App Store screenshot resource ID to delete (mutually exclusive with `--all`). |
+| `--locale <locale>` | — | App Store localization locale when deleting with `--all`. |
+| `-t, --type <display-type>` | — | Optional screenshot display type filter when deleting with `--all`. |
+| `--all` | `false` | Delete all screenshots matching `--locale` (and optional `--type`). |
+| `--dry-run` | `false` | Preview matching screenshot(s) without deleting them. |
 
 ```bash
-appitool apple screenshots delete -i "<screenshot-id>"
-appitool apple screenshots delete -b com.example.app -l en-US -t iphone-67 --all --dry-run
+appitool apple screenshots delete --id "<screenshot-id>"
+appitool apple screenshots delete -b com.example.app --locale en-US -t iphone-67 --all --dry-run
 ```
 
 ### `appitool apple screenshots types`

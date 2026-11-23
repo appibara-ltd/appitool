@@ -9,29 +9,26 @@ struct MatchAndroidCommand: BaseCommand {
         abstract: "Syncs or adds Android keystores using Git storage."
     )
 
-    @Option(name: .shortAndLong, help: "Target application package name (defaults to GOOGLE_PACKAGE_NAME in .env).")
+    @Option(name: .long, help: "Target application package name (defaults to GOOGLE_PACKAGE_NAME in .env).")
     var packageName: String?
 
     @Option(name: .shortAndLong, help: "Build type (release, debug). Defaults to release.")
     var configuration: String = "release"
 
-    @Option(name: .customLong("add"), help: "Path to local keystore file to add to the Match repository.")
-    var add: String?
-
-    @Option(name: .shortAndLong, help: "Path to local keystore file to add (alias for --add).")
+    @Option(name: .shortAndLong, help: "Path to local keystore file to encrypt and add to the Match repository (omit to sync).")
     var keystore: String?
 
-    @Option(name: .shortAndLong, help: "Key alias (defaults to ANDROID_KEY_ALIAS in .env).")
+    @Option(name: .long, help: "Key alias (defaults to ANDROID_KEY_ALIAS in .env).")
     var alias: String?
 
     @Option(name: .long, help: "Keystore password (defaults to ANDROID_KEYSTORE_PASSWORD in .env).")
-    var storePassword: String?
+    var keystorePassword: String?
 
     @Option(name: .long, help: "Key password (defaults to ANDROID_KEY_PASSWORD in .env).")
     var keyPassword: String?
 
-    @Flag(name: .long, help: "Suppress verbose output.")
-    var silent: Bool = false
+    @Flag(name: .long, inversion: .prefixedNo, help: "Suppress verbose output (--silent / --no-silent).")
+    var silent: Bool = true
 
     @OptionGroup
     var matchOptions: MatchStorageOptions
@@ -46,19 +43,19 @@ struct MatchAndroidCommand: BaseCommand {
             ?? AndroidTasks.resolvePackageName()
 
         guard let targetPackage = resolvedPackageName, !targetPackage.isEmpty else {
-            throw CommandError("Missing package name. Provide -p, --package-name or configure GOOGLE_PACKAGE_NAME in .env.")
+            throw CommandError("Missing package name. Provide --package-name or configure GOOGLE_PACKAGE_NAME in .env.")
         }
 
         // 6. Resolve Build Type
         let resolvedBuildType = MatchAndroidConfig.BuildType(rawValue: configuration.lowercased()) ?? .release
 
         // 7. Resolve Action & Keystore Path
-        let resolvedKeystorePath = add ?? keystore
+        let resolvedKeystorePath = keystore
         let resolvedAction: MatchAndroidConfig.Action = (resolvedKeystorePath != nil) ? .add : .sync
 
         // 8. Resolve Credentials
         let resolvedAlias = alias ?? EnvLoader.value(for: "ANDROID_KEY_ALIAS")
-        let resolvedStorePassword = storePassword ?? EnvLoader.value(for: "ANDROID_KEYSTORE_PASSWORD")
+        let resolvedStorePassword = keystorePassword ?? EnvLoader.value(for: "ANDROID_KEYSTORE_PASSWORD")
         let resolvedKeyPassword = keyPassword ?? EnvLoader.value(for: "ANDROID_KEY_PASSWORD")
 
         let config = MatchAndroidConfig(

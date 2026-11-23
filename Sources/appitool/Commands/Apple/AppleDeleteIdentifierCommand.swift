@@ -18,11 +18,11 @@ struct AppleDeleteIdentifierCommand: DestructiveCommand {
     var ciOptions: GlobalCIOptions
 
     @Option(name: .shortAndLong, help: "App/Bundle identifier to delete (e.g., com.example.app).")
-    var appIdentifier: String?
+    var bundleId: String?
 
     func execute() async throws {
-        guard let targetIdentifier = appIdentifier, !targetIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw CommandError("Missing app identifier. Provide -a, --app-identifier <bundle-id>.")
+        guard let targetIdentifier = bundleId, !targetIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw CommandError("Missing bundle identifier. Provide -b, --bundle-id <bundle-id>.")
         }
 
         let service = try appleCredentials.requireService()

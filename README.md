@@ -22,7 +22,7 @@ A unified CLI utility and release orchestration engine for Apple App Store Conne
 - **Release Notes:** Categorized Markdown release notes generated from Git conventional commits.
 - **Built-in Self-Update:** Upgrade the CLI in-place on demand via `appitool self-update` with SHA256 checksum verification.
 - **Dry-Run Mode:** Validate configurations, credentials, and stage workflows without triggering builds or mutating remote state.
-- **CI Mode Guard (`--ci` / `--no-ci`):** Automatically detects CI environments (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, etc.) and skips destructive commands (`delete-*`, `prune-*`, `disable-device`, `cancel-invitation`, `screenshots delete`, `match nuke/prune`) as a safe no-op (exit code `0`).
+- **CI Mode Guard (`--ci` / `--no-ci`):** Automatically detects CI environments (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, etc.) and skips destructive commands (`delete-*`, `prune-*`, `disable-device`, `cancel-invitation`, `screenshots delete`, `match --nuke/--prune`) as a safe no-op (exit code `0`).
 
 ---
 
@@ -169,22 +169,22 @@ For detailed architectural specifications, see [Flow Architecture](docs/guide/fl
 
 ```bash
 appitool check ios -b com.example.app
-appitool check android -p com.example.app
+appitool check android --package-name com.example.app
 ```
 
 ### `build`
 
 ```bash
 appitool build ios -d appstore
-appitool build android -p com.example.app -d appstore
+appitool build android --package-name com.example.app -d appstore
 ```
 
 ### `match`
 
 ```bash
-appitool match ios appstore
-appitool match ios adhoc --readonly -a "com.example.app,com.example.app.widget"
-appitool match ios prune all
+appitool match ios -t appstore
+appitool match ios -t adhoc --readonly --identifiers "com.example.app,com.example.app.widget"
+appitool match ios --prune --all
 appitool match android
 ```
 
@@ -194,11 +194,11 @@ See [Code Signing (Match)](docs/guide/code-signing-match.md).
 
 ```bash
 appitool apple list-apps -b com.example.app
-appitool apple delete-identifier -a com.example.app
-appitool apple screenshots upload -b com.example.app -l en-US -t iphone-67 ./screenshots/ios/en-US/
-appitool google screenshots upload -p com.example.app -l en-US -t phone ./screenshots/android/en-US/
+appitool apple delete-identifier -b com.example.app
+appitool apple screenshots upload -b com.example.app --locale en-US -t iphone-67 ./screenshots/ios/en-US/
+appitool google screenshots upload --package-name com.example.app --locale en-US -t phone ./screenshots/android/en-US/
 appitool firebase list-releases --platform ios -l 10
-appitool firebase create-group -a qa-team -n "QA Team"
+appitool firebase create-group --alias qa-team -n "QA Team"
 ```
 
 ### `inspect` / `clean` / `notes`
@@ -206,14 +206,14 @@ appitool firebase create-group -a qa-team -n "QA Team"
 ```bash
 appitool inspect -p ios -c Release --json
 appitool clean --derived-data --dry-run
-appitool notes -f v0.8.0 -t v0.9.0 -o CHANGELOG_DRAFT.md
+appitool notes --from v0.8.0 --to v0.9.0 -o CHANGELOG_DRAFT.md
 ```
 
 ### `kokono`
 
 ```bash
 appitool kokono -m "Build completed successfully."
-appitool kokono -m "Confidential deployment completed." -e "your_public_key"
+appitool kokono -m "Confidential deployment completed." --e2e "your_public_key"
 ```
 
 ### `status`

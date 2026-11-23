@@ -11,10 +11,10 @@ struct CleanCommand: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Platform to clean (ios, android, or all). Defaults to all.")
     var platform: String = "all"
 
-    @Flag(name: .shortAndLong, help: "Also clean Xcode derived data directories under ~/.appitool/ios.")
+    @Flag(name: [.customLong("dd"), .long], help: "Also clean Xcode derived data directories under ~/.appitool/ios.")
     var derivedData: Bool = false
 
-    @Flag(name: [.customShort("D"), .long, .customLong("only-derived-data")], help: "Only clean Xcode derived data directories without deleting build archives.")
+    @Flag(name: [.customLong("ddo"), .long], help: "Only clean Xcode derived data directories without deleting build archives.")
     var derivedDataOnly: Bool = false
 
     @Flag(name: .long, help: "Preview items to be cleaned without deleting them.")

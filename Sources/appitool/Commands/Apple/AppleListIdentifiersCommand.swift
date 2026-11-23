@@ -13,7 +13,7 @@ struct AppleListIdentifiersCommand: BaseCommand {
     var appleCredentials: AppleCredentialsOptions
 
     @Option(name: .shortAndLong, help: "Filter by bundle identifier (e.g. com.example.app).")
-    var identifier: String?
+    var bundleId: String?
 
     @Option(name: .shortAndLong, help: "Maximum number of items to return (omit to fetch all).")
     var limit: Int?
@@ -22,10 +22,10 @@ struct AppleListIdentifiersCommand: BaseCommand {
         let service = try appleCredentials.requireService()
 
         Log("🔍 Fetching bundle identifiers from Apple Developer Portal...".dim)
-        let bundleIds = try await service.fetchBundleIds(limit: limit, identifier: identifier)
+        let bundleIds = try await service.fetchBundleIds(limit: limit, identifier: bundleId)
 
         if bundleIds.isEmpty {
-            if let filter = identifier {
+            if let filter = bundleId {
                 Log("No bundle identifiers matching '\(filter)' found on Apple Developer Portal.".yellow)
             } else {
                 Log("No bundle identifiers found on Apple Developer Portal.".yellow)

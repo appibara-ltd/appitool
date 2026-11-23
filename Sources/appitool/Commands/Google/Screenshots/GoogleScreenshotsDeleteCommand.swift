@@ -17,37 +17,37 @@ struct GoogleScreenshotsDeleteCommand: DestructiveCommand {
     @OptionGroup
     var ciOptions: GlobalCIOptions
 
-    @Option(name: .shortAndLong, help: "BCP-47 language code (e.g. en-US, tr-TR).")
+    @Option(name: .long, help: "BCP-47 language code (e.g. en-US, tr-TR).")
     var locale: String
 
     @Option(name: .shortAndLong, help: "Image type (e.g. phone, tablet7, tablet10, tv, wear, icon, feature-graphic, tv-banner).")
     var type: String
 
-    @Option(name: .shortAndLong, help: "Specific image ID to delete.")
+    @Option(name: .long, help: "Specific image ID to delete.")
     var id: String?
 
-    @Flag(name: .shortAndLong, help: "Delete all images of the specified type for the language.")
+    @Flag(name: .long, help: "Delete all images of the specified type for the language.")
     var all: Bool = false
 
     @Flag(name: .long, help: "Commit changes without automatically sending them for review.")
     var changesNotSentForReview: Bool = false
 
-    @Flag(name: .shortAndLong, help: "Preview images to be deleted without deleting them.")
+    @Flag(name: .long, help: "Preview images to be deleted without deleting them.")
     var dryRun: Bool = false
 
     func execute() async throws {
         let cleanLocale = locale.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanLocale.isEmpty else {
-            throw CommandError("Locale cannot be empty. Provide -l, --locale <bcp47-code>.")
+            throw CommandError("Locale cannot be empty. Provide --locale <bcp47-code>.")
         }
 
         let trimmedId = id?.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasId = trimmedId?.isEmpty == false
         if all && hasId {
-            throw CommandError("Cannot combine -a, --all with -i, --id.")
+            throw CommandError("Cannot combine --all with --id.")
         }
         guard all || hasId else {
-            throw CommandError("Missing deletion target. Provide -i, --id <image-id> or -a, --all.")
+            throw CommandError("Missing deletion target. Provide --id <image-id> or --all.")
         }
 
         let imageType = try GooglePlayImageType.parse(type)

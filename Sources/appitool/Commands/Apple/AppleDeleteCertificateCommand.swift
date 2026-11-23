@@ -17,20 +17,20 @@ struct AppleDeleteCertificateCommand: DestructiveCommand {
     @OptionGroup
     var ciOptions: GlobalCIOptions
 
-    @Option(name: .shortAndLong, help: "Certificate Portal ID to delete.")
+    @Option(name: .long, help: "Certificate Portal ID to delete.")
     var portalId: String?
 
     @Option(name: .shortAndLong, help: "Certificate name to delete.")
     var name: String?
 
-    @Option(name: .shortAndLong, help: "Certificate serial number to delete.")
+    @Option(name: .long, help: "Certificate serial number to delete.")
     var serialNumber: String?
 
     func execute() async throws {
         guard (portalId != nil && !portalId!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
               (name != nil && !name!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
               (serialNumber != nil && !serialNumber!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) else {
-            throw CommandError("Missing target certificate. Provide -p, --portal-id, -n, --name, or -s, --serial-number.")
+            throw CommandError("Missing target certificate. Provide --portal-id, -n, --name, or --serial-number.")
         }
 
         let service = try appleCredentials.requireService()

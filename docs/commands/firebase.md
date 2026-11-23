@@ -34,7 +34,7 @@ appitool firebase <subcommand> [options]
 
 ## App Distribution Commands
 
-All three release subcommands use [`FirebaseCredentialsOptions`](/commands/overview#firebasecredentialsoptions) (`--firebase-app-id`, `--platform`, `-g, --google-key`, `-p, --project`).
+All three release subcommands use [`FirebaseCredentialsOptions`](/commands/overview#firebasecredentialsoptions) (`--firebase-app-id`, `-p, --platform`, `-g, --google-key`, `--project`).
 
 ### `appitool firebase list-releases`
 
@@ -43,7 +43,7 @@ Lists uploaded releases for a Firebase application (version, build, creation tim
 | Option | Default | Description |
 |:---|:---|:---|
 | `-l, --limit <count>` | `25` | Maximum number of releases to return (`1–100`). |
-| `-o, --order-by <expr>` | — | Ordering expression (e.g. `'createTime desc'`). |
+| `--order-by <expr>` | — | Ordering expression (e.g. `'createTime desc'`). |
 
 ```bash
 appitool firebase list-releases --platform ios -l 10
@@ -55,16 +55,16 @@ Uploads an `.apk`, `.aab`, or `.ipa` binary to Firebase App Distribution, waits 
 
 | Option | Description |
 |:---|:---|
-| `-b, --binary <path>` | Path to `.apk`, `.aab`, or `.ipa` binary (**Required**). |
-| `-r, --release-notes <text>` | Release notes text for testers. |
-| `-t, --test-groups <aliases>` | Comma-separated tester group aliases (e.g. `'internal,qa'`). |
-| `-e, --tester-emails <emails>` | Comma-separated tester email addresses. |
+| `--binary <path>` | Path to `.apk`, `.aab`, or `.ipa` binary (**Required**). |
+| `--release-notes <text>` | Release notes text for testers. |
+| `--test-groups <aliases>` | Comma-separated tester group aliases (e.g. `'internal,qa'`). |
+| `--tester-emails <emails>` | Comma-separated tester email addresses. |
 
 ```bash
 appitool firebase create-release \
   --platform android \
-  -b ./app-release.apk \
-  -r "QA build #42" \
+  --binary ./app-release.apk \
+  --release-notes "QA build #42" \
   --test-groups "internal,qa"
 ```
 
@@ -74,10 +74,10 @@ Updates an existing Firebase App Distribution release by attaching new release n
 
 | Option | Description |
 |:---|:---|
-| `-i, --release-id <id>` | Full release resource path (`projects/.../apps/.../releases/<id>`) or short release ID (**Required**; `--firebase-app-id` is required if passing a short ID). |
-| `-r, --release-notes <text>` | New release notes text to attach. |
-| `-t, --test-groups <aliases>` | Comma-separated tester group aliases to distribute to. |
-| `-e, --tester-emails <emails>` | Comma-separated tester emails to distribute to. |
+| `--release-id <id>` | Full release resource path (`projects/.../apps/.../releases/<id>`) or short release ID (**Required**; `--firebase-app-id` is required if passing a short ID). |
+| `--release-notes <text>` | New release notes text to attach. |
+| `--test-groups <aliases>` | Comma-separated tester group aliases to distribute to. |
+| `--tester-emails <emails>` | Comma-separated tester emails to distribute to. |
 
 ```bash
 appitool firebase update-release \
@@ -89,7 +89,7 @@ appitool firebase update-release \
 
 ### `appitool firebase list-groups`
 
-Uses [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `-p, --project`).
+Uses [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `--project`).
 
 Lists tester groups registered in a Firebase project with alias, tester count, and release count.
 
@@ -105,18 +105,18 @@ Creates a new tester group (or returns the existing group if the alias already e
 
 | Option | Default | Description |
 |:---|:---|:---|
-| `-a, --alias <alias>` | **Required** | Unique alias/ID for the group (e.g. `internal`, `qa-team`). |
+| `--alias <alias>` | **Required** | Unique alias/ID for the group (e.g. `internal`, `qa-team`). |
 | `-n, --name <display>` | `<alias>` | Human-readable display name (e.g. `'Internal Testers'`). |
 
 ```bash
-appitool firebase create-group -a qa-team -n "QA Team"
+appitool firebase create-group --alias qa-team -n "QA Team"
 ```
 
 ---
 
 ## Firebase Authentication Commands
 
-All user management subcommands use [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `-p, --project`).
+All user management subcommands use [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `--project`).
 
 ### `appitool firebase list-users`
 
@@ -125,16 +125,16 @@ Lists Firebase Authentication users with optional exact/partial search by email 
 | Option | Default | Description |
 |:---|:---|:---|
 | `-l, --limit <count>` | `100` | Maximum number of users to return. |
-| `-s, --search <query>` | — | Search users by email or UID (attempts fast exact lookup on page 1 before paginated scan). |
-| `-a, --anonymous <filter>` | `all` | Filter by anonymous status: `all`, `only`, or `exclude`. |
-| `-t, --page-token <token>` | — | Pagination token printed at the end of the previous page output. |
+| `--search <query>` | — | Search users by email or UID (attempts fast exact lookup on page 1 before paginated scan). |
+| `--anonymous <filter>` | `all` | Filter by anonymous status: `all`, `only`, or `exclude`. |
+| `--page-token <token>` | — | Pagination token printed at the end of the previous page output. |
 
 ```bash
 # List up to 50 non-anonymous users
-appitool firebase list-users -l 50 -a exclude
+appitool firebase list-users -l 50 --anonymous exclude
 
 # Search for a user by email
-appitool firebase list-users -s user@example.com
+appitool firebase list-users --search user@example.com
 ```
 
 ### `appitool firebase delete-user`
@@ -143,10 +143,10 @@ Deletes Firebase Authentication user(s) by UID, by email lookup, or deletes all 
 
 | Option / Flag | Default | Description |
 |:---|:---|:---|
-| `-u, --uid <uid>` | — | UID (`localId`) of the user to delete. |
+| `--uid <uid>` | — | UID (`localId`) of the user to delete. |
 | `-e, --email <email>` | — | Email address of the user to look up and delete. |
-| `-a, --anonymous` | `false` | Delete all anonymous users in the project (cannot be combined with `-u` or `-e`). |
-| `-d, --dry-run` | `false` | Preview matching user(s) without deleting them. |
+| `--anonymous` | `false` | Delete all anonymous users in the project (cannot be combined with `--uid` or `-e`). |
+| `--dry-run` | `false` | Preview matching user(s) without deleting them. |
 
 ```bash
 # Preview bulk anonymous user cleanup
@@ -163,21 +163,21 @@ Exports all Firebase Authentication users to a UTF-8 CSV file with columns:
 
 | Option | Default | Description |
 |:---|:---|:---|
-| `-a, --anonymous <filter>` | `all` | Filter exported users: `all`, `only`, or `exclude`. |
+| `--anonymous <filter>` | `all` | Filter exported users: `all`, `only`, or `exclude`. |
 | `-o, --output <path>` | `firebase_users_<project>.csv` | Output CSV filename or path. |
 
 ```bash
-appitool firebase export-users -a exclude -o ./exports/users.csv
+appitool firebase export-users --anonymous exclude -o ./exports/users.csv
 ```
 
 ---
 
 ## Cloud Firestore Commands
 
-All `appitool firebase firestore` subcommands use [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `-p, --project`) and `--database <id>` (defaults to `(default)`).
+All `appitool firebase firestore` subcommands use [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `--project`) and `--database <id>` (defaults to `(default)`).
 
 > [!NOTE]
-> - **Project ID Resolution:** Firestore requires a string Google Cloud `project_id` resolved in order: `-p, --project` → `FIREBASE_PROJECT_ID` / `GOOGLE_PROJECT_ID` → `project_id` embedded inside the `GOOGLE_KEY` Service Account JSON.
+> - **Project ID Resolution:** Firestore requires a string Google Cloud `project_id` resolved in order: `--project` → `FIREBASE_PROJECT_ID` / `GOOGLE_PROJECT_ID` → `project_id` embedded inside the `GOOGLE_KEY` Service Account JSON.
 > - **IAM Permissions:** The Service Account must hold `Cloud Datastore Viewer` (`roles/datastore.viewer`) for read-only commands (`collections`, `list`, `get`, `query`) or `Cloud Datastore User` (`roles/datastore.user`) for read/write/delete commands (`set`, `delete`). Service Account requests bypass client Firestore Security Rules.
 
 ### `appitool firebase firestore collections`
@@ -188,7 +188,7 @@ Lists root collection IDs or subcollection IDs beneath a specific document path.
 |:---|:---|:---|
 | `<path>` | — | Optional parent document path (even number of segments, e.g. `users/alice`). |
 | `-l, --limit <count>` | `100` | Maximum number of collection IDs to return. |
-| `-t, --page-token <token>` | — | Pagination token to fetch the next page of collection IDs. |
+| `--page-token <token>` | — | Pagination token to fetch the next page of collection IDs. |
 | `--json` | `false` | Output raw JSON. |
 
 ```bash
@@ -204,8 +204,8 @@ Lists documents in a Firestore collection.
 |:---|:---|:---|
 | `<path>` | **Required** | Firestore collection path (odd number of segments, e.g. `users` or `users/alice/orders`). |
 | `-l, --limit <count>` | `50` | Maximum number of documents to return. |
-| `-o, --order-by <expr>` | — | Sort expression (e.g. `'createdAt desc'`). |
-| `-t, --page-token <token>` | — | Pagination token to fetch the next page of documents. |
+| `--order-by <expr>` | — | Sort expression (e.g. `'createdAt desc'`). |
+| `--page-token <token>` | — | Pagination token to fetch the next page of documents. |
 | `--json` | `false` | Output raw JSON. |
 
 ```bash
@@ -232,13 +232,13 @@ Writes a document at a document path (`PATCH`, creating or overwriting) or creat
 | Option / Flag / Argument | Default | Description |
 |:---|:---|:---|
 | `<path>` | **Required** | Document path (`users/alice`) or collection path (`users`). |
-| `-d, --data <json>` | — | Inline JSON object string containing document fields (mutually exclusive with `-f`). |
-| `-f, --file <path>` | — | Path to a JSON file containing document fields (mutually exclusive with `-d`). |
-| `-m, --merge` | `false` | Merge provided top-level fields using `updateMask.fieldPaths` (requires a document path). |
+| `--data <json>` | — | Inline JSON object string containing document fields (mutually exclusive with `-f`). |
+| `-f, --file <path>` | — | Path to a JSON file containing document fields (mutually exclusive with `--data`). |
+| `--merge` | `false` | Merge provided top-level fields using `updateMask.fieldPaths` (requires a document path). |
 | `--json` | `false` | Output raw JSON. |
 
 ```bash
-appitool firebase firestore set users/alice -d '{"role":"admin","active":true}' --merge
+appitool firebase firestore set users/alice --data '{"role":"admin","active":true}' --merge
 appitool firebase firestore set logs -f ./event.json
 ```
 
@@ -249,7 +249,7 @@ Deletes a Firestore document by path.
 | Option / Flag / Argument | Default | Description |
 |:---|:---|:---|
 | `<path>` | **Required** | Firestore document path (even number of segments, e.g. `users/alice`). |
-| `-d, --dry-run` | `false` | Check whether the document exists without deleting it. |
+| `--dry-run` | `false` | Check whether the document exists without deleting it. |
 
 ```bash
 appitool firebase firestore delete users/alice --dry-run
@@ -264,7 +264,7 @@ Runs a structured query (`:runQuery`) against a collection (or collection group 
 |:---|:---|:---|
 | `<path>` | **Required** | Firestore collection path (odd number of segments, e.g. `users` or `orders`). |
 | `-w, --where <expr>` | — | Repeatable filter expression: `<field> <op> <value>`. Supported `<op>`: `==`, `!=`, `<`, `<=`, `>`, `>=`, `array-contains`, `in`, `not-in`, `array-contains-any`. |
-| `-o, --order-by <expr>` | — | Repeatable sort clause (`<field> [asc\|desc]`). |
+| `--order-by <expr>` | — | Repeatable sort clause (`<field> [asc\|desc]`). |
 | `-l, --limit <count>` | `50` | Maximum number of documents to return. |
 | `--all-descendants` | `false` | Query across all descendant collections matching the final collection ID (collection group query). |
 | `--json` | `false` | Output raw JSON. |
@@ -273,7 +273,7 @@ Runs a structured query (`:runQuery`) against a collection (or collection group 
 appitool firebase firestore query users \
   -w 'active == true' \
   -w 'age >= 18' \
-  -o 'age desc' \
+  --order-by 'age desc' \
   -l 10 \
   --json
 ```

@@ -59,7 +59,7 @@ enum ScreenshotFileResolver: Sendable {
                 let directFiles = try directImageFiles(in: candidate)
                 if !directFiles.isEmpty {
                     guard let cleanLocale else {
-                        throw CommandError("Uploading flat images from '\(rawPaths[0])' requires -l, --locale (or pass a <locale>/<type>/ directory tree).")
+                        throw CommandError("Uploading flat images from '\(rawPaths[0])' requires --locale (or pass a <locale>/<type>/ directory tree).")
                     }
                     guard let targetType = parsedTypeFilter ?? defaultFlatType else {
                         throw CommandError("Uploading flat images from '\(rawPaths[0])' requires -t, --type (or pass a <locale>/<type>/ directory tree).")
@@ -70,7 +70,7 @@ enum ScreenshotFileResolver: Sendable {
                     return (nil, [ScreenshotUploadBatch(locale: cleanLocale, type: targetType, files: directFiles)])
                 }
 
-                // If -l was provided and `candidate` looks like a 1-level `<type>/` directory (e.g. `.../<locale>/`),
+                // If --locale was provided and `candidate` looks like a 1-level `<type>/` directory (e.g. `.../<locale>/`),
                 // treat direct subdirectories containing images as `<type>/` slots for `cleanLocale`.
                 let childDirs = try sortedSubdirectories(in: candidate)
                 if let cleanLocale,
@@ -102,7 +102,7 @@ enum ScreenshotFileResolver: Sendable {
         }
 
         guard let cleanLocale else {
-            throw CommandError("Uploading explicit image file(s) requires -l, --locale (or pass a <locale>/<type>/ directory tree).")
+            throw CommandError("Uploading explicit image file(s) requires --locale (or pass a <locale>/<type>/ directory tree).")
         }
         guard let targetType = parsedTypeFilter ?? defaultFlatType else {
             throw CommandError("Uploading explicit image file(s) requires -t, --type (or pass a <locale>/<type>/ directory tree).")

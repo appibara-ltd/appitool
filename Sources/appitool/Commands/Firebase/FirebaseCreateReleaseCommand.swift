@@ -12,16 +12,16 @@ struct FirebaseCreateReleaseCommand: BaseCommand {
     @OptionGroup
     var credentials: FirebaseCredentialsOptions
 
-    @Option(name: .shortAndLong, help: "Path to binary file (.apk, .aab, or .ipa).")
+    @Option(name: .long, help: "Path to binary file (.apk, .aab, or .ipa).")
     var binary: String
 
-    @Option(name: .shortAndLong, help: "Optional release notes for testers.")
+    @Option(name: .long, help: "Optional release notes for testers.")
     var releaseNotes: String?
 
-    @Option(name: .shortAndLong, help: "Comma-separated tester group aliases (e.g. 'internal,qa').")
+    @Option(name: .long, help: "Comma-separated tester group aliases (e.g. 'internal,qa').")
     var testGroups: String?
 
-    @Option(name: [.customShort("e"), .long], help: "Comma-separated tester email addresses.")
+    @Option(name: .long, help: "Comma-separated tester email addresses.")
     var testerEmails: String?
 
     func execute() async throws {

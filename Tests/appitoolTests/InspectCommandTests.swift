@@ -13,15 +13,15 @@ struct InspectCommandTests {
         return dir
     }
 
-    @Test("InspectCommand parses options including flavor, workspace-root, and json")
+    @Test("InspectCommand parses options including flavor, project-dir, and json")
     func inspectCommandCLIParsing() throws {
         let cmd1 = try InspectCommand.parse([
             "-p", "android",
-            "-w", "MyWorkspace",
+            "--workspace-name", "MyWorkspace",
             "-s", "MyScheme",
             "-c", "Debug",
             "--flavor", "staging",
-            "-d", "/tmp/project",
+            "--project-dir", "/tmp/project",
             "--json",
         ])
         #expect(cmd1.platform == .android)
@@ -35,7 +35,7 @@ struct InspectCommandTests {
         let cmd2 = try InspectCommand.parse([
             "--platform", "ios",
             "--flavor", "prod",
-            "--workspace-root", "/tmp/other",
+            "--project-dir", "/tmp/other",
         ])
         #expect(cmd2.platform == .ios)
         #expect(cmd2.flavor == "prod")
@@ -48,8 +48,10 @@ struct InspectCommandTests {
         #expect(rootCmd.flavor == "beta")
         #expect(rootCmd.json == true)
 
-        #expect(throws: (any Error).self) {
-            _ = try InspectCommand.parse(["-f", "staging"])
+        for removed in [["-f", "staging"], ["-w", "MyWorkspace"], ["-d", "/tmp"], ["--workspace-root", "/tmp"]] {
+            #expect(throws: (any Error).self) {
+                _ = try InspectCommand.parse(removed)
+            }
         }
     }
 

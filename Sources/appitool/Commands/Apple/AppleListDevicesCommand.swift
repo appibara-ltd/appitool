@@ -15,7 +15,7 @@ struct AppleListDevicesCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Filter by platform (e.g. ios, macos, universal).")
     var platform: String?
 
-    @Option(name: .shortAndLong, help: "Filter by status (e.g. enabled, disabled).")
+    @Option(name: .long, help: "Filter by status (e.g. enabled, disabled).")
     var status: String?
 
     @Option(name: .shortAndLong, help: "Filter by device name (case-insensitive substring match).")

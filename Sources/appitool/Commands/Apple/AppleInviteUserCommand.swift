@@ -15,16 +15,16 @@ struct AppleInviteUserCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Invitee email address.")
     var email: String
 
-    @Option(name: .shortAndLong, help: "Invitee first name.")
+    @Option(name: .long, help: "Invitee first name.")
     var firstName: String
 
-    @Option(name: .shortAndLong, help: "Invitee last name.")
+    @Option(name: .long, help: "Invitee last name.")
     var lastName: String
 
     @Option(name: .shortAndLong, help: "Comma-separated roles (e.g. admin, developer, app-manager, marketing, finance).")
     var roles: String
 
-    @Option(name: .shortAndLong, help: "Comma-separated App Store Connect App IDs or bundle IDs to grant access when restricting visibility.")
+    @Option(name: .long, help: "Comma-separated App Store Connect App IDs or bundle IDs to grant access when restricting visibility.")
     var visibleApps: String?
 
     @Flag(inversion: .prefixedNo, help: "Grant visibility to all apps (--all-apps-visible / --no-all-apps-visible; defaults to true unless --visible-apps is provided).")

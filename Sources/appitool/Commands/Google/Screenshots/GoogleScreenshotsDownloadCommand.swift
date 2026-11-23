@@ -12,7 +12,7 @@ struct GoogleScreenshotsDownloadCommand: BaseCommand {
     @OptionGroup
     var app: GooglePlayAppOptions
 
-    @Option(name: .shortAndLong, help: "Filter by BCP-47 language code (e.g. en-US, tr-TR). Omit to download all listing languages.")
+    @Option(name: .long, help: "Filter by BCP-47 language code (e.g. en-US, tr-TR). Omit to download all listing languages.")
     var locale: String?
 
     @Option(name: .shortAndLong, help: "Filter by image type (e.g. phone, tablet7, tablet10, feature-graphic, icon). Omit to download all types.")
@@ -21,7 +21,7 @@ struct GoogleScreenshotsDownloadCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Output directory (defaults to ~/.appitool/screenshots/<package-name>/google/).")
     var output: String?
 
-    @Flag(name: .shortAndLong, help: "Preview images that would be downloaded without writing files.")
+    @Flag(name: .long, help: "Preview images that would be downloaded without writing files.")
     var dryRun: Bool = false
 
     func execute() async throws {

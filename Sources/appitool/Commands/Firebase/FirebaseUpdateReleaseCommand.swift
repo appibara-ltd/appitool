@@ -12,16 +12,16 @@ struct FirebaseUpdateReleaseCommand: BaseCommand {
     @OptionGroup
     var credentials: FirebaseCredentialsOptions
 
-    @Option(name: [.customShort("i"), .long], help: "Full release resource id (release ID).")
+    @Option(name: .long, help: "Full release resource id (release ID).")
     var releaseId: String
 
-    @Option(name: .shortAndLong, help: "New release notes text to attach to the release.")
+    @Option(name: .long, help: "New release notes text to attach to the release.")
     var releaseNotes: String?
 
-    @Option(name: .shortAndLong, help: "Comma-separated tester group aliases to distribute to.")
+    @Option(name: .long, help: "Comma-separated tester group aliases to distribute to.")
     var testGroups: String?
 
-    @Option(name: [.customShort("e"), .long], help: "Comma-separated tester emails to distribute to.")
+    @Option(name: .long, help: "Comma-separated tester emails to distribute to.")
     var testerEmails: String?
 
     func execute() async throws {
@@ -69,7 +69,7 @@ struct FirebaseUpdateReleaseCommand: BaseCommand {
         }
 
         if !anyUpdated {
-            Log("🚧 No updates specified. Use -r, --release-notes, -t, --test-groups, or -e, --tester-emails.".yellow)
+            Log("🚧 No updates specified. Use --release-notes, --test-groups, or --tester-emails.".yellow)
         }
     }
 }

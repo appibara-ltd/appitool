@@ -71,7 +71,7 @@ Choosing a platform (`ios` / `android`) and distribution (`appstore`, `adhoc`, `
 - **Required Configuration (`requirements`)**:
   - `GOOGLE_KEY`
 - **Stage Execution**:
-  - `setup`: Extracts `packageName`, `applicationId`, `namespace`, `versionName`, `versionCode`, and flavors via regex (`AndroidTasks.getAndroidIdentifiers`) and Gradle evaluation (`evaluateAppInfoViaGradle`). When `--flavor` / `ANDROID_FLAVOR` is set, the selected flavor's effective `applicationId` (unless `-p` is given), `versionName`, and `versionCode` are used, and a warning is logged if the flavor is not found. If `MATCH_GIT_URL` and `MATCH_PASSWORD` are configured, resolves the release keystore via `MatchRunner().runAndroid`. Queries Google Play Console (`internal` track) for the latest `versionCode`.
+  - `setup`: Extracts `packageName`, `applicationId`, `namespace`, `versionName`, `versionCode`, and flavors via regex (`AndroidTasks.getAndroidIdentifiers`) and Gradle evaluation (`evaluateAppInfoViaGradle`). When `--flavor` / `ANDROID_FLAVOR` is set, the selected flavor's effective `applicationId` (unless `--package-name` is given), `versionName`, and `versionCode` are used, and a warning is logged if the flavor is not found. If `MATCH_GIT_URL` and `MATCH_PASSWORD` are configured, resolves the release keystore via `MatchRunner().runAndroid`. Queries Google Play Console (`internal` track) for the latest `versionCode`.
   - `prebuild`: Computes `nextCode = baseCode + 1` in `context.buildNumber`.
   - `build`: Executes Gradle `bundleRelease` (or `bundle<Flavor>Release` with `--flavor`) producing an `.aab` with `-PversionCode` and `-PversionName` plus Match signing config if present.
   - `postbuild`: Verifies `.aab` existence and logs file size.

@@ -13,11 +13,11 @@ appitool inspect [options]
 | Option / Flag | Default | Description |
 |:---|:---|:---|
 | `-p, --platform <platform>` | `all` | Platform to inspect: `all`, `ios`, or `android`. |
-| `-w, --workspace-name <name>` | Auto-detected | Custom Xcode workspace or project name. |
+| `--workspace-name <name>` | Auto-detected | Custom Xcode workspace or project name. |
 | `-s, --scheme <scheme>` | All distributable schemes | Specific Xcode scheme name to inspect (omit to list every distributable scheme). |
 | `-c, --configuration <config>` | Auto-inferred | Xcode build configuration (e.g., `Debug`, `Release`). |
 | `--flavor <name>` | All product flavors | Specific Android product flavor to resolve (omit to list all `productFlavors` with resolved overrides). |
-| `-d, --project-dir <path>` / `--workspace-root <path>` | Current directory | Path to the project root directory. |
+| `--project-dir <path>` | Current directory | Path to the project root directory. |
 | `--json` | `false` | Output results as pretty-printed, key-sorted JSON (`ios.schemes[]`, `ios.version`, `ios.buildNumber`, `android.versionName`, `android.versionCode`, and resolved `android.flavors[]`). |
 
 ## Examples
@@ -33,5 +33,5 @@ appitool inspect -p ios -s MyApp -c Release --json
 appitool inspect -p android --flavor staging
 
 # Inspect a project located in another directory
-appitool inspect --workspace-root ~/projects/my-mobile-app
+appitool inspect --project-dir ~/projects/my-mobile-app
 ```

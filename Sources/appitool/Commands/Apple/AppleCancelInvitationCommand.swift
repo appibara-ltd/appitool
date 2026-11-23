@@ -17,7 +17,7 @@ struct AppleCancelInvitationCommand: DestructiveCommand {
     @OptionGroup
     var ciOptions: GlobalCIOptions
 
-    @Option(name: .shortAndLong, help: "Invitation resource ID to cancel.")
+    @Option(name: .long, help: "Invitation resource ID to cancel.")
     var id: String?
 
     @Option(name: .shortAndLong, help: "Invitee email address whose pending invitation should be canceled.")
@@ -27,7 +27,7 @@ struct AppleCancelInvitationCommand: DestructiveCommand {
         let targetId = AppleCommandHelpers.trimmedNonEmpty(id)
         let targetEmail = AppleCommandHelpers.trimmedNonEmpty(email)
         guard targetId != nil || targetEmail != nil else {
-            throw CommandError("Missing target invitation. Provide -i, --id or -e, --email.")
+            throw CommandError("Missing target invitation. Provide --id or -e, --email.")
         }
 
         let service = try appleCredentials.requireService()

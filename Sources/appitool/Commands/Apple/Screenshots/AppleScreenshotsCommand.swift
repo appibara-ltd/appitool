@@ -28,11 +28,11 @@ struct AppleScreenshotAppOptions: ParsableArguments, Sendable {
     @Option(name: .long, help: "App Store Connect App ID (numeric; takes precedence over --bundle-id).")
     var appId: String?
 
-    @Option(name: .long, help: "Target platform (ios, macos, tvos, visionos). Defaults to ios.")
+    @Option(name: .shortAndLong, help: "Target platform (ios, macos, tvos, visionos). Defaults to ios.")
     var platform: String = "ios"
 
     // Avoid `--version` because root `appitool` defines `version:` which ArgumentParser intercepts.
-    @Option(name: [.customShort("v"), .customLong("app-version")], help: "Target App Store version string (e.g. 1.2.0; auto-selects editable version when omitted).")
+    @Option(name: .customLong("app-version"), help: "Target App Store version string (e.g. 1.2.0; auto-selects editable version when omitted).")
     var appVersion: String?
 
     func requireService() throws -> AppStoreService {

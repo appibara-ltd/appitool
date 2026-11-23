@@ -366,7 +366,8 @@ package struct FirestoreQueryFilter: Equatable, Sendable {
 
         // Match word operators (`in`, `not-in`, `array-contains`, `array-contains-any`) or symbol operators
         // after a valid non-empty field token so values containing `=` or `in` do not cause false splits.
-        let pattern = #"^((?:`[^`]+`|[^\s<>=!]+)(?:\.(?:`[^`]+`|[^\s<>=!]+))*)(?:\s*(<=|>=|==|!=|<|>)\s*|\s+(array-contains-any|array-contains|not-in|in)\s+)(.+)$"#
+        // The symbol operator is an atomic group so `age >=` cannot backtrack to `>` and treat `=` as the value.
+        let pattern = #"^((?:`[^`]+`|[^\s<>=!]+)(?:\.(?:`[^`]+`|[^\s<>=!]+))*)(?:\s*(?>(<=|>=|==|!=|<|>))\s*|\s+(array-contains-any|array-contains|not-in|in)\s+)(.+)$"#
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
               let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
               let fieldRange = Range(match.range(at: 1), in: trimmed),

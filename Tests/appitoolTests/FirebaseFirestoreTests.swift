@@ -505,7 +505,7 @@ struct FirebaseFirestoreTests {
         EnvLoader.setEnvironmentVariable(key: "FIREBASE_PROJECT_ID", value: "firebase-proj", overwrite: true)
         #expect(try emptyOpts.requireProjectId(fallbackServiceProjectId: "sa-proj") == "firebase-proj")
 
-        let cliOpts = try FirebaseProjectOptions.parse(["-p", "cli-proj"])
+        let cliOpts = try FirebaseProjectOptions.parse(["--project", "cli-proj"])
         #expect(try cliOpts.requireProjectId(fallbackServiceProjectId: "sa-proj") == "cli-proj")
     }
 
@@ -519,7 +519,7 @@ struct FirebaseFirestoreTests {
         #expect(collections.json == true)
 
         let list = try #require(
-            try FirebaseCommand.parseAsRoot(["firestore", "list", "users", "-l", "25", "-o", "createdAt desc", "--database", "staging"]) as? FirestoreListCommand
+            try FirebaseCommand.parseAsRoot(["firestore", "list", "users", "-l", "25", "--order-by", "createdAt desc", "--database", "staging"]) as? FirestoreListCommand
         )
         #expect(list.path == "users")
         #expect(list.limit == 25)
@@ -533,7 +533,7 @@ struct FirebaseFirestoreTests {
         #expect(get.json == true)
 
         let set = try #require(
-            try FirebaseCommand.parseAsRoot(["firestore", "set", "users/alice", "-d", #"{"active":true}"#, "-m", "--json"]) as? FirestoreSetCommand
+            try FirebaseCommand.parseAsRoot(["firestore", "set", "users/alice", "--data", #"{"active":true}"#, "--merge", "--json"]) as? FirestoreSetCommand
         )
         #expect(set.path == "users/alice")
         #expect(set.data == #"{"active":true}"#)
@@ -551,7 +551,7 @@ struct FirebaseFirestoreTests {
                 "firestore", "query", "orders",
                 "-w", "status == paid",
                 "-w", "total >= 100",
-                "-o", "createdAt desc",
+                "--order-by", "createdAt desc",
                 "-l", "10",
                 "--all-descendants",
                 "--json",

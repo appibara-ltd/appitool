@@ -18,10 +18,10 @@ struct ApplePruneProfilesCommand: DestructiveCommand {
     @OptionGroup
     var ciOptions: GlobalCIOptions
 
-    @Flag(name: .shortAndLong, help: "Preview profiles to be pruned without deleting them.")
+    @Flag(name: .long, help: "Preview profiles to be pruned without deleting them.")
     var dryRun: Bool = false
 
-    @Flag(name: .shortAndLong, help: "Also prune expired profiles in addition to INVALID profiles.")
+    @Flag(name: .long, help: "Also prune expired profiles in addition to INVALID profiles.")
     var includeExpired: Bool = false
 
     func execute() async throws {
@@ -50,7 +50,7 @@ struct ApplePruneProfilesCommand: DestructiveCommand {
         Log("")
 
         if dryRun {
-            Log("🟡️ Dry run complete. No profiles were modified. Re-run without --dry-run (-d) to delete them.".yellow)
+            Log("🟡️ Dry run complete. No profiles were modified. Re-run without --dry-run to delete them.".yellow)
             return
         }
 

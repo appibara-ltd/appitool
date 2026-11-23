@@ -15,7 +15,7 @@ struct AppleAddDeviceCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Device name (e.g. \"John's iPhone\").")
     var name: String
 
-    @Option(name: .shortAndLong, help: "Device Unique Device Identifier (UDID).")
+    @Option(name: .long, help: "Device Unique Device Identifier (UDID).")
     var udid: String
 
     @Option(name: .shortAndLong, help: "Platform: ios, macos, universal. Defaults to ios.")

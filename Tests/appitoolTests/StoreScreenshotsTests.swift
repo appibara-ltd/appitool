@@ -532,7 +532,21 @@ struct StoreScreenshotsTests {
         #expect(transport204.capturedRequests.first?.operationID == "appScreenshots_deleteInstance")
         #expect(transport204.capturedRequests.first?.request.path == "/v1/appScreenshots/ss-9")
 
-        let transport404 = CapturingTransport(statusCode: .notFound)
+        // App Store Connect always returns a JSON error document on 404; the generated client requires it.
+        let notFoundJSON = """
+        {
+            "errors": [
+                {
+                    "id": "ERR_404",
+                    "status": "404",
+                    "code": "NOT_FOUND",
+                    "title": "The specified resource does not exist",
+                    "detail": "There is no resource of type 'appScreenshots' with id 'ss-missing'"
+                }
+            ]
+        }
+        """.data(using: .utf8)!
+        let transport404 = CapturingTransport(statusCode: .notFound, responseBody: notFoundJSON)
         let service404 = try makeAppleService(transport: transport404)
         #expect(try await service404.deleteScreenshot(id: "ss-missing") == false)
     }
@@ -635,7 +649,7 @@ struct StoreScreenshotsTests {
         _ = try appitool.parseAsRoot(["google", "screenshots", "types"])
 
         let gList = try #require(
-            try appitool.parseAsRoot(["google", "screenshots", "list", "-p", "com.example.app", "-l", "en-US", "-t", "phone"]) as? GoogleScreenshotsListCommand
+            try appitool.parseAsRoot(["google", "screenshots", "list", "--package-name", "com.example.app", "--locale", "en-US", "-t", "phone"]) as? GoogleScreenshotsListCommand
         )
         #expect(gList.app.packageName == "com.example.app")
         #expect(gList.locale == "en-US")
@@ -644,13 +658,13 @@ struct StoreScreenshotsTests {
         let gUpload = try #require(
             try appitool.parseAsRoot([
                 "google", "screenshots", "upload",
-                "-p", "com.example.app",
-                "-l", "tr-TR",
+                "--package-name", "com.example.app",
+                "--locale", "tr-TR",
                 "-t", "feature-graphic",
-                "-r",
+                "--replace",
                 "--validate-only",
                 "--changes-not-sent-for-review",
-                "-d",
+                "--dry-run",
                 "./banner.png",
             ]) as? GoogleScreenshotsUploadCommand
         )
@@ -665,7 +679,7 @@ struct StoreScreenshotsTests {
         let gDelete = try #require(
             try appitool.parseAsRoot([
                 "--ci", "google", "screenshots", "delete",
-                "-l", "en-US", "-t", "phone", "-a",
+                "--locale", "en-US", "-t", "phone", "--all",
             ]) as? GoogleScreenshotsDeleteCommand
         )
         #expect(gDelete.isDestructive == true)
@@ -680,9 +694,9 @@ struct StoreScreenshotsTests {
             try appitool.parseAsRoot([
                 "apple", "screenshots", "list",
                 "-b", "com.example.app",
-                "-v", "1.2.0",
-                "--platform", "ios",
-                "-l", "en-US",
+                "--app-version", "1.2.0",
+                "-p", "ios",
+                "--locale", "en-US",
                 "-t", "iphone-67",
             ]) as? AppleScreenshotsListCommand
         )
@@ -697,11 +711,11 @@ struct StoreScreenshotsTests {
                 "apple", "screenshots", "upload",
                 "--app-id", "673000111",
                 "--app-version", "2.0.0",
-                "-l", "en-US",
+                "--locale", "en-US",
                 "-t", "iphone-67",
-                "-r",
-                "--no-wait",
-                "-d",
+                "--replace",
+                "--no-wait-processing",
+                "--dry-run",
                 "./shots/",
             ]) as? AppleScreenshotsUploadCommand
         )
@@ -710,14 +724,14 @@ struct StoreScreenshotsTests {
         #expect(aUpload.locale == "en-US")
         #expect(aUpload.type == "iphone-67")
         #expect(aUpload.replace == true)
-        #expect(aUpload.wait == false)
+        #expect(aUpload.waitProcessing == false)
         #expect(aUpload.dryRun == true)
         #expect(aUpload.paths == ["./shots/"])
 
         let aDelete = try #require(
             try appitool.parseAsRoot([
                 "apple", "screenshots", "delete",
-                "-i", "ss-1",
+                "--id", "ss-1",
                 "--ci",
             ]) as? AppleScreenshotsDeleteCommand
         )
@@ -729,11 +743,11 @@ struct StoreScreenshotsTests {
         let gDownload = try #require(
             try appitool.parseAsRoot([
                 "google", "screenshots", "download",
-                "-p", "com.example.app",
-                "-l", "en-US",
+                "--package-name", "com.example.app",
+                "--locale", "en-US",
                 "-t", "phone",
                 "-o", "/tmp/shots",
-                "-d",
+                "--dry-run",
             ]) as? GoogleScreenshotsDownloadCommand
         )
         #expect(gDownload.app.packageName == "com.example.app")
@@ -746,12 +760,12 @@ struct StoreScreenshotsTests {
             try appitool.parseAsRoot([
                 "apple", "screenshots", "download",
                 "-b", "com.example.app",
-                "-v", "1.2.0",
+                "--app-version", "1.2.0",
                 "--platform", "ios",
-                "-l", "tr",
+                "--locale", "tr",
                 "-t", "iphone-67",
                 "-o", "/tmp/apple-shots",
-                "-d",
+                "--dry-run",
             ]) as? AppleScreenshotsDownloadCommand
         )
         #expect(aDownload.app.bundleId == "com.example.app")
@@ -939,7 +953,8 @@ struct StoreScreenshotsTests {
         #expect(sourceRoot?.path == appleRoot.standardizedFileURL.path)
         #expect(allBatches.count == 3)
         #expect(allBatches[0].locale == "en-US")
-        #expect(allBatches[0].type == .APP_IPAD_PRO_129)
+        // `ipad-pro-129` maps to the current 12.9"/13" (3rd+ gen) slot; the 2nd-gen slot is `ipad-pro-129-2gen`.
+        #expect(allBatches[0].type == .APP_IPAD_PRO_3GEN_129)
         #expect(allBatches[1].locale == "en-US")
         #expect(allBatches[1].type == .APP_IPHONE_67)
         #expect(allBatches[1].files.map(\.lastPathComponent) == ["1_first.png", "2_second.png", "10_last.png"])
@@ -1112,10 +1127,10 @@ struct StoreScreenshotsTests {
         #expect(appleZero.type == nil)
         #expect(appleZero.paths.isEmpty)
         #expect(appleZero.replace == false)
-        #expect(appleZero.wait == true)
+        #expect(appleZero.waitProcessing == true)
 
         let appleFiltered = try #require(
-            try appitool.parseAsRoot(["apple", "screenshots", "upload", "-l", "en-US", "-r", "-d"]) as? AppleScreenshotsUploadCommand
+            try appitool.parseAsRoot(["apple", "screenshots", "upload", "--locale", "en-US", "--replace", "--dry-run"]) as? AppleScreenshotsUploadCommand
         )
         #expect(appleFiltered.locale == "en-US")
         #expect(appleFiltered.type == nil)
@@ -1132,7 +1147,7 @@ struct StoreScreenshotsTests {
         #expect(googleZero.replace == false)
 
         let googleFiltered = try #require(
-            try appitool.parseAsRoot(["google", "screenshots", "upload", "-t", "tablet7", "-r", "--validate-only", "./shots"]) as? GoogleScreenshotsUploadCommand
+            try appitool.parseAsRoot(["google", "screenshots", "upload", "-t", "tablet7", "--replace", "--validate-only", "./shots"]) as? GoogleScreenshotsUploadCommand
         )
         #expect(googleFiltered.locale == nil)
         #expect(googleFiltered.type == "tablet7")

@@ -18,7 +18,7 @@ struct ApplePruneCertificatesCommand: DestructiveCommand {
     @OptionGroup
     var ciOptions: GlobalCIOptions
 
-    @Flag(name: .shortAndLong, help: "Preview certificates to be pruned without deleting them.")
+    @Flag(name: .long, help: "Preview certificates to be pruned without deleting them.")
     var dryRun: Bool = false
 
     @Option(name: .shortAndLong, help: "Filter pruning by certificate type (e.g. distribution, development).")
@@ -54,7 +54,7 @@ struct ApplePruneCertificatesCommand: DestructiveCommand {
         Log("")
 
         if dryRun {
-            Log("🟡️ Dry run complete. No certificates were modified. Re-run without --dry-run (-d) to delete them.".yellow)
+            Log("🟡️ Dry run complete. No certificates were modified. Re-run without --dry-run to delete them.".yellow)
             return
         }
 

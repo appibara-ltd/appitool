@@ -18,7 +18,7 @@ struct FirestoreCollectionsCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Maximum number of collection IDs to return (defaults to 100).")
     var limit: Int = 100
 
-    @Option(name: [.customShort("t"), .long], help: "Pagination token to fetch the next page of collection IDs.")
+    @Option(name: .long, help: "Pagination token to fetch the next page of collection IDs.")
     var pageToken: String?
 
     @Flag(name: .long, help: "Output raw JSON.")

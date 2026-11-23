@@ -185,8 +185,4 @@ jobs:
             echo "KOKONO_URL is not set, skipping notification."
             exit 0
           fi
-          appitool kokono -t "appitool" -m "🚀 appitool ${{ github.ref_name }} has been released!"
-
-
-
-
+          appitool kokono --title "appitool" --message "🚀 appitool ${{ github.ref_name }} has been released!"

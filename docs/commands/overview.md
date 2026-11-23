@@ -63,7 +63,7 @@ Includes `GoogleCredentialsOptions` and resolves the Android application package
 | Flag | `.env` Fallback | Description |
 |:---|:---|:---|
 | `-g, --google-key <key>` | `GOOGLE_KEY` | Inherited from `GoogleCredentialsOptions` |
-| `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` or local Android project | Target Android application package name |
+| `--package-name <name>` | `GOOGLE_PACKAGE_NAME` or local Android project | Target Android application package name |
 
 ### `FirebaseProjectOptions`
 
@@ -72,7 +72,7 @@ Used by `firebase list-groups`, `create-group`, `list-users`, `delete-user`, `ex
 | Flag | `.env` Fallback | Description |
 |:---|:---|:---|
 | `-g, --google-key <key>` | `GOOGLE_KEY` | Inherited from `GoogleCredentialsOptions` |
-| `-p, --project <id>` | `FIREBASE_PROJECT_ID`, `GOOGLE_PROJECT_ID`, or parsed from `FIREBASE_*_APP_ID` | Firebase / Google Cloud project ID or project number |
+| `--project <id>` | `FIREBASE_PROJECT_ID`, `GOOGLE_PROJECT_ID`, or parsed from `FIREBASE_*_APP_ID` | Firebase / Google Cloud project ID or project number |
 
 ### `FirebaseCredentialsOptions`
 
@@ -81,9 +81,9 @@ Includes `FirebaseProjectOptions` and adds app-level flags. Used by `firebase li
 | Flag | `.env` Fallback | Description |
 |:---|:---|:---|
 | `--firebase-app-id <id>` | `FIREBASE_IOS_APP_ID` / `FIREBASE_ANDROID_APP_ID` | Target Firebase App ID |
-| `--platform <platform>` | — | Target platform for App ID resolution (`ios` or `android`) |
+| `-p, --platform <platform>` | — | Target platform for App ID resolution (`ios` or `android`) |
 | `-g, --google-key <key>` | `GOOGLE_KEY` | Inherited from `FirebaseProjectOptions` |
-| `-p, --project <id>` | `FIREBASE_PROJECT_ID` | Inherited from `FirebaseProjectOptions` |
+| `--project <id>` | `FIREBASE_PROJECT_ID` | Inherited from `FirebaseProjectOptions` |
 
 ### `MatchStorageOptions`
 
@@ -123,7 +123,7 @@ Used by `flow ios` and `flow android`.
 
 ### `GlobalCIOptions`
 
-Available globally on `appitool` (can be placed before or after subcommands, as well as directly on guarded destructive subcommands and `match ios`). Auto-detects CI environment variables (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD`) when omitted. In CI mode, destructive commands (`apple delete-identifier`, `apple delete-profile`, `apple prune-profiles`, `apple delete-certificate`, `apple prune-certificates`, `apple disable-device`, `apple delete-user`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, and `match ios prune`) are skipped as a no-op with a warning (exit code `0`).
+Available globally on `appitool` (can be placed before or after subcommands, as well as directly on guarded destructive subcommands and `match ios`). Auto-detects CI environment variables (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD`) when omitted. In CI mode, destructive commands (`apple delete-identifier`, `apple delete-profile`, `apple prune-profiles`, `apple delete-certificate`, `apple prune-certificates`, `apple disable-device`, `apple delete-user`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios --nuke`, and `match ios --prune`) are skipped as a no-op with a warning (exit code `0`).
 
 | Flag | Default / Env Fallback | Description |
 |:---|:---|:---|

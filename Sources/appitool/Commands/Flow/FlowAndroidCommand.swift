@@ -15,7 +15,7 @@ struct FlowAndroidCommand: BaseCommand {
     @Flag(name: .long, help: "Run in dry-run mode without modifying project files or uploading to stores.")
     var dryRun: Bool = false
 
-    @Option(name: .shortAndLong, help: "Target Android package name (defaults to GOOGLE_PACKAGE_NAME in .env).")
+    @Option(name: .long, help: "Target Android package name (defaults to GOOGLE_PACKAGE_NAME in .env).")
     var packageName: String?
 
     @Option(name: .long, help: "Packaging format (aab or apk). Defaults to apk for adhoc/development, aab for appstore.")

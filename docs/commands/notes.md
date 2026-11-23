@@ -21,9 +21,9 @@ appitool notes [options]
 
 | Option | Default | Description |
 |:---|:---|:---|
-| `-f, --from <ref>` | Latest Git tag at or before `--to` (or last 20 commits if untagged) | Starting Git tag or commit reference (exclusive). If omitted and `--to` (or `HEAD`) already sits on a matching tag, no commits are returned; pass `-f` explicitly to inspect a tagged release. |
-| `-t, --to <ref>` | `HEAD` | Ending Git tag or commit reference (inclusive). |
-| `-p, --tag-prefix <prefix>` | — | Filter auto-detected tags by prefix when `--from` is omitted (e.g. `v`, `ios-v`, `android-`). |
+| `--from <ref>` | Latest Git tag at or before `--to` (or last 20 commits if untagged) | Starting Git tag or commit reference (exclusive). If omitted and `--to` (or `HEAD`) already sits on a matching tag, no commits are returned; pass `--from` explicitly to inspect a tagged release. |
+| `--to <ref>` | `HEAD` | Ending Git tag or commit reference (inclusive). |
+| `--tag-prefix <prefix>` | — | Filter auto-detected tags by prefix when `--from` is omitted (e.g. `v`, `ios-v`, `android-`). |
 | `-o, --output <path>` | Print to stdout | File path to write the generated Markdown release notes. |
 
 ## Examples
@@ -33,11 +33,11 @@ appitool notes [options]
 appitool notes
 
 # Auto-detect commits since the latest iOS-prefixed tag (e.g. ios-v1.2.0..HEAD)
-appitool notes -p ios-v
+appitool notes --tag-prefix ios-v
 
 # Print release notes from v0.8.0 to HEAD
-appitool notes -f v0.8.0
+appitool notes --from v0.8.0
 
 # Generate notes between two tags and save to CHANGELOG_DRAFT.md
-appitool notes -f v0.8.0 -t v0.9.0 -o CHANGELOG_DRAFT.md
+appitool notes --from v0.8.0 --to v0.9.0 -o CHANGELOG_DRAFT.md
 ```

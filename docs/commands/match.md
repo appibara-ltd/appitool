@@ -29,15 +29,15 @@ Syncs, prunes, or nukes Apple certificates and provisioning profiles using Git s
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
 | `-t, --type <type>` | `MATCH_TYPE` or `appstore` | Distribution type: `appstore`, `development`, `adhoc`, `enterprise`, `developer_id`. |
-| `--platform <platform>` | `ios` | Target Apple platform: `ios`, `macos`, `tvos`, `catalyst`. |
-| `-a, --app-identifiers <ids>` | Auto-discovered from local Xcode project | Comma-separated bundle identifiers to sync profiles for. |
+| `-p, --platform <platform>` | `ios` | Target Apple platform: `ios`, `macos`, `tvos`, `catalyst`. |
+| `--app-identifiers <ids>` | Auto-discovered from local Xcode project | Comma-separated bundle identifiers to sync profiles for. |
 | `--prune` | `false` | Prune revoked/expired certificates and profiles from Git storage. |
-| `-A, --all` | `false` | Operate across all distribution types when pruning. |
+| `--all` | `false` | Operate across all distribution types when pruning. |Z
 | `--nuke` | `false` | Revoke certificates and delete provisioning profiles on Apple Developer Portal and in Git storage. |
 | `-f, --force` | `false` | Force renewal of provisioning profiles even if still valid. |
 | `--shallow-clone` / `--no-shallow-clone` | `true` for `--readonly`; `false` otherwise | Perform shallow Git clone (`--depth 1`). |
 | `--team-name <name>` | — | Apple Developer Team Name (used as certificate CN when generating a new certificate). |
-| `--silent` | `false` | Suppress verbose logging. |
+| `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or show (`--no-silent`) verbose logging. |
 
 Plus shared option groups:
 - [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`)
@@ -51,7 +51,7 @@ Plus shared option groups:
 appitool match ios appstore
 
 # Read-only CI sync for Ad-Hoc profiles across specific bundle IDs
-appitool match ios adhoc --readonly -a "com.example.app,com.example.app.widget"
+appitool match ios adhoc --readonly --app-identifiers "com.example.app,com.example.app.widget"
 
 # Prune invalid/expired assets across all profile types from Git storage
 appitool match ios prune all
@@ -69,20 +69,20 @@ Syncs an encrypted Android keystore (`.keystore`, `.jks`, `.p12`) from Git stora
 ### Modes
 
 - **Sync Mode (default)**: Clones and decrypts `android/<configuration>/<packageName>.<keystore|jks|p12>` and `<packageName>.json`, copying the keystore into `~/.appitool/android/keystores/<packageName>.keystore`.
-- **Add Mode (`--add` or `-k, --keystore`)**: Encrypts the local keystore (and optional credential metadata JSON when `--alias`, `--store-password`, and `--key-password` are provided) using Match V2 (`AES-256-GCM`) and pushes it to the Git repository.
+- **Add Mode (`--add` or `-k, --keystore`)**: Encrypts the local keystore (and optional credential metadata JSON when `--alias`, `--keystore-password`, and `--key-password` are provided) using Match V2 (`AES-256-GCM`) and pushes it to the Git repository.
 
 ### Options & Flags
 
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
-| `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` or Gradle-resolved | Target Android application package name. |
+| `--package-name <name>` | `GOOGLE_PACKAGE_NAME` or Gradle-resolved | Target Android application package name. |
 | `-c, --configuration <type>` | `release` | Build type (`release` or `debug`). |
 | `--add <path>` | — | Path to local keystore file to encrypt and add to Match Git storage. |
 | `-k, --keystore <path>` | — | Alias for `--add`. |
-| `-a, --alias <name>` | `ANDROID_KEY_ALIAS` | Key alias inside keystore. |
-| `--store-password <pass>` | `ANDROID_KEYSTORE_PASSWORD` | Keystore password. |
+| `--alias <name>` | `ANDROID_KEY_ALIAS` | Key alias inside keystore. |
+| `--keystore-password <pass>` | `ANDROID_KEYSTORE_PASSWORD` | Keystore password. |
 | `--key-password <pass>` | `ANDROID_KEY_PASSWORD` | Key password. |
-| `--silent` | `false` | Suppress verbose output. |
+| `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or show (`--no-silent`) verbose output. |
 
 Plus [`MatchStorageOptions`](/commands/overview#matchstorageoptions) (`--match-git-url`, `--match-git-branch`, `--match-git-token`, `--match-password`).
 
@@ -91,12 +91,12 @@ Plus [`MatchStorageOptions`](/commands/overview#matchstorageoptions) (`--match-g
 ```bash
 # Add and encrypt a local release keystore with credentials metadata
 appitool match android \
-  -p com.example.app \
+  --package-name com.example.app \
   --add ./android/app/release.keystore \
-  -a upload \
-  --store-password "store_secret" \
+  --alias upload \
+  --keystore-password "store_secret" \
   --key-password "key_secret"
 
 # Sync release keystore from Match Git repository
-appitool match android -p com.example.app -c release
+appitool match android --package-name com.example.app -c release
 ```

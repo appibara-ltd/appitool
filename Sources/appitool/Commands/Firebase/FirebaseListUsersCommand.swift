@@ -21,13 +21,13 @@ struct FirebaseListUsersCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Maximum number of users to return (defaults to 100).")
     var limit: Int = 100
 
-    @Option(name: .shortAndLong, help: "Search users by email or UID.")
+    @Option(name: .long, help: "Search users by email or UID.")
     var search: String?
 
-    @Option(name: .shortAndLong, help: "Filter by anonymous status (all, only, exclude; defaults to all).")
+    @Option(name: .long, help: "Filter by anonymous status (all, only, exclude; defaults to all).")
     var anonymous: AnonymousFilter = .all
 
-    @Option(name: [.customShort("t"), .long], help: "Pagination token to fetch the next page of users.")
+    @Option(name: .long, help: "Pagination token to fetch the next page of users.")
     var pageToken: String?
 
     func execute() async throws {

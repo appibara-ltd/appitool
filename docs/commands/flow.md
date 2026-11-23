@@ -68,9 +68,9 @@ Executes the automated release flow for Android.
 |:---|:---|:---|
 | `-d, --distribution <method>` | `appstore` | Distribution method: `adhoc`, `development`, or `appstore`. |
 | `--dry-run` | `false` | Validate configuration, resolve Match keystore, inspect remote `versionCode`, and simulate upload without building or mutating state. |
-| `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` | Target Android package name. Auto-detected from Gradle if omitted. |
+| `--package-name <name>` | `GOOGLE_PACKAGE_NAME` | Target Android package name. Auto-detected from Gradle if omitted. |
 | `--format <format>` | `aab` for `appstore`; `apk` for `adhoc`/`development` | Packaging format (`aab` or `apk`). |
-| `--flavor <name>` | `ANDROID_FLAVOR` | Gradle product flavor (e.g., `production`, `staging`). Builds `bundle<Flavor>Release` / `assemble<Flavor>Release`, resolves flavor-specific `applicationId` (when `-p` is omitted), `versionName`, and `versionCode`, and names the artifact `<Target>_<flavor>_release`. |
+| `--flavor <name>` | `ANDROID_FLAVOR` | Gradle product flavor (e.g., `production`, `staging`). Builds `bundle<Flavor>Release` / `assemble<Flavor>Release`, resolves flavor-specific `applicationId` (when `--package-name` is omitted), `versionName`, and `versionCode`, and names the artifact `<Target>_<flavor>_release`. |
 | `--firebase-app-id <id>` | `FIREBASE_ANDROID_APP_ID` | Firebase App ID for Android (used for Ad-Hoc / Firebase distribution). |
 | `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or show (`--no-silent`) Gradle and Match output. |
 
@@ -84,7 +84,7 @@ Plus shared option groups:
 
 ```bash
 # Build AAB and upload to Google Play Console internal track
-appitool flow android -d appstore -p com.example.app
+appitool flow android -d appstore --package-name com.example.app
 
 # Build APK and distribute to Firebase App Distribution
 appitool flow android -d adhoc --no-silent

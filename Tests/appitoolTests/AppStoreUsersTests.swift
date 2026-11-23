@@ -159,7 +159,8 @@ struct AppStoreUsersTests {
         #expect(captured.request.method == .get)
         let path = captured.request.path ?? ""
         #expect(path.contains("/v1/users"))
-        #expect(path.contains("filter%5Busername%5D=alice@example.com") || path.contains("filter[username]=alice@example.com"))
+        // swift-openapi-runtime percent-encodes everything outside RFC 3986 "unreserved", so `@` becomes `%40`.
+        #expect(path.contains("filter%5Busername%5D=alice%40example.com"))
     }
 
     @Test("inviteUser sends UserInvitationCreateRequest with allAppsVisible true by default and false when visibleApps supplied")
@@ -480,7 +481,7 @@ struct AppStoreUsersTests {
         #expect(AppleCommand.configuration.subcommands.contains { $0 == AppleCancelInvitationCommand.self })
 
         let listUsers = try #require(
-            try AppleCommand.parseAsRoot(["list-users", "-u", "alice@example.com", "-r", "admin,developer", "-l", "25"]) as? AppleListUsersCommand
+            try AppleCommand.parseAsRoot(["list-users", "--username", "alice@example.com", "-r", "admin,developer", "-l", "25"]) as? AppleListUsersCommand
         )
         #expect(listUsers.username == "alice@example.com")
         #expect(listUsers.roles == "admin,developer")
@@ -490,10 +491,10 @@ struct AppStoreUsersTests {
             try AppleCommand.parseAsRoot([
                 "invite-user",
                 "-e", "bob@example.com",
-                "-f", "Bob",
-                "-l", "Jones",
+                "--first-name", "Bob",
+                "--last-name", "Jones",
                 "-r", "developer,app-manager",
-                "-a", "com.example.app,123456",
+                "--visible-apps", "com.example.app,123456",
                 "--no-all-apps-visible",
                 "--provisioning-allowed",
             ]) as? AppleInviteUserCommand
@@ -509,7 +510,7 @@ struct AppStoreUsersTests {
         let updateUser = try #require(
             try AppleCommand.parseAsRoot([
                 "update-user",
-                "-i", "u-1",
+                "--id", "u-1",
                 "-r", "admin",
                 "--all-apps-visible",
                 "--no-provisioning-allowed",
@@ -521,7 +522,7 @@ struct AppStoreUsersTests {
         #expect(updateUser.provisioningAllowed == false)
 
         let deleteUser = try #require(
-            try AppleCommand.parseAsRoot(["delete-user", "-u", "alice@example.com"]) as? AppleDeleteUserCommand
+            try AppleCommand.parseAsRoot(["delete-user", "--username", "alice@example.com"]) as? AppleDeleteUserCommand
         )
         #expect(deleteUser.username == "alice@example.com")
         #expect(deleteUser.id == nil)
@@ -534,7 +535,7 @@ struct AppStoreUsersTests {
         #expect(listInvitations.limit == 10)
 
         let cancelInvitation = try #require(
-            try AppleCommand.parseAsRoot(["cancel-invitation", "-i", "inv-1"]) as? AppleCancelInvitationCommand
+            try AppleCommand.parseAsRoot(["cancel-invitation", "--id", "inv-1"]) as? AppleCancelInvitationCommand
         )
         #expect(cancelInvitation.id == "inv-1")
         #expect(cancelInvitation.email == nil)

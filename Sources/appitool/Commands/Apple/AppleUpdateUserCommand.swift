@@ -12,16 +12,16 @@ struct AppleUpdateUserCommand: BaseCommand {
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions
 
-    @Option(name: .shortAndLong, help: "User resource ID in App Store Connect.")
+    @Option(name: .long, help: "User resource ID in App Store Connect.")
     var id: String?
 
-    @Option(name: .shortAndLong, help: "User username (Apple ID email) in App Store Connect.")
+    @Option(name: .long, help: "User username (Apple ID email) in App Store Connect.")
     var username: String?
 
     @Option(name: .shortAndLong, help: "Comma-separated roles to assign (e.g. admin, developer, app-manager).")
     var roles: String?
 
-    @Option(name: .shortAndLong, help: "Comma-separated App Store Connect App IDs or bundle IDs to set as visible apps.")
+    @Option(name: .long, help: "Comma-separated App Store Connect App IDs or bundle IDs to set as visible apps.")
     var visibleApps: String?
 
     @Flag(inversion: .prefixedNo, help: "Grant or restrict visibility to all apps (--all-apps-visible / --no-all-apps-visible).")
@@ -34,7 +34,7 @@ struct AppleUpdateUserCommand: BaseCommand {
         let targetId = AppleCommandHelpers.trimmedNonEmpty(id)
         let targetUsername = AppleCommandHelpers.trimmedNonEmpty(username)
         guard targetId != nil || targetUsername != nil else {
-            throw CommandError("Missing target user. Provide -i, --id or -u, --username.")
+            throw CommandError("Missing target user. Provide --id or --username.")
         }
 
         let parsedRoles = AppleCommandHelpers.trimmedNonEmpty(roles).map { AppleCommandHelpers.parseCommaSeparated($0) }

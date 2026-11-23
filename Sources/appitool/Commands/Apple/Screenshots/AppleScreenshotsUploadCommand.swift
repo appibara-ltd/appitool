@@ -13,19 +13,19 @@ struct AppleScreenshotsUploadCommand: BaseCommand {
     @OptionGroup
     var app: AppleScreenshotAppOptions
 
-    @Option(name: .shortAndLong, help: "App Store localization locale (e.g. en-US, tr). Required for flat files; optional filter for directory trees.")
+    @Option(name: .long, help: "App Store localization locale (e.g. en-US, tr). Required for flat files; optional filter for directory trees.")
     var locale: String?
 
     @Option(name: .shortAndLong, help: "Screenshot display type (e.g. iphone-67, ipad-pro-129, APP_IPHONE_67). Required for flat files; optional filter for directory trees.")
     var type: String?
 
-    @Flag(name: .shortAndLong, help: "Delete existing screenshots in each target set before uploading.")
+    @Flag(name: .long, help: "Delete existing screenshots in each target set before uploading.")
     var replace: Bool = false
 
-    @Flag(name: .long, inversion: .prefixedNo, help: "Wait for App Store Connect to finish processing each uploaded screenshot (--wait / --no-wait).")
-    var wait: Bool = true
+    @Flag(name: .long, inversion: .prefixedNo, help: "Wait for App Store Connect to finish processing each uploaded screenshot (--wait-processing / --no-wait-processing).")
+    var waitProcessing: Bool = true
 
-    @Flag(name: .shortAndLong, help: "Validate files and preview upload without contacting App Store Connect.")
+    @Flag(name: .long, help: "Validate files and preview upload without contacting App Store Connect.")
     var dryRun: Bool = false
 
     @Argument(help: "Optional image file(s), directory, or <locale>/<type>/ tree (defaults to ~/.appitool/screenshots/<project>/apple/).")
@@ -67,7 +67,7 @@ struct AppleScreenshotsUploadCommand: BaseCommand {
                 Log("  • Source Root:  ".cyan + sourceRoot.path)
             }
             Log("  • Replace:      ".cyan + "\(replace)")
-            Log("  • Wait Process: ".cyan + "\(wait)")
+            Log("  • Wait Process: ".cyan + "\(waitProcessing)")
             Log("  • Plan:         ".cyan + "\(totalFiles) screenshot(s) across \(batches.count) set(s)")
             for batch in batches {
                 Log("  • [\(batch.locale) | \(batch.type.rawValue)] (\(batch.files.count) file(s))".bold)
@@ -141,7 +141,7 @@ struct AppleScreenshotsUploadCommand: BaseCommand {
                 let screenshot = try await service.uploadScreenshot(
                     screenshotSetId: set.id,
                     fileUrl: file,
-                    waitForProcessing: wait
+                    waitForProcessing: waitProcessing
                 )
                 let state = screenshot.attributes?.assetDeliveryState?.state?.rawValue ?? "UNKNOWN"
                 let dims: String = {

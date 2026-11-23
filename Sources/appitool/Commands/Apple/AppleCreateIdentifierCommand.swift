@@ -16,21 +16,17 @@ struct AppleCreateIdentifierCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "App/Bundle identifier (e.g. com.example.app).")
     var bundleId: String?
 
-    @Option(name: .shortAndLong, help: "Alternative flag for bundle identifier.")
-    var appIdentifier: String?
-
     @Option(name: .shortAndLong, help: "Description or name of the App Identifier.")
     var name: String?
 
-    @Option(name: .customLong("platform"), help: "Platform: universal, ios, macos. Defaults to universal.")
+    @Option(name: .shortAndLong, help: "Platform: universal, ios, macos. Defaults to universal.")
     var platform: String = "universal"
 
-    @Option(name: .shortAndLong, help: "Comma-separated list of capabilities to enable (e.g. push-notifications,in-app-purchase).")
+    @Option(name: .long, help: "Comma-separated list of capabilities to enable (e.g. push-notifications,in-app-purchase).")
     var capabilities: String?
 
     func execute() async throws {
-        let rawTarget = bundleId ?? appIdentifier
-        guard let targetIdentifier = rawTarget?.trimmingCharacters(in: .whitespacesAndNewlines), !targetIdentifier.isEmpty else {
+        guard let targetIdentifier = bundleId?.trimmingCharacters(in: .whitespacesAndNewlines), !targetIdentifier.isEmpty else {
             throw CommandError("Missing bundle identifier. Provide -b, --bundle-id <bundle-id>.")
         }
 

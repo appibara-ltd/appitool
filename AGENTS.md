@@ -18,8 +18,18 @@
 - Whenever an existing environment variable is removed or no longer referenced in the codebase, immediately remove it from `.env.example`.
 
 # CLI Option Standards
-- All CLI options must ideally use `name: .shortAndLong` (e.g., `-b, --bundle-id`, `-p, --package-name`, `-d, --distribution`), providing both a single-character shorthand and a descriptive kebab-case flag unless a single-character conflict exists.
-- Never alias semantically different concepts under the same option (e.g., `--bundle-id` and `--app-id` are distinct concepts and must never be aliases for the same option).
+- Single-character shorthands form a closed, global set. Each letter means exactly one concept in every command, and ONLY these may exist:
+  - `-d, --distribution` · `-p, --platform` · `-b, --bundle-id` · `-t, --type` · `-s, --scheme` · `-c, --configuration`
+  - `-l, --limit` · `-o, --output` · `-e, --email` · `-f, --file` · `-r, --roles` · `-m, --message`
+  - `-n, --name` · `-g, --google-key` · `-k, --keystore` · `-w, --where`
+- Every other option must use `name: .long` only (e.g., `--locale`, `--id`, `--username`, `--udid`, `--uuid`, `--uid`, `--url`, `--e2e`, `--title`, `--from`, `--to`, `--order-by`, `--page-token`, `--app-version`, `--visible-apps`, `--binary`, `--dry-run`, `--package-name`, `--project`, `--project-dir`, `--workspace-path`, `--workspace-name`, `--team-id`, `--release-notes`, `--flavor`, `--format`, `--all`, `--alias`, `--identifiers`, `--anonymous`, `--data`, `--tag-prefix`, `--portal-id`, `--device-ids`).
+- Letters `-a`, `-A`, `-i`, `-u`, `-v` must never be used. Adding a new letter to the set above requires explicit user approval.
+- Destructive or state-changing flags (`--force`, `--replace`, `--merge`, `--nuke`, `--prune`, `--all`) are always long-only.
+- Use one canonical name per concept across all commands (e.g., `-b, --bundle-id` for a single bundle identifier, never `--app-identifier`; `--identifiers` for comma-separated bundle identifiers; `--keystore-password`, never `--store-password`; `--wait-processing`, never `--wait`; `--workspace-path` for `.xcworkspace` paths).
+- Multi-letter abbreviations are allowed only as double-dash custom longs alongside the full name (e.g., `[.customLong("dd"), .long]` → `--dd, --derived-data`; `--ddo, --derived-data-only`). Never use single-dash multi-letter flags.
+- Boolean output-suppression uses `--silent` / `--no-silent` (`inversion: .prefixedNo`) and defaults to `true` (silent) in every command.
+- Never provide the same input both as a positional argument and as an option (e.g., `match ios --nuke -t development`, never `match ios nuke development`); actions are flags and values are options.
+- Never alias semantically different concepts under the same option (e.g., `--bundle-id` and `--app-id` are distinct concepts and must never be aliases for the same option), and never add extra aliases for the same concept (e.g., no `--workspace-root` alongside `--project-dir`).
 
 # Command Structure Conventions
 - Commands partitioned into platform-specific subcommands (e.g., `ios` and `android`) must be grouped into a dedicated subdirectory inside `Sources/appitool/Commands/` named after the root command (e.g., `Commands/Build/` for `BuildCommand.swift`, `BuildIOSCommand.swift`, `BuildAndroidCommand.swift`, and `Commands/Check/` for `CheckCommand.swift`, `CheckIOSCommand.swift`, `CheckAndroidCommand.swift`).

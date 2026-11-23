@@ -8,16 +8,16 @@ struct NotesCommand: AsyncParsableCommand {
         abstract: "Generates formatted release notes from git commits between two tags or revisions."
     )
 
-    @Option(name: .shortAndLong, help: "Starting tag or revision (e.g., v1.0.0).")
+    @Option(name: .long, help: "Starting tag or revision (e.g., v1.0.0).")
     var from: String?
 
-    @Option(name: .shortAndLong, help: "Ending tag or revision (defaults to HEAD if --from is given).")
+    @Option(name: .long, help: "Ending tag or revision (defaults to HEAD if --from is given).")
     var to: String?
 
     @Option(name: .shortAndLong, help: "Path to write the generated markdown file.")
     var output: String?
 
-    @Option(name: [.customShort("p"), .long], help: "Filter auto-detected tags by prefix (e.g., v, ios-v, android-).")
+    @Option(name: .long, help: "Filter auto-detected tags by prefix (e.g., v, ios-v, android-).")
     var tagPrefix: String?
 
     func run() async throws {

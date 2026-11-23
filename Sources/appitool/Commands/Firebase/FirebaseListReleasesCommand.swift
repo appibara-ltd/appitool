@@ -15,7 +15,7 @@ struct FirebaseListReleasesCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Maximum number of releases to return (1-100; defaults to 25).")
     var limit: Int?
 
-    @Option(name: .shortAndLong, help: "Ordering of the results (e.g. 'createTime desc').")
+    @Option(name: .long, help: "Ordering of the results (e.g. 'createTime desc').")
     var orderBy: String?
 
     func execute() async throws {

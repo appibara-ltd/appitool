@@ -22,18 +22,18 @@ Artifacts are written under `~/.appitool/ios/<MainTarget>/build/<version>_<build
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
 | `-d, --distribution <method>` | `appstore` | Distribution method: `adhoc`, `development`, or `appstore`. Mapped to `app-store-connect`, `release-testing`, or `debugging` export methods. |
-| `-w, --workspace <path>` | `XCODE_WORKSPACE` or auto-detected | Path to `.xcworkspace`. |
-| `-p, --project <path>` | `XCODE_PROJECT` or auto-detected | Path to `.xcodeproj`. |
+| `--workspace-path <path>` | `XCODE_WORKSPACE` or auto-detected | Path to `.xcworkspace`. |
+| `--project <path>` | `XCODE_PROJECT` or auto-detected | Path to `.xcodeproj`. |
 | `-s, --scheme <name>` | `XCODE_SCHEME` or inferred | Xcode scheme to build (inferred via `xcodebuild -list -json`). |
 | `-c, --configuration <name>` | `XCODE_CONFIGURATION` or `Release` | Build configuration (`Debug`, `Release`). |
-| `-t, --team-id <id>` | `APPLE_TEAM_ID` | Apple Developer Team ID. |
+| `--team-id <id>` | `APPLE_TEAM_ID` | Apple Developer Team ID. |
 | `--codesigning-identity <id>` | — | Code signing identity override (e.g., `"Apple Distribution"`, `"Apple Development"`). |
 | `--clean` | `false` | Clean build folder before building. |
 | `--skip-build-archive` | `false` | Skip compiling `.xcarchive` and export an IPA from the latest `.xcarchive` found under `~/.appitool/ios/<MainTarget>/build/`. |
 | `--skip-package-ipa` | `false` | Only compile `.xcarchive` and skip IPA packaging. |
 | `--allow-provisioning-updates` | `false` | Allow `xcodebuild` to communicate with Apple Developer Portal for provisioning updates (passes `-authenticationKeyPath`, `-authenticationKeyID`, `-authenticationKeyIssuerID` automatically if `APPLE_KEY` is a file path). |
 | `--manage-build-number` | `false` | Allow App Store Connect to automatically manage/increment version and build numbers during export. |
-| `--silent` | `false` | Suppress `xcodebuild` stdout logs. |
+| `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or stream (`--no-silent`) `xcodebuild` stdout logs. |
 | `--xcodebuild-formatter <cmd>` | `XCODEBUILD_FORMATTER` or `xcbeautify --renderer github-actions` | Formatter command piped from `xcodebuild` output. |
 
 Plus [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`).
@@ -71,12 +71,12 @@ Artifacts are written under `~/.appitool/android/<Target>/build/<version>_<build
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
 | `-d, --distribution <method>` | `appstore` | Distribution method: `adhoc`, `development`, or `appstore`. |
-| `-p, --package-name <name>` | `GOOGLE_PACKAGE_NAME` or Gradle-resolved | Target Android package name. |
+| `--package-name <name>` | `GOOGLE_PACKAGE_NAME` or Gradle-resolved | Target Android package name. |
 | `--flavor <name>` | `ANDROID_FLAVOR` | Gradle product flavor (e.g., `production`, `staging`). |
 | `-c, --configuration <type>` | `ANDROID_CONFIGURATION` or `Release` | Build configuration/type (`Release`, `Debug`). |
 | `--format <format>` | `aab` for `appstore`; `apk` for `adhoc`/`development` | Packaging format (`aab` or `apk`). |
 | `--clean` | `false` | Run Gradle `clean` before building. |
-| `--silent` | `false` | Suppress Gradle stdout logs. |
+| `--silent` / `--no-silent` | `true` (`--silent`) | Suppress (`--silent`) or stream (`--no-silent`) Gradle stdout logs. |
 | `--project-dir <path>` | `ANDROID_PROJECT_DIR`, `./android`, or `.` | Android root directory containing `gradlew`. |
 | `--keystore-path <path>` | `ANDROID_KEYSTORE_PATH` | Path to local keystore file. |
 | `--keystore-base64 <str>` | `ANDROID_KEYSTORE` | Base64-encoded keystore content. |

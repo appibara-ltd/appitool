@@ -12,7 +12,7 @@ struct FirebaseExportUsersCommand: BaseCommand {
     @OptionGroup
     var projectOptions: FirebaseProjectOptions
 
-    @Option(name: .shortAndLong, help: "Filter by anonymous status (all, only, exclude; defaults to all).")
+    @Option(name: .long, help: "Filter by anonymous status (all, only, exclude; defaults to all).")
     var anonymous: FirebaseListUsersCommand.AnonymousFilter = .all
 
     @Option(name: .shortAndLong, help: "Output CSV filename or path (defaults to firebase_users_<project>.csv in the current directory).")

@@ -76,24 +76,24 @@ struct CIGuardTests {
     @Test("Root and subcommand --ci / --no-ci flags parse cleanly in any position with last-wins exclusivity")
     func cliFlagPositionAndPrecedence() throws {
         let prefix = try #require(
-            try appitool.parseAsRoot(["--ci", "apple", "delete-user", "-u", "a@b.com"]) as? AppleDeleteUserCommand
+            try appitool.parseAsRoot(["--ci", "apple", "delete-user", "--username", "a@b.com"]) as? AppleDeleteUserCommand
         )
         #expect(prefix.ciFlagOverride == true)
         #expect(prefix.isDestructive == true)
         #expect(prefix.destructiveCommandDescription == "apple delete-user")
 
         let suffix = try #require(
-            try appitool.parseAsRoot(["apple", "delete-user", "-u", "a@b.com", "--ci"]) as? AppleDeleteUserCommand
+            try appitool.parseAsRoot(["apple", "delete-user", "--username", "a@b.com", "--ci"]) as? AppleDeleteUserCommand
         )
         #expect(suffix.ciFlagOverride == true)
 
         let overridden = try #require(
-            try appitool.parseAsRoot(["--ci", "apple", "delete-user", "-u", "a@b.com", "--no-ci"]) as? AppleDeleteUserCommand
+            try appitool.parseAsRoot(["--ci", "apple", "delete-user", "--username", "a@b.com", "--no-ci"]) as? AppleDeleteUserCommand
         )
         #expect(overridden.ciFlagOverride == false)
 
         let directSubcommand = try #require(
-            try AppleCommand.parseAsRoot(["delete-user", "-u", "a@b.com", "--ci"]) as? AppleDeleteUserCommand
+            try AppleCommand.parseAsRoot(["delete-user", "--username", "a@b.com", "--ci"]) as? AppleDeleteUserCommand
         )
         #expect(directSubcommand.ciFlagOverride == true)
     }
@@ -101,17 +101,17 @@ struct CIGuardTests {
     @Test("All 12 always-destructive commands respect --ci and --no-ci flags")
     func allAlwaysDestructiveCommandsRespectCIGuard() throws {
         let cases: [([String], String)] = [
-            (["apple", "delete-identifier", "-a", "com.example.app"], "apple delete-identifier"),
+            (["apple", "delete-identifier", "-b", "com.example.app"], "apple delete-identifier"),
             (["apple", "delete-profile", "-n", "TestProfile"], "apple delete-profile"),
             (["apple", "prune-profiles"], "apple prune-profiles"),
             (["apple", "delete-certificate", "-n", "TestCert"], "apple delete-certificate"),
             (["apple", "prune-certificates"], "apple prune-certificates"),
             (["apple", "disable-device", "--udid", "00008020-000000000000002E"], "apple disable-device"),
-            (["apple", "delete-user", "-u", "a@b.com"], "apple delete-user"),
-            (["apple", "cancel-invitation", "-i", "inv-1"], "apple cancel-invitation"),
-            (["apple", "screenshots", "delete", "-i", "ss-1"], "apple screenshots delete"),
-            (["google", "screenshots", "delete", "-l", "en-US", "-t", "phone", "-a"], "google screenshots delete"),
-            (["firebase", "delete-user", "-u", "uid-1"], "firebase delete-user"),
+            (["apple", "delete-user", "--username", "a@b.com"], "apple delete-user"),
+            (["apple", "cancel-invitation", "--id", "inv-1"], "apple cancel-invitation"),
+            (["apple", "screenshots", "delete", "--id", "ss-1"], "apple screenshots delete"),
+            (["google", "screenshots", "delete", "--locale", "en-US", "-t", "phone", "--all"], "google screenshots delete"),
+            (["firebase", "delete-user", "--uid", "uid-1"], "firebase delete-user"),
             (["firebase", "firestore", "delete", "users/alice"], "firebase firestore delete"),
         ]
 
@@ -139,34 +139,50 @@ struct CIGuardTests {
 
     @Test("MatchIOSCommand guards nuke and prune as destructive while allowing sync in CI")
     func matchIOSConditionalGuard() throws {
-        let nukeDefault = try #require(try appitool.parseAsRoot(["--ci", "match", "nuke"]) as? MatchIOSCommand)
+        let nukeDefault = try #require(try appitool.parseAsRoot(["--ci", "match", "--nuke"]) as? MatchIOSCommand)
         #expect(nukeDefault.resolvedMatchAction == .nuke)
         #expect(nukeDefault.isDestructive == true)
-        #expect(nukeDefault.destructiveCommandDescription == "match ios nuke")
+        #expect(nukeDefault.destructiveCommandDescription == "match ios --nuke")
         #expect(nukeDefault.ciSkipResolution(environment: [:])?.isCI == true)
 
-        let nukeFlag = try #require(try appitool.parseAsRoot(["match", "ios", "--nuke", "--ci"]) as? MatchIOSCommand)
+        let nukeFlag = try #require(try appitool.parseAsRoot(["match", "ios", "--nuke", "-t", "development", "--ci"]) as? MatchIOSCommand)
         #expect(nukeFlag.resolvedMatchAction == .nuke)
+        #expect(nukeFlag.type == "development")
         #expect(nukeFlag.isDestructive == true)
         #expect(nukeFlag.ciSkipResolution(environment: [:])?.isCI == true)
 
-        let pruneExplicit = try #require(try appitool.parseAsRoot(["match", "ios", "prune", "--ci"]) as? MatchIOSCommand)
-        #expect(pruneExplicit.resolvedMatchAction == .prune)
-        #expect(pruneExplicit.isDestructive == true)
-        #expect(pruneExplicit.destructiveCommandDescription == "match ios prune")
-        #expect(pruneExplicit.ciSkipResolution(environment: [:])?.isCI == true)
+        let pruneAll = try #require(try appitool.parseAsRoot(["match", "ios", "--prune", "--all", "--ci"]) as? MatchIOSCommand)
+        #expect(pruneAll.resolvedMatchAction == .prune)
+        #expect(pruneAll.all == true)
+        #expect(pruneAll.isDestructive == true)
+        #expect(pruneAll.destructiveCommandDescription == "match ios --prune")
+        #expect(pruneAll.ciSkipResolution(environment: [:])?.isCI == true)
 
         let pruneFlag = try #require(try appitool.parseAsRoot(["match", "--prune", "--ci"]) as? MatchIOSCommand)
         #expect(pruneFlag.resolvedMatchAction == .prune)
         #expect(pruneFlag.isDestructive == true)
         #expect(pruneFlag.ciSkipResolution(environment: [:])?.isCI == true)
 
-        let syncExplicit = try #require(try appitool.parseAsRoot(["--ci", "match", "ios", "appstore"]) as? MatchIOSCommand)
+        let syncExplicit = try #require(try appitool.parseAsRoot(["--ci", "match", "ios", "-t", "appstore"]) as? MatchIOSCommand)
         #expect(syncExplicit.resolvedMatchAction == .sync)
         #expect(syncExplicit.isDestructive == false)
         #expect(syncExplicit.ciSkipResolution(environment: ["CI": "true"]) == nil)
 
-        let syncDefaultSub = try #require(try appitool.parseAsRoot(["--ci", "match", "appstore"]) as? MatchIOSCommand)
+        // Positional actions/types and invalid flag combinations are rejected.
+        for args in [
+            ["match", "ios", "nuke"],
+            ["match", "ios", "prune", "all"],
+            ["match", "ios", "adhoc"],
+            ["match", "ios", "--nuke", "--prune"],
+            ["match", "ios", "--all"],
+            ["match", "ios", "--prune", "--all", "-t", "adhoc"],
+        ] {
+            #expect(throws: (any Error).self) {
+                _ = try appitool.parseAsRoot(args)
+            }
+        }
+
+        let syncDefaultSub = try #require(try appitool.parseAsRoot(["--ci", "match", "--type", "appstore"]) as? MatchIOSCommand)
         #expect(syncDefaultSub.resolvedMatchAction == .sync)
         #expect(syncDefaultSub.isDestructive == false)
         #expect(syncDefaultSub.ciSkipResolution(environment: ["CI": "true"]) == nil)
@@ -186,8 +202,9 @@ struct CIGuardTests {
         #expect(selfUpdateCheck.check == true)
         #expect(selfUpdateCheck.isDestructive == false)
 
-        let selfUpdateShort = try #require(try appitool.parseAsRoot(["self-update", "-c"]) as? SelfUpdateCommand)
-        #expect(selfUpdateShort.check == true)
+        #expect(throws: (any Error).self) {
+            _ = try appitool.parseAsRoot(["self-update", "-c"])
+        }
 
         let buildIOSShort = try #require(try appitool.parseAsRoot(["build", "ios", "-c", "Debug"]) as? BuildIOSCommand)
         #expect(buildIOSShort.configuration == "Debug")
@@ -198,13 +215,13 @@ struct CIGuardTests {
     @Test("Destructive commands return cleanly without credentials when --ci is active")
     func destructiveCommandsSkipCleanlyAtRuntime() async throws {
         let commands: [[String]] = [
-            ["--ci", "apple", "delete-user", "-u", "a@b.com"],
-            ["--ci", "apple", "delete-identifier", "-a", "com.example.app"],
-            ["--ci", "apple", "screenshots", "delete", "-i", "ss-1"],
-            ["--ci", "google", "screenshots", "delete", "-l", "en-US", "-t", "phone", "-a"],
-            ["--ci", "match", "nuke"],
-            ["--ci", "match", "ios", "prune"],
-            ["--ci", "firebase", "delete-user", "-u", "uid-1"],
+            ["--ci", "apple", "delete-user", "--username", "a@b.com"],
+            ["--ci", "apple", "delete-identifier", "--bundle-id", "com.example.app"],
+            ["--ci", "apple", "screenshots", "delete", "--id", "ss-1"],
+            ["--ci", "google", "screenshots", "delete", "--locale", "en-US", "-t", "phone", "--all"],
+            ["--ci", "match", "--nuke"],
+            ["--ci", "match", "ios", "--prune"],
+            ["--ci", "firebase", "delete-user", "--uid", "uid-1"],
             ["--ci", "firebase", "firestore", "delete", "users/alice"],
         ]
 

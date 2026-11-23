@@ -16,7 +16,7 @@ struct BuildAndroidCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Distribution method (adhoc, development, appstore). Defaults to appstore.")
     var distribution: BuildCommand.Distribution = .appstore
 
-    @Option(name: .shortAndLong, help: "Target Android package name (defaults to GOOGLE_PACKAGE_NAME in .env).")
+    @Option(name: .long, help: "Target Android package name (defaults to GOOGLE_PACKAGE_NAME in .env).")
     var packageName: String?
 
     @Option(name: .long, help: "Gradle product flavor (e.g. production, staging). Defaults to ANDROID_FLAVOR in .env.")
@@ -31,8 +31,8 @@ struct BuildAndroidCommand: BaseCommand {
     @Flag(name: .long, help: "Clean project before building.")
     var clean: Bool = false
 
-    @Flag(name: .long, help: "Suppress Gradle output during build.")
-    var silent: Bool = false
+    @Flag(name: .long, inversion: .prefixedNo, help: "Suppress Gradle output during build.")
+    var silent: Bool = true
 
     @Option(name: .long, help: "Android project root directory (defaults to ./android if present, else current directory).")
     var projectDir: String?

@@ -17,7 +17,7 @@ struct GooglePlayAppOptions: ParsableArguments, Sendable {
     @OptionGroup
     var googleCredentials: GoogleCredentialsOptions
 
-    @Option(name: .shortAndLong, help: "Target Android package name (defaults to GOOGLE_PACKAGE_NAME in .env or local Android project).")
+    @Option(name: .long, help: "Target Android package name (defaults to GOOGLE_PACKAGE_NAME in .env or local Android project).")
     var packageName: String?
 
     func requirePackageName() throws -> String {
@@ -31,7 +31,7 @@ struct GooglePlayAppOptions: ParsableArguments, Sendable {
             return detected
         }
         throw ValidationError(
-            "Missing Android package name. Provide -p, --package-name, set GOOGLE_PACKAGE_NAME in .env, or run inside an Android project."
+            "Missing Android package name. Provide --package-name, set GOOGLE_PACKAGE_NAME in .env, or run inside an Android project."
         )
     }
 

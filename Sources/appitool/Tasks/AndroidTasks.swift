@@ -88,6 +88,34 @@ public enum AndroidTasks {
         return findAndroidRoot(in: workspaceRoot) != nil
     }
 
+    /// Returns the contents between the balanced `{ ... }` that follows `name` (e.g. `productFlavors { ... }`), or `nil` if not found.
+    internal static func extractBracedBlock(named name: String, in content: String) -> String? {
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: name) + "\\s*\\{"
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
+              let openRange = Range(match.range, in: content)
+        else { return nil }
+
+        let bodyStart = openRange.upperBound
+        var depth = 1
+        var index = bodyStart
+        while index < content.endIndex {
+            switch content[index] {
+            case "{":
+                depth += 1
+            case "}":
+                depth -= 1
+                if depth == 0 {
+                    return String(content[bodyStart..<index])
+                }
+            default:
+                break
+            }
+            index = content.index(after: index)
+        }
+        return nil
+    }
+
     /// Parses namespace, defaultConfig applicationId, versionName, versionCode, and product flavors from `build.gradle` or `build.gradle.kts` content.
     public static func parseAppBuildGradle(content: String) -> (namespace: String?, applicationId: String?, versionName: String?, versionCode: String?, flavors: [AndroidFlavor]) {
         var namespace: String? = nil
@@ -145,12 +173,8 @@ public enum AndroidTasks {
             versionCode = firstRegexMatch(vcPattern, in: content)
         }
 
-        // Match productFlavors
-        let flavorsBlockPattern = #"productFlavors\s*\{([\s\S]*?)\n\s*\}"#
-        if let regex = try? NSRegularExpression(pattern: flavorsBlockPattern),
-           let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-           let range = Range(match.range(at: 1), in: content) {
-            let flavorBlock = String(content[range])
+        // Match productFlavors (balanced-brace extraction so nested flavor blocks don't end the match early)
+        if let flavorBlock = extractBracedBlock(named: "productFlavors", in: content) {
             let flavorRegexPattern = #"(?:create\(\s*["']([^"']+)["']\s*\)|([a-zA-Z0-9_]+))\s*\{([^}]*)\}"#
             if let flavorRegex = try? NSRegularExpression(pattern: flavorRegexPattern) {
                 let matches = flavorRegex.matches(in: flavorBlock, range: NSRange(flavorBlock.startIndex..., in: flavorBlock))

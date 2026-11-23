@@ -12,7 +12,7 @@ struct GoogleScreenshotsListCommand: BaseCommand {
     @OptionGroup
     var app: GooglePlayAppOptions
 
-    @Option(name: .shortAndLong, help: "Filter by BCP-47 language code (e.g. en-US, tr-TR). Omit to list all listing languages.")
+    @Option(name: .long, help: "Filter by BCP-47 language code (e.g. en-US, tr-TR). Omit to list all listing languages.")
     var locale: String?
 
     @Option(name: .shortAndLong, help: "Filter by image type (e.g. phone, tablet7, tablet10, feature-graphic, icon). Omit to list all types.")

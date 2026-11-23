@@ -13,8 +13,8 @@ appitool clean [options]
 | Option / Flag | Default | Description |
 |:---|:---|:---|
 | `-p, --platform <platform>` | `all` | Platform to clean: `ios`, `android`, or `all`. |
-| `-d, --derived-data` | `false` | Also clean Xcode `derivedData` directories under `~/.appitool/ios/<project>/derivedData`. |
-| `-D, --derived-data-only` / `--only-derived-data` | `false` | Only clean Xcode `derivedData` directories without deleting build archives. |
+| `--dd, --derived-data` | `false` | Also clean Xcode `derivedData` directories under `~/.appitool/ios/<project>/derivedData`. |
+| `--ddo, --derived-data-only` | `false` | Only clean Xcode `derivedData` directories without deleting build archives. |
 | `--dry-run` | `false` | Scan and display items with disk sizes without deleting anything. |
 
 ## Examples
@@ -27,7 +27,7 @@ appitool clean --derived-data --dry-run
 appitool clean
 
 # Delete only Xcode DerivedData directories
-appitool clean -D
+appitool clean --ddo
 
 # Clean only Android build outputs
 appitool clean -p android

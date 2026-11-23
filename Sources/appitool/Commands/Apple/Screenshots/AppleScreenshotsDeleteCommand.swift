@@ -17,19 +17,19 @@ struct AppleScreenshotsDeleteCommand: DestructiveCommand {
     @OptionGroup
     var ciOptions: GlobalCIOptions
 
-    @Option(name: .shortAndLong, help: "Specific App Store screenshot resource ID to delete.")
+    @Option(name: .long, help: "Specific App Store screenshot resource ID to delete.")
     var id: String?
 
-    @Option(name: .shortAndLong, help: "App Store localization locale (e.g. en-US, tr) when deleting with --all.")
+    @Option(name: .long, help: "App Store localization locale (e.g. en-US, tr) when deleting with --all.")
     var locale: String?
 
     @Option(name: .shortAndLong, help: "Screenshot display type (e.g. iphone-67) when deleting with --all.")
     var type: String?
 
-    @Flag(name: .shortAndLong, help: "Delete all screenshots matching --locale (and optional --type).")
+    @Flag(name: .long, help: "Delete all screenshots matching --locale (and optional --type).")
     var all: Bool = false
 
-    @Flag(name: .shortAndLong, help: "Preview screenshots to be deleted without deleting them.")
+    @Flag(name: .long, help: "Preview screenshots to be deleted without deleting them.")
     var dryRun: Bool = false
 
     func execute() async throws {
@@ -38,10 +38,10 @@ struct AppleScreenshotsDeleteCommand: DestructiveCommand {
         let trimmedType = AppleCommandHelpers.trimmedNonEmpty(type)
 
         if all && trimmedId != nil {
-            throw CommandError("Cannot combine -a, --all with -i, --id.")
+            throw CommandError("Cannot combine --all with --id.")
         }
         if trimmedId == nil && (!all || trimmedLocale == nil) {
-            throw CommandError("Missing deletion target. Provide -i, --id <screenshot-id> or -a, --all with -l, --locale <locale>.")
+            throw CommandError("Missing deletion target. Provide --id <screenshot-id> or --all with --locale <locale>.")
         }
 
         let service = try app.requireService()

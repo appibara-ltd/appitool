@@ -12,7 +12,7 @@ struct CheckAndroidCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Distribution method (adhoc, development, appstore). Defaults to adhoc.")
     var distribution: BuildCommand.Distribution = .adhoc
 
-    @Option(name: .shortAndLong, help: "Target Android package name (defaults to package name from project).")
+    @Option(name: .long, help: "Target Android package name (defaults to GOOGLE_PACKAGE_NAME in .env or local Android project).")
     var packageName: String?
 
     @Option(name: .long, help: "Firebase App ID for Android (defaults to FIREBASE_ANDROID_APP_ID in .env).")
@@ -23,6 +23,9 @@ struct CheckAndroidCommand: BaseCommand {
 
     func execute() async throws {
         var targetPackageName = packageName
+        if targetPackageName == nil || targetPackageName?.isEmpty == true {
+            targetPackageName = EnvLoader.value(for: "GOOGLE_PACKAGE_NAME")
+        }
         if targetPackageName == nil || targetPackageName?.isEmpty == true {
             targetPackageName = AndroidTasks.resolvePackageName()
         }
@@ -71,7 +74,7 @@ struct CheckAndroidCommand: BaseCommand {
 
         case .appstore:
             guard let targetPackageName, !targetPackageName.isEmpty else {
-                throw CommandError("No package name specified. Provide -p, --package-name or ensure an Android project exists.")
+                throw CommandError("No package name specified. Provide --package-name or ensure an Android project exists.")
             }
 
             let service = try googleCredentials.requireService()

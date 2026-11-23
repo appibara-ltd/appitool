@@ -16,10 +16,10 @@ struct SelfUpdateCommand: BaseCommand {
     private static let latestReleaseURL = URL(string: "https://api.github.com/repos/\(repo)/releases/latest")!
     private static let checksumsName = "checksums.txt"
 
-    @Flag(name: .shortAndLong, help: "Check for available updates without installing.")
+    @Flag(name: .long, help: "Check for available updates without installing.")
     var check: Bool = false
 
-    @Flag(name: .shortAndLong, help: "Force update even if the current version is already up to date.")
+    @Flag(name: .long, help: "Force update even if the current version is already up to date.")
     var force: Bool = false
 
     private var currentPlatform: (os: String, arch: String) {

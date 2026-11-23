@@ -17,17 +17,17 @@ struct AppleDeleteUserCommand: DestructiveCommand {
     @OptionGroup
     var ciOptions: GlobalCIOptions
 
-    @Option(name: .shortAndLong, help: "User resource ID to remove.")
+    @Option(name: .long, help: "User resource ID to remove.")
     var id: String?
 
-    @Option(name: .shortAndLong, help: "User username (Apple ID email) to remove.")
+    @Option(name: .long, help: "User username (Apple ID email) to remove.")
     var username: String?
 
     func execute() async throws {
         let targetId = AppleCommandHelpers.trimmedNonEmpty(id)
         let targetUsername = AppleCommandHelpers.trimmedNonEmpty(username)
         guard targetId != nil || targetUsername != nil else {
-            throw CommandError("Missing target user. Provide -i, --id or -u, --username.")
+            throw CommandError("Missing target user. Provide --id or --username.")
         }
 
         let service = try appleCredentials.requireService()

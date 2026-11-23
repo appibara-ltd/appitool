@@ -17,16 +17,16 @@ struct FirebaseDeleteUserCommand: DestructiveCommand {
     @OptionGroup
     var ciOptions: GlobalCIOptions
 
-    @Option(name: .shortAndLong, help: "UID (localId) of the user to delete.")
+    @Option(name: .long, help: "UID (localId) of the user to delete.")
     var uid: String?
 
     @Option(name: .shortAndLong, help: "Email address of the user to delete.")
     var email: String?
 
-    @Flag(name: .shortAndLong, help: "Delete all anonymous users in the project.")
+    @Flag(name: .long, help: "Delete all anonymous users in the project.")
     var anonymous: Bool = false
 
-    @Flag(name: .shortAndLong, help: "Preview users to be deleted without actually deleting them.")
+    @Flag(name: .long, help: "Preview users to be deleted without actually deleting them.")
     var dryRun: Bool = false
 
     func execute() async throws {
@@ -34,11 +34,11 @@ struct FirebaseDeleteUserCommand: DestructiveCommand {
         let trimmedEmail = email?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if anonymous && ((trimmedUid?.isEmpty == false) || (trimmedEmail?.isEmpty == false)) {
-            throw CommandError("Cannot combine -a, --anonymous with -u, --uid or -e, --email.")
+            throw CommandError("Cannot combine --anonymous with --uid or -e, --email.")
         }
 
         guard anonymous || (trimmedUid?.isEmpty == false) || (trimmedEmail?.isEmpty == false) else {
-            throw CommandError("Missing target user. Provide -u, --uid, -e, --email, or -a, --anonymous.")
+            throw CommandError("Missing target user. Provide --uid, -e, --email, or --anonymous.")
         }
 
         let service = try projectOptions.requireService()
@@ -131,7 +131,7 @@ struct FirebaseDeleteUserCommand: DestructiveCommand {
             targetUid = matched.localId
             targetLabel = "\(mail) [UID: \(matched.localId)]"
         } else {
-            throw CommandError("Missing target user. Provide -u, --uid, -e, --email, or -a, --anonymous.")
+            throw CommandError("Missing target user. Provide --uid, -e, --email, or --anonymous.")
         }
 
         if dryRun {

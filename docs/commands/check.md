@@ -58,7 +58,7 @@ Checks Android application metadata and latest build information from Firebase A
 | Option / Flag | Default / `.env` Fallback | Description |
 |:---|:---|:---|
 | `-d, --distribution <method>` | `adhoc` | Distribution method: `adhoc`, `development`, or `appstore`. |
-| `-p, --package-name <name>` | Auto-detected from Android project | Target Android package name. |
+| `--package-name <name>` | `GOOGLE_PACKAGE_NAME` or auto-detected from Android project | Target Android package name. |
 | `--firebase-app-id <id>` | `FIREBASE_ANDROID_APP_ID` | Firebase App ID for Android (used when `-d adhoc`). |
 
 Plus [`GoogleCredentialsOptions`](/commands/overview#googlecredentialsoptions) (`-g, --google-key`).
@@ -70,5 +70,5 @@ Plus [`GoogleCredentialsOptions`](/commands/overview#googlecredentialsoptions) (
 appitool check android -d adhoc
 
 # Check latest build versionCode on Google Play Console
-appitool check android -d appstore -p com.example.app
+appitool check android -d appstore --package-name com.example.app
 ```

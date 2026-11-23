@@ -22,13 +22,13 @@ struct AppleCreateProfileCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Profile distribution type: appstore, development, adhoc, enterprise, developer_id. Defaults to appstore.")
     var type: String = "appstore"
 
-    @Option(name: .customLong("platform"), help: "Target platform: ios, macos, tvos, catalyst. Defaults to ios.")
+    @Option(name: .shortAndLong, help: "Target platform: ios, macos, tvos, catalyst. Defaults to ios.")
     var platform: String = "ios"
 
-    @Option(name: .shortAndLong, help: "Certificate Portal ID. If omitted, the first valid active matching certificate is used.")
+    @Option(name: .long, help: "Certificate Portal ID. If omitted, the first valid active matching certificate is used.")
     var certificateId: String?
 
-    @Option(name: .shortAndLong, help: "Comma-separated device Portal IDs for development/adhoc profiles. If omitted, all enabled devices are included.")
+    @Option(name: .long, help: "Comma-separated device Portal IDs for development/adhoc profiles. If omitted, all enabled devices are included.")
     var deviceIds: String?
 
     @Option(name: .shortAndLong, help: "Output file path to save the generated provisioning profile.")

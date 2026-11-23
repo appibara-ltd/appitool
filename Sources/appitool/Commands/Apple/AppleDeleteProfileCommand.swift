@@ -20,10 +20,10 @@ struct AppleDeleteProfileCommand: DestructiveCommand {
     @Option(name: .shortAndLong, help: "Provisioning profile name to delete.")
     var name: String?
 
-    @Option(name: .shortAndLong, help: "Provisioning profile UUID to delete.")
+    @Option(name: .long, help: "Provisioning profile UUID to delete.")
     var uuid: String?
 
-    @Option(name: .shortAndLong, help: "Provisioning profile Portal ID to delete.")
+    @Option(name: .long, help: "Provisioning profile Portal ID to delete.")
     var portalId: String?
 
     func execute() async throws {
@@ -34,7 +34,7 @@ struct AppleDeleteProfileCommand: DestructiveCommand {
         guard (trimmedName != nil && !trimmedName!.isEmpty) ||
               (trimmedUUID != nil && !trimmedUUID!.isEmpty) ||
               (trimmedId != nil && !trimmedId!.isEmpty) else {
-            throw CommandError("Missing target profile. Provide -n, --name, -u, --uuid, or -p, --portal-id.")
+            throw CommandError("Missing target profile. Provide -n, --name, --uuid, or --portal-id.")
         }
 
         let service = try appleCredentials.requireService()

@@ -18,7 +18,7 @@ struct FirestoreQueryCommand: BaseCommand {
     @Option(name: [.customShort("w"), .customLong("where")], help: "Filter expression (repeatable), e.g. -w 'status == active' -w 'age >= 18'.")
     var filters: [String] = []
 
-    @Option(name: .shortAndLong, help: "Sort clause (repeatable), e.g. -o 'createdAt desc'.")
+    @Option(name: .long, help: "Sort clause (repeatable), e.g. --order-by 'createdAt desc'.")
     var orderBy: [String] = []
 
     @Option(name: .shortAndLong, help: "Maximum number of documents to return (defaults to 50).")

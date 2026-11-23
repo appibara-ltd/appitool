@@ -17,7 +17,7 @@ struct AppleDisableDeviceCommand: DestructiveCommand {
     @OptionGroup
     var ciOptions: GlobalCIOptions
 
-    @Option(name: .shortAndLong, help: "Device Unique Device Identifier (UDID).")
+    @Option(name: .long, help: "Device Unique Device Identifier (UDID).")
     var udid: String
 
     func execute() async throws {

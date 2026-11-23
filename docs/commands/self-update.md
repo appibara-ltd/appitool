@@ -24,8 +24,8 @@ appitool self-update [options]
 
 | Flag | Default | Description |
 |:---|:---|:---|
-| `-c, --check` | `false` | Check whether an update is available without downloading or installing. |
-| `-f, --force` | `false` | Force download and re-installation even if already on the latest version. |
+| `--check` | `false` | Check whether an update is available without downloading or installing. |
+| `--force` | `false` | Force download and re-installation even if already on the latest version. |
 
 ## Examples
 

@@ -18,7 +18,7 @@ struct InspectCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Specify platform to inspect (ios, android, all). Defaults to all.")
     var platform: Platform = .all
 
-    @Option(name: .shortAndLong, help: "Custom Xcode workspace/project name.")
+    @Option(name: .long, help: "Custom Xcode workspace/project name.")
     var workspaceName: String?
 
     @Option(name: .shortAndLong, help: "Xcode scheme name.")
@@ -30,7 +30,7 @@ struct InspectCommand: BaseCommand {
     @Option(name: .long, help: "Android product flavor for resolving flavor-specific version info (e.g. staging, production).")
     var flavor: String?
 
-    @Option(name: [.customShort("d"), .long, .customLong("workspace-root")], help: "Path to project root directory (defaults to current directory).")
+    @Option(name: .long, help: "Path to project root directory (defaults to current directory).")
     var projectDir: String?
 
     @Flag(name: .long, help: "Output identifiers as JSON format.")

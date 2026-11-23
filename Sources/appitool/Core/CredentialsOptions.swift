@@ -73,7 +73,7 @@ struct FirebaseProjectOptions: ParsableArguments, Sendable {
     @OptionGroup
     var googleCredentials: GoogleCredentialsOptions
 
-    @Option(name: .shortAndLong, help: "Firebase/Google Cloud project number or project ID (defaults to FIREBASE_PROJECT_ID in .env).")
+    @Option(name: .long, help: "Firebase/Google Cloud project number or project ID (defaults to FIREBASE_PROJECT_ID in .env).")
     var project: String?
 
     var googleKey: String? {
@@ -119,13 +119,13 @@ struct FirebaseProjectOptions: ParsableArguments, Sendable {
     /// Returns the Firebase project identifier or throws a descriptive `ValidationError`.
     func requireProject(fallbackAppId: String? = nil) throws -> String {
         guard let project = resolveProject(fallbackAppId: fallbackAppId) else {
-            throw ValidationError("Missing project identifier (configure FIREBASE_PROJECT_ID in .env, or provide -p, --project).")
+            throw ValidationError("Missing project identifier (configure FIREBASE_PROJECT_ID in .env, or provide --project).")
         }
         return project
     }
 
     /// Resolves the string Google Cloud / Firebase `project_id` required by Cloud Firestore,
-    /// checking `-p/--project`, `FIREBASE_PROJECT_ID` / `GOOGLE_PROJECT_ID`, and the Service Account JSON `project_id`.
+    /// checking `--project`, `FIREBASE_PROJECT_ID` / `GOOGLE_PROJECT_ID`, and the Service Account JSON `project_id`.
     func requireProjectId(fallbackServiceProjectId: String?) throws -> String {
         if let explicit = project?.trimmingCharacters(in: .whitespacesAndNewlines), !explicit.isEmpty {
             return explicit
@@ -139,7 +139,7 @@ struct FirebaseProjectOptions: ParsableArguments, Sendable {
             return saProjectId
         }
         throw ValidationError(
-            "Missing Firebase project ID. Provide -p, --project, set FIREBASE_PROJECT_ID in .env, or use a Service Account JSON containing project_id."
+            "Missing Firebase project ID. Provide --project, set FIREBASE_PROJECT_ID in .env, or use a Service Account JSON containing project_id."
         )
     }
 }
@@ -165,7 +165,7 @@ struct FirebaseCredentialsOptions: ParsableArguments, Sendable {
         case android
     }
 
-    @Option(name: .customLong("platform"), help: "Target platform for Firebase App ID resolution (ios, android).")
+    @Option(name: .shortAndLong, help: "Target platform for Firebase App ID resolution (ios, android).")
     var platform: Platform?
 
     /// Resolves the Google Key from option or environment.

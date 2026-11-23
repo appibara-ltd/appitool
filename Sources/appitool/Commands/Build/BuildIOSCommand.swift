@@ -11,10 +11,10 @@ struct BuildIOSCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Distribution method (adhoc, development, appstore). Defaults to appstore.")
     var distribution: BuildCommand.Distribution = .appstore
 
-    @Option(name: .shortAndLong, help: "Path to .xcworkspace file (defaults to XCODE_WORKSPACE in .env or auto-discovered).")
-    var workspace: String?
+    @Option(name: .long, help: "Path to .xcworkspace file (defaults to XCODE_WORKSPACE in .env or auto-discovered).")
+    var workspacePath: String?
 
-    @Option(name: .shortAndLong, help: "Path to .xcodeproj file (defaults to XCODE_PROJECT in .env or auto-discovered).")
+    @Option(name: .long, help: "Path to .xcodeproj file (defaults to XCODE_PROJECT in .env or auto-discovered).")
     var project: String?
 
     @Option(name: .shortAndLong, help: "Xcode scheme to build (defaults to XCODE_SCHEME in .env or auto-inferred).")
@@ -23,7 +23,7 @@ struct BuildIOSCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Build configuration (Debug, Release). Defaults to Release or XCODE_CONFIGURATION in .env.")
     var configuration: String?
 
-    @Option(name: .shortAndLong, help: "Apple Developer Team ID (defaults to APPLE_TEAM_ID in .env).")
+    @Option(name: .long, help: "Apple Developer Team ID (defaults to APPLE_TEAM_ID in .env).")
     var teamId: String?
 
     @Option(name: .long, help: "Code signing identity override (e.g. 'Apple Distribution', 'Apple Development').")
@@ -44,8 +44,8 @@ struct BuildIOSCommand: BaseCommand {
     @Flag(name: .long, help: "Allow App Store Connect to automatically manage and increment version/build number (defaults to false).")
     var manageBuildNumber: Bool = false
 
-    @Flag(name: .long, help: "Suppress xcodebuild standard output and logs.")
-    var silent: Bool = false
+    @Flag(name: .long, inversion: .prefixedNo, help: "Suppress xcodebuild standard output and logs.")
+    var silent: Bool = true
 
     @Option(name: .long, help: "Formatter command for xcodebuild output (defaults to 'xcbeautify --renderer github-actions').")
     var xcodebuildFormatter: String?
@@ -56,11 +56,11 @@ struct BuildIOSCommand: BaseCommand {
     func execute() async throws {
         // 1. Resolve Workspace / Project
         let detected = XCodeTasks.autoDetect()
-        let resolvedWorkspace = workspace ?? EnvLoader.value(for: "XCODE_WORKSPACE") ?? detected.workspace
+        let resolvedWorkspace = workspacePath ?? EnvLoader.value(for: "XCODE_WORKSPACE") ?? detected.workspace
         let resolvedProject = project ?? EnvLoader.value(for: "XCODE_PROJECT") ?? detected.project
 
         guard skipBuildArchive || resolvedWorkspace != nil || resolvedProject != nil else {
-            throw CommandError("Could not find .xcworkspace or .xcodeproj in current directory or ios/ subdirectory. Specify -w, --workspace or -p, --project.")
+            throw CommandError("Could not find .xcworkspace or .xcodeproj in current directory or ios/ subdirectory. Specify --workspace-path or --project.")
         }
 
         // 3. Resolve Scheme via xcodebuild -list -json

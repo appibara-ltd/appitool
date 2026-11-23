@@ -12,13 +12,13 @@ struct GoogleScreenshotsUploadCommand: BaseCommand {
     @OptionGroup
     var app: GooglePlayAppOptions
 
-    @Option(name: .shortAndLong, help: "BCP-47 language code (e.g. en-US, tr-TR). Required for flat files; optional filter for directory trees.")
+    @Option(name: .long, help: "BCP-47 language code (e.g. en-US, tr-TR). Required for flat files; optional filter for directory trees.")
     var locale: String?
 
     @Option(name: .shortAndLong, help: "Image type (e.g. phone, tablet7, tablet10, tv, wear, icon, feature-graphic, tv-banner). Defaults to phone for flat files; optional filter for directory trees.")
     var type: String?
 
-    @Flag(name: .shortAndLong, help: "Delete existing images in each target slot before uploading.")
+    @Flag(name: .long, help: "Delete existing images in each target slot before uploading.")
     var replace: Bool = false
 
     @Flag(name: .long, help: "Validate the edit session without committing changes.")
@@ -27,7 +27,7 @@ struct GoogleScreenshotsUploadCommand: BaseCommand {
     @Flag(name: .long, help: "Commit changes without automatically sending them for review.")
     var changesNotSentForReview: Bool = false
 
-    @Flag(name: .shortAndLong, help: "Validate files and preview upload without contacting Google Play.")
+    @Flag(name: .long, help: "Validate files and preview upload without contacting Google Play.")
     var dryRun: Bool = false
 
     @Argument(help: "Optional image file(s), directory, or <locale>/<type>/ tree (defaults to ~/.appitool/screenshots/<package>/google/).")

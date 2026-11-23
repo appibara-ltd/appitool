@@ -13,7 +13,7 @@ struct AppleScreenshotsDownloadCommand: BaseCommand {
     @OptionGroup
     var app: AppleScreenshotAppOptions
 
-    @Option(name: .shortAndLong, help: "Filter by App Store locale (e.g. en-US, tr). Omit to download all locales.")
+    @Option(name: .long, help: "Filter by App Store locale (e.g. en-US, tr). Omit to download all locales.")
     var locale: String?
 
     @Option(name: .shortAndLong, help: "Filter by screenshot display type (e.g. iphone-67, ipad-pro-129). Omit to download all sets.")
@@ -22,7 +22,7 @@ struct AppleScreenshotsDownloadCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Output directory (defaults to ~/.appitool/screenshots/<project>/apple/).")
     var output: String?
 
-    @Flag(name: .shortAndLong, help: "Preview screenshots that would be downloaded without writing files.")
+    @Flag(name: .long, help: "Preview screenshots that would be downloaded without writing files.")
     var dryRun: Bool = false
 
     func execute() async throws {

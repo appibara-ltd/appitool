@@ -20,7 +20,7 @@ struct FirestoreDeleteCommand: DestructiveCommand {
     @Argument(help: "Firestore document path to delete (e.g. users/alice).")
     var path: String
 
-    @Flag(name: .shortAndLong, help: "Check whether the document exists without deleting it.")
+    @Flag(name: .long, help: "Check whether the document exists without deleting it.")
     var dryRun: Bool = false
 
     func execute() async throws {

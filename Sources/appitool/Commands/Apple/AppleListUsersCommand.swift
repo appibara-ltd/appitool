@@ -12,7 +12,7 @@ struct AppleListUsersCommand: BaseCommand {
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions
 
-    @Option(name: .shortAndLong, help: "Filter by username (Apple ID email).")
+    @Option(name: .long, help: "Filter by username (Apple ID email).")
     var username: String?
 
     @Option(name: .shortAndLong, help: "Filter by comma-separated roles (e.g. admin, developer, app-manager).")

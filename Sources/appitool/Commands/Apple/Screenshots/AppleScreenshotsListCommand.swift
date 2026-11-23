@@ -13,7 +13,7 @@ struct AppleScreenshotsListCommand: BaseCommand {
     @OptionGroup
     var app: AppleScreenshotAppOptions
 
-    @Option(name: .shortAndLong, help: "Filter by App Store locale (e.g. en-US, tr). Omit to list all locales.")
+    @Option(name: .long, help: "Filter by App Store locale (e.g. en-US, tr). Omit to list all locales.")
     var locale: String?
 
     @Option(name: .shortAndLong, help: "Filter by screenshot display type (e.g. iphone-67, ipad-pro-129). Omit to list all sets.")

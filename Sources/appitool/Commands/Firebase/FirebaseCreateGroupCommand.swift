@@ -12,7 +12,7 @@ struct FirebaseCreateGroupCommand: BaseCommand {
     @OptionGroup
     var projectOptions: FirebaseProjectOptions
 
-    @Option(name: .shortAndLong, help: "Unique alias/ID for the group (e.g. 'internal', 'qa-team').")
+    @Option(name: .long, help: "Unique alias/ID for the group (e.g. 'internal', 'qa-team').")
     var alias: String
 
     @Option(name: .shortAndLong, help: "Human-readable display name for the group (e.g. 'Internal Testers').")

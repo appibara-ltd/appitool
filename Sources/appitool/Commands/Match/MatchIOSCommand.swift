@@ -10,31 +10,25 @@ struct MatchIOSCommand: BaseCommand {
         abstract: "Syncs, nukes, or prunes Apple certificates and provisioning profiles using Git storage (Fastlane match equivalent)."
     )
 
-    @Argument(help: "Provisioning profile distribution type (appstore, development, adhoc, enterprise, developer_id) or action (nuke, prune).")
-    var actionOrType: String?
-
-    @Argument(help: "Optional distribution type (appstore, development, adhoc, enterprise, developer_id) or 'all' when the first argument is an action.")
-    var targetType: String?
-
     @Option(name: .shortAndLong, help: "Provisioning profile distribution type (appstore, development, adhoc, enterprise, developer_id). Defaults to MATCH_TYPE in .env or appstore.")
     var type: String?
 
-    @Option(name: .long, help: "Target platform (ios, macos, tvos, catalyst). Defaults to ios.")
+    @Option(name: .shortAndLong, help: "Target platform (ios, macos, tvos, catalyst). Defaults to ios.")
     var platform: String = "ios"
 
-    @Option(name: .shortAndLong, help: "Target application bundle identifier(s) (comma-separated).")
-    var appIdentifiers: String?
+    @Option(name: .long, help: "Target application bundle identifier(s) (comma-separated; auto-discovered from the local Xcode project when omitted).")
+    var identifiers: String?
 
     @Flag(name: .long, help: "Prune invalid or expired certificates and provisioning profiles from Git storage.")
     var prune: Bool = false
 
-    @Flag(name: [.customShort("A"), .long], help: "Operate across all distribution types when pruning.")
+    @Flag(name: .long, help: "Prune across all distribution types (requires --prune; cannot be combined with --type).")
     var all: Bool = false
 
     @Flag(name: .long, help: "Nuke (revoke and delete) certificates and provisioning profiles on Apple Developer Portal and in Git storage.")
     var nuke: Bool = false
 
-    @Flag(name: .shortAndLong, help: "Force renewal of provisioning profiles even if still valid.")
+    @Flag(name: .long, help: "Force renewal of provisioning profiles even if still valid.")
     var force: Bool = false
 
     @Flag(inversion: .prefixedNo, help: "Perform shallow clone (--shallow-clone / --no-shallow-clone). Defaults to true for readonly mode, false for write mode.")
@@ -43,8 +37,8 @@ struct MatchIOSCommand: BaseCommand {
     @Option(name: .long, help: "Apple Developer Team Name.")
     var teamName: String?
 
-    @Flag(name: .long, help: "Suppress verbose output.")
-    var silent: Bool = false
+    @Flag(name: .long, inversion: .prefixedNo, help: "Suppress verbose output (--silent / --no-silent).")
+    var silent: Bool = true
 
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions
@@ -56,12 +50,24 @@ struct MatchIOSCommand: BaseCommand {
     var ciOptions: GlobalCIOptions
 
     var resolvedMatchAction: MatchAction {
-        if nuke || actionOrType?.lowercased() == "nuke" {
+        if nuke {
             return .nuke
-        } else if prune || actionOrType?.lowercased() == "prune" {
+        } else if prune {
             return .prune
         }
         return .sync
+    }
+
+    func validate() throws {
+        if nuke && prune {
+            throw ValidationError("Cannot combine --nuke with --prune.")
+        }
+        if all && !prune {
+            throw ValidationError("--all can only be used with --prune.")
+        }
+        if all && type != nil {
+            throw ValidationError("Cannot combine --all with -t, --type.")
+        }
     }
 
     var isDestructive: Bool {
@@ -73,7 +79,7 @@ struct MatchIOSCommand: BaseCommand {
     }
 
     var destructiveCommandDescription: String {
-        "match ios \(resolvedMatchAction.rawValue)"
+        "match ios --\(resolvedMatchAction.rawValue)"
     }
 
     func execute() async throws {
@@ -81,17 +87,8 @@ struct MatchIOSCommand: BaseCommand {
         let resolvedAction = resolvedMatchAction
 
         // 2. Resolve Profile Type
-        let isActionArg = actionOrType?.lowercased() == "nuke" || actionOrType?.lowercased() == "prune"
-        let rawTypeStr: String?
-        if isActionArg {
-            rawTypeStr = targetType ?? type ?? EnvLoader.value(for: "MATCH_TYPE")
-        } else if let actionOrType {
-            rawTypeStr = actionOrType
-        } else {
-            rawTypeStr = type ?? EnvLoader.value(for: "MATCH_TYPE")
-        }
-
-        let isAllTypes = all || rawTypeStr?.lowercased() == "all"
+        let rawTypeStr: String? = all ? nil : (type ?? EnvLoader.value(for: "MATCH_TYPE"))
+        let isAllTypes = all
 
         let resolvedType: MatchProfileType
         if isAllTypes {
@@ -109,7 +106,7 @@ struct MatchIOSCommand: BaseCommand {
             case "developer_id", "developerid", "developer-id":
                 resolvedType = .developerId
             default:
-                throw CommandError("Unsupported match type '\(rawTypeStr)'. Valid types: appstore, development, adhoc, enterprise, developer_id, all.")
+                throw CommandError("Unsupported match type '\(rawTypeStr)'. Valid types: appstore, development, adhoc, enterprise, developer_id (use --prune --all for all types).")
             }
         } else {
             resolvedType = .appstore
@@ -126,7 +123,7 @@ struct MatchIOSCommand: BaseCommand {
 
         // 8. Resolve App Identifiers
         var resolvedIdentifiers: [String]
-        if let explicit = appIdentifiers, !explicit.isEmpty {
+        if let explicit = identifiers, !explicit.isEmpty {
             resolvedIdentifiers = explicit.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
         } else {
             resolvedIdentifiers = []

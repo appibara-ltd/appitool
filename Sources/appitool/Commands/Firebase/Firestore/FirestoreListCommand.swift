@@ -18,10 +18,10 @@ struct FirestoreListCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Maximum number of documents to return (defaults to 50).")
     var limit: Int = 50
 
-    @Option(name: .shortAndLong, help: "Sort order expression (e.g. 'createdAt desc').")
+    @Option(name: .long, help: "Sort order expression (e.g. 'createdAt desc').")
     var orderBy: String?
 
-    @Option(name: [.customShort("t"), .long], help: "Pagination token to fetch the next page of documents.")
+    @Option(name: .long, help: "Pagination token to fetch the next page of documents.")
     var pageToken: String?
 
     @Flag(name: .long, help: "Output raw JSON.")

@@ -8,22 +8,22 @@ struct KokonoCommand: BaseCommand {
         abstract: "Sends a push notification via KokoNo (with optional E2E encryption)."
     )
 
-    @Option(name: .shortAndLong, help: "Notification title.")
+    @Option(name: .long, help: "Notification title.")
     var title: String = "appitool"
 
     @Option(name: .shortAndLong, help: "Notification message.")
     var message: String
 
-    @Option(name: [.customShort("u"), .customLong("url"), .long], help: "KokoNo notification URL (defaults to KOKONO_URL in .env).")
+    @Option(name: .long, help: "KokoNo notification URL (defaults to KOKONO_URL in .env).")
     var url: String?
 
-    @Option(name: [.customShort("e"), .customLong("e2e"), .long], help: "Optional KokoNo public key for end-to-end (E2E) encryption (defaults to KOKONO_E2E_PUBLIC_KEY in .env).")
+    @Option(name: .long, help: "Optional KokoNo public key for end-to-end (E2E) encryption (defaults to KOKONO_E2E_PUBLIC_KEY in .env).")
     var e2e: String?
 
     func execute() async throws {
         let resolvedUrl = url ?? EnvLoader.value(for: "KOKONO_URL")
         guard let resolvedUrl, !resolvedUrl.isEmpty else {
-            throw CommandError("Missing KokoNo URL. Provide -u, --url or configure KOKONO_URL in .env.")
+            throw CommandError("Missing KokoNo URL. Provide --url or configure KOKONO_URL in .env.")
         }
 
         // Per-URL Keypair Isolation:
