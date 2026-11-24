@@ -39,6 +39,12 @@ struct GoogleSigningCertsCommand: BaseCommand {
             guard let code = Int(latest.buildNumber) else {
                 throw CommandError("Could not determine the latest version code (got '\(latest.buildNumber)').", hint: "Pass --version-code.")
             }
+            guard code > 0 else {
+                throw CommandError(
+                    "\(packageName) has no releases on any track yet, so Play has no generated APKs to read certificates from.",
+                    hint: "Upload an app bundle (AAB) first, e.g. to the internal track. Play App Signing certificates exist only after the first upload. If the bundle is uploaded but not in a release, pass its --version-code."
+                )
+            }
             resolvedVersionCode = code
         }
 
