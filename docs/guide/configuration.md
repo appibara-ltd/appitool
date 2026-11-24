@@ -100,7 +100,7 @@ App identifiers are resolved the same way by every command: **CLI option → `.e
 | `MATCH_KEYCHAIN_NAME` | Custom macOS keychain name or path | `appitool` |
 | `MATCH_KEYCHAIN_PASSWORD` | Password used to create/unlock custom keychain | `appipass` |
 | `MATCH_READONLY` | In `flow ios` (`MatchOptions`), read-only unless set to `"false"` | `true` (unless `"false"`) |
-| `MATCH_TYPE` | Default Match profile type for `match ios` when positional type and `-t` are omitted | `appstore` |
+| `MATCH_TYPE` | Default Match profile type for `match ios sync`, `nuke`, and `prune` when `-t, --type` is omitted | `appstore` |
 
 ### Webhook Notifications
 
@@ -119,7 +119,7 @@ App identifiers are resolved the same way by every command: **CLI option → `.e
 
 ### CI Mode & Destructive Command Guard
 
-`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios --nuke`, `match ios --prune`) are skipped as a no-op with a warning and exit code `0`.
+`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, `match ios prune`) are skipped as a no-op with a warning and exit code `0`.
 
 | Variable | Description | Notes |
 |:---|:---|:---|

@@ -81,11 +81,8 @@ struct AppleScreenshotsListCommand: BaseCommand {
                         }
                         return "-"
                     }()
-                    let sizeStr = item.attributes?.fileSize.map {
-                        ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file)
-                    } ?? "-"
                     let state = item.attributes?.assetDeliveryState?.state?.rawValue ?? "-"
-                    Log("    • ".cyan + "\(name)".bold + " [ID: \(item.id), Size: \(sizeStr), Dims: \(dims), State: \(state)]".dim)
+                    Log("    • ".cyan + "\(name)".bold + " [ID: \(item.id), Dims: \(dims), State: \(state)]".dim)
                 }
             }
         }

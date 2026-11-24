@@ -80,7 +80,7 @@ When searching for a profile matching `<bundleId>`, `MatchRunner` looks for:
 
 ## Read-Only Mode Semantics
 
-Notice the difference between standalone `appitool match ios` and `appitool flow`:
+Notice the difference between standalone `appitool match ios sync` and `appitool flow`:
 
-- **`appitool match ios`**: `--readonly` defaults to `false` (can create certificates/profiles on Apple Developer Portal if credentials are provided). Pass `--readonly` for CI read-only sync.
+- **`appitool match ios sync`**: `--readonly` defaults to `false` (can create certificates/profiles on Apple Developer Portal if credentials are provided). Pass `--readonly` for CI read-only sync.
 - **`appitool flow ios`**: `MatchOptions` defaults `readonly` to `true` unless `MATCH_READONLY=false` is explicitly set in the environment (and `--dry-run` always forces `readonly: true`).

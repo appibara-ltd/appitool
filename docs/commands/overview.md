@@ -98,7 +98,7 @@ Used by `match android`, `flow android`, and `build android` (and embedded in `M
 
 ### `MatchOptions`
 
-Includes `MatchStorageOptions` and adds Apple/iOS signing options. Used by `match ios` and `flow ios`.
+Includes `MatchStorageOptions` and adds Apple/iOS signing options. Used by `match ios sync` and `flow ios` (`match ios nuke` and `match ios prune` use only `MatchStorageOptions`).
 
 | Flag | `.env` Fallback / Default | Description |
 |:---|:---|:---|
@@ -109,7 +109,7 @@ Includes `MatchStorageOptions` and adds Apple/iOS signing options. Used by `matc
 | `--keychain-name <name>` | `MATCH_KEYCHAIN_NAME` (default: `appitool`) | Custom macOS keychain name or path |
 | `--keychain-password <pass>` | `MATCH_KEYCHAIN_PASSWORD` (default: `appipass`) | Keychain unlock password |
 | `--team-id <id>` | `APPLE_TEAM_ID` | Apple Developer Team ID |
-| `--readonly` | `MATCH_READONLY != "false"` in `flow ios` (defaults to `true`); `false` in `match ios` | Read-only mode (do not create new certs/profiles) |
+| `--readonly` | `MATCH_READONLY != "false"` in `flow ios` (defaults to `true`); `false` in `match ios sync` | Read-only mode (do not create new certs/profiles) |
 
 ### `NotificationOptions`
 
@@ -123,7 +123,7 @@ Used by `flow ios` and `flow android`.
 
 ### `GlobalCIOptions`
 
-Available globally on `appitool` (can be placed before or after subcommands, as well as directly on guarded destructive subcommands and `match ios`). Auto-detects CI environment variables (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD`) when omitted. In CI mode, destructive commands (`apple delete-identifier`, `apple delete-profile`, `apple prune-profiles`, `apple delete-certificate`, `apple prune-certificates`, `apple disable-device`, `apple delete-user`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios --nuke`, and `match ios --prune`) are skipped as a no-op with a warning (exit code `0`).
+Available globally on `appitool` (can be placed before or after subcommands, as well as directly on guarded destructive subcommands and `match ios sync`). Auto-detects CI environment variables (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD`) when omitted. In CI mode, destructive commands (`apple delete-identifier`, `apple delete-profile`, `apple prune-profiles`, `apple delete-certificate`, `apple prune-certificates`, `apple disable-device`, `apple delete-user`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, and `match ios prune`) are skipped as a no-op with a warning (exit code `0`).
 
 | Flag | Default / Env Fallback | Description |
 |:---|:---|:---|

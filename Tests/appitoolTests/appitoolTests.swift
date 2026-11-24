@@ -212,7 +212,7 @@ import ArgumentParser
     #expect(matchAndroidAdd.keystore == "./release.keystore")
 
     let matchIOS = try #require(
-        try appitool.parseAsRoot(["match", "ios", "--identifiers", "com.example.app,com.example.app.widget"]) as? MatchIOSCommand
+        try appitool.parseAsRoot(["match", "ios", "--identifiers", "com.example.app,com.example.app.widget"]) as? MatchIOSSyncCommand
     )
     #expect(matchIOS.identifiers == "com.example.app,com.example.app.widget")
 

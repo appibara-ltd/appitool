@@ -24,11 +24,11 @@
   - `-n, --name` · `-g, --google-key` · `-k, --keystore` · `-w, --where`
 - Every other option must use `name: .long` only (e.g., `--locale`, `--id`, `--username`, `--udid`, `--uuid`, `--uid`, `--url`, `--e2e`, `--title`, `--from`, `--to`, `--order-by`, `--page-token`, `--app-version`, `--visible-apps`, `--binary`, `--dry-run`, `--package-name`, `--project`, `--project-dir`, `--workspace-path`, `--workspace-name`, `--team-id`, `--release-notes`, `--flavor`, `--format`, `--all`, `--alias`, `--identifiers`, `--anonymous`, `--data`, `--tag-prefix`, `--portal-id`, `--device-ids`).
 - Letters `-a`, `-A`, `-i`, `-u`, `-v` must never be used. Adding a new letter to the set above requires explicit user approval.
-- Destructive or state-changing flags (`--force`, `--replace`, `--merge`, `--nuke`, `--prune`, `--all`) are always long-only.
+- Destructive or state-changing flags (`--force`, `--replace`, `--merge`, `--all`) are always long-only.
 - Use one canonical name per concept across all commands (e.g., `-b, --bundle-id` for a single bundle identifier, never `--app-identifier`; `--identifiers` for comma-separated bundle identifiers; `--keystore-password`, never `--store-password`; `--wait-processing`, never `--wait`; `--workspace-path` for `.xcworkspace` paths).
 - Multi-letter abbreviations are allowed only as double-dash custom longs alongside the full name (e.g., `[.customLong("dd"), .long]` → `--dd, --derived-data`; `--ddo, --derived-data-only`). Never use single-dash multi-letter flags.
 - Boolean output-suppression uses `--silent` / `--no-silent` (`inversion: .prefixedNo`) and defaults to `true` (silent) in every command.
-- Never provide the same input both as a positional argument and as an option (e.g., `match ios --nuke -t development`, never `match ios nuke development`); actions are flags and values are options.
+- Actions are subcommands, values are options, and values are never positional arguments (e.g., `match ios nuke -t development` and `match ios prune --all`, never `match ios --nuke`, `match ios nuke development`, or `match ios prune all`). Options that only apply to one action belong to that action's subcommand; options shared by sibling actions go in a shared `OptionGroup`.
 - Never alias semantically different concepts under the same option (e.g., `--bundle-id` and `--app-id` are distinct concepts and must never be aliases for the same option), and never add extra aliases for the same concept (e.g., no `--workspace-root` alongside `--project-dir`).
 
 # Command Structure Conventions

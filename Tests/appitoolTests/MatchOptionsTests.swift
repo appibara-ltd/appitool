@@ -15,7 +15,7 @@ struct MatchOptionsTests {
             "--match-password", "secret_pass",
         ]
 
-        let matchIOS = try MatchIOSCommand.parse(args)
+        let matchIOS = try MatchIOSSyncCommand.parse(args)
         #expect(matchIOS.matchOptions.storage.matchGitUrl == "https://github.com/example/certs.git")
         #expect(matchIOS.matchOptions.storage.matchGitBranch == "develop")
         #expect(matchIOS.matchOptions.storage.matchGitToken == "tok_123")
@@ -55,7 +55,7 @@ struct MatchOptionsTests {
             "--readonly",
         ]
 
-        let matchIOS = try MatchIOSCommand.parse(args)
+        let matchIOS = try MatchIOSSyncCommand.parse(args)
         let matchResolved = matchIOS.matchOptions.resolve(defaultReadonly: false)
         #expect(matchResolved.keychainName == "ci.keychain")
         #expect(matchResolved.keychainPassword == "kc_secret")
@@ -70,7 +70,7 @@ struct MatchOptionsTests {
         #expect(flowResolved.readonly == true)
 
         // Default readonly semantics
-        let matchIOSDefault = try MatchIOSCommand.parse([])
+        let matchIOSDefault = try MatchIOSSyncCommand.parse([])
         #expect(matchIOSDefault.matchOptions.resolve(defaultReadonly: false).readonly == false)
 
         let flowIOSDefault = try FlowIOSCommand.parse([])
@@ -92,16 +92,16 @@ struct MatchOptionsTests {
     @Test("Removed legacy aliases and short flags fail to parse")
     func removedAliasesAndShortFlagsFail() {
         #expect(throws: (any Error).self) {
-            try MatchIOSCommand.parse(["--git-url", "https://github.com/example/certs.git"])
+            try MatchIOSSyncCommand.parse(["--git-url", "https://github.com/example/certs.git"])
         }
         #expect(throws: (any Error).self) {
-            try MatchIOSCommand.parse(["--password", "secret"])
+            try MatchIOSSyncCommand.parse(["--password", "secret"])
         }
         #expect(throws: (any Error).self) {
-            try MatchIOSCommand.parse(["-g", "https://github.com/example/certs.git"])
+            try MatchIOSSyncCommand.parse(["-g", "https://github.com/example/certs.git"])
         }
         #expect(throws: (any Error).self) {
-            try MatchIOSCommand.parse(["-r"])
+            try MatchIOSSyncCommand.parse(["-r"])
         }
 
         #expect(throws: (any Error).self) {

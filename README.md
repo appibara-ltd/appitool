@@ -22,7 +22,7 @@ A unified CLI utility and release orchestration engine for Apple App Store Conne
 - **Release Notes:** Categorized Markdown release notes generated from Git conventional commits.
 - **Built-in Self-Update:** Upgrade the CLI in-place on demand via `appitool self-update` with SHA256 checksum verification.
 - **Dry-Run Mode:** Validate configurations, credentials, and stage workflows without triggering builds or mutating remote state.
-- **CI Mode Guard (`--ci` / `--no-ci`):** Automatically detects CI environments (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, etc.) and skips destructive commands (`delete-*`, `prune-*`, `disable-device`, `cancel-invitation`, `screenshots delete`, `match --nuke/--prune`) as a safe no-op (exit code `0`).
+- **CI Mode Guard (`--ci` / `--no-ci`):** Automatically detects CI environments (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, etc.) and skips destructive commands (`delete-*`, `prune-*`, `disable-device`, `cancel-invitation`, `screenshots delete`, `match ios nuke/prune`) as a safe no-op (exit code `0`).
 
 ---
 
@@ -184,7 +184,8 @@ appitool build android --package-name com.example.app -d appstore
 ```bash
 appitool match ios -t appstore
 appitool match ios -t adhoc --readonly --identifiers "com.example.app,com.example.app.widget"
-appitool match ios --prune --all
+appitool match ios prune --all
+appitool match ios nuke -t development
 appitool match android
 ```
 

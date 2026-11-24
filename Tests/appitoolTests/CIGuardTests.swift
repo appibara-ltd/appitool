@@ -137,55 +137,58 @@ struct CIGuardTests {
         }
     }
 
-    @Test("MatchIOSCommand guards nuke and prune as destructive while allowing sync in CI")
+    @Test("match ios nuke and prune subcommands are destructive while sync runs in CI")
     func matchIOSConditionalGuard() throws {
-        let nukeDefault = try #require(try appitool.parseAsRoot(["--ci", "match", "--nuke"]) as? MatchIOSCommand)
-        #expect(nukeDefault.resolvedMatchAction == .nuke)
-        #expect(nukeDefault.isDestructive == true)
-        #expect(nukeDefault.destructiveCommandDescription == "match ios --nuke")
-        #expect(nukeDefault.ciSkipResolution(environment: [:])?.isCI == true)
+        let nuke = try #require(try appitool.parseAsRoot(["match", "ios", "nuke", "-t", "development", "--ci"]) as? MatchIOSNukeCommand)
+        #expect(nuke.type == "development")
+        #expect(nuke.isDestructive == true)
+        #expect(nuke.destructiveCommandDescription == "match ios nuke")
+        #expect(nuke.ciSkipResolution(environment: [:])?.isCI == true)
 
-        let nukeFlag = try #require(try appitool.parseAsRoot(["match", "ios", "--nuke", "-t", "development", "--ci"]) as? MatchIOSCommand)
-        #expect(nukeFlag.resolvedMatchAction == .nuke)
-        #expect(nukeFlag.type == "development")
-        #expect(nukeFlag.isDestructive == true)
-        #expect(nukeFlag.ciSkipResolution(environment: [:])?.isCI == true)
+        let nukeRootCI = try #require(try appitool.parseAsRoot(["--ci", "match", "ios", "nuke"]) as? MatchIOSNukeCommand)
+        #expect(nukeRootCI.isDestructive == true)
 
-        let pruneAll = try #require(try appitool.parseAsRoot(["match", "ios", "--prune", "--all", "--ci"]) as? MatchIOSCommand)
-        #expect(pruneAll.resolvedMatchAction == .prune)
+        let pruneAll = try #require(try appitool.parseAsRoot(["match", "ios", "prune", "--all", "--ci"]) as? MatchIOSPruneCommand)
         #expect(pruneAll.all == true)
         #expect(pruneAll.isDestructive == true)
-        #expect(pruneAll.destructiveCommandDescription == "match ios --prune")
+        #expect(pruneAll.destructiveCommandDescription == "match ios prune")
         #expect(pruneAll.ciSkipResolution(environment: [:])?.isCI == true)
 
-        let pruneFlag = try #require(try appitool.parseAsRoot(["match", "--prune", "--ci"]) as? MatchIOSCommand)
-        #expect(pruneFlag.resolvedMatchAction == .prune)
-        #expect(pruneFlag.isDestructive == true)
-        #expect(pruneFlag.ciSkipResolution(environment: [:])?.isCI == true)
+        let pruneType = try #require(try appitool.parseAsRoot(["match", "ios", "prune", "-t", "adhoc"]) as? MatchIOSPruneCommand)
+        #expect(pruneType.type == "adhoc")
+        #expect(pruneType.ciSkipResolution(environment: ["CI": "true"])?.isCI == true)
+        #expect(pruneType.ciSkipResolution(environment: [:]) == nil)
 
-        let syncExplicit = try #require(try appitool.parseAsRoot(["--ci", "match", "ios", "-t", "appstore"]) as? MatchIOSCommand)
-        #expect(syncExplicit.resolvedMatchAction == .sync)
+        let syncExplicit = try #require(try appitool.parseAsRoot(["--ci", "match", "ios", "sync", "-t", "appstore"]) as? MatchIOSSyncCommand)
         #expect(syncExplicit.isDestructive == false)
         #expect(syncExplicit.ciSkipResolution(environment: ["CI": "true"]) == nil)
 
-        // Positional actions/types and invalid flag combinations are rejected.
+        let syncDefaultIOS = try #require(try appitool.parseAsRoot(["match", "ios", "-t", "adhoc", "--ci"]) as? MatchIOSSyncCommand)
+        #expect(syncDefaultIOS.type == "adhoc")
+        #expect(syncDefaultIOS.isDestructive == false)
+
+        let syncDefaultMatch = try #require(try appitool.parseAsRoot(["--ci", "match", "--type", "appstore"]) as? MatchIOSSyncCommand)
+        #expect(syncDefaultMatch.isDestructive == false)
+        #expect(syncDefaultMatch.ciSkipResolution(environment: ["CI": "true"]) == nil)
+
+        // Removed action flags, positional types, and options belonging to other actions are rejected.
         for args in [
-            ["match", "ios", "nuke"],
-            ["match", "ios", "prune", "all"],
-            ["match", "ios", "adhoc"],
-            ["match", "ios", "--nuke", "--prune"],
+            ["match", "ios", "--nuke"],
+            ["match", "ios", "--prune"],
             ["match", "ios", "--all"],
-            ["match", "ios", "--prune", "--all", "-t", "adhoc"],
+            ["match", "ios", "adhoc"],
+            ["match", "ios", "nuke", "development"],
+            ["match", "ios", "prune", "all"],
+            ["match", "ios", "prune", "--all", "-t", "adhoc"],
+            ["match", "ios", "nuke", "--all"],
+            ["match", "ios", "nuke", "--force"],
+            ["match", "ios", "prune", "--identifiers", "com.example.app"],
+            ["match", "ios", "nuke", "--readonly"],
         ] {
             #expect(throws: (any Error).self) {
                 _ = try appitool.parseAsRoot(args)
             }
         }
-
-        let syncDefaultSub = try #require(try appitool.parseAsRoot(["--ci", "match", "--type", "appstore"]) as? MatchIOSCommand)
-        #expect(syncDefaultSub.resolvedMatchAction == .sync)
-        #expect(syncDefaultSub.isDestructive == false)
-        #expect(syncDefaultSub.ciSkipResolution(environment: ["CI": "true"]) == nil)
     }
 
     @Test("Non-destructive commands accept --ci without skipping and -c short flags remain intact")
@@ -219,8 +222,8 @@ struct CIGuardTests {
             ["--ci", "apple", "delete-identifier", "--bundle-id", "com.example.app"],
             ["--ci", "apple", "screenshots", "delete", "--id", "ss-1"],
             ["--ci", "google", "screenshots", "delete", "--locale", "en-US", "-t", "phone", "--all"],
-            ["--ci", "match", "--nuke"],
-            ["--ci", "match", "ios", "--prune"],
+            ["--ci", "match", "ios", "nuke"],
+            ["--ci", "match", "ios", "prune", "--all"],
             ["--ci", "firebase", "delete-user", "--uid", "uid-1"],
             ["--ci", "firebase", "firestore", "delete", "users/alice"],
         ]
