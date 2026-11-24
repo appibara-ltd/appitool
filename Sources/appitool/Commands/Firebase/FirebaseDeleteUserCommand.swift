@@ -5,11 +5,11 @@ import Rainbow
 
 struct FirebaseDeleteUserCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
-        commandName: "delete-user",
+        commandName: "delete",
         abstract: "Deletes Firebase Authentication user(s) by UID, email, or all anonymous users."
     )
 
-    var destructiveCommandDescription: String { "firebase delete-user" }
+    var destructiveCommandDescription: String { "firebase users delete" }
 
     @OptionGroup
     var projectOptions: FirebaseProjectOptions

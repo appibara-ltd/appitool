@@ -5,11 +5,11 @@ import Rainbow
 
 struct AppleDeleteProfileCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
-        commandName: "delete-profile",
+        commandName: "delete",
         abstract: "Deletes a single provisioning profile from Apple Developer Portal."
     )
 
-    var destructiveCommandDescription: String { "apple delete-profile" }
+    var destructiveCommandDescription: String { "apple profiles delete" }
 
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions

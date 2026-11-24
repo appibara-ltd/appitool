@@ -54,7 +54,7 @@ struct GoogleUsersTests {
         #expect(GoogleListAppsCommand.filter(apps, name: "tool", limit: nil).map(\.packageName) == ["com.example.alpha"])
         #expect(GoogleListAppsCommand.filter(apps, name: nil, limit: 1).count == 1)
 
-        let cmd = try #require(try appitool.parseAsRoot(["google", "list-apps", "-n", "alpha", "-l", "3"]) as? GoogleListAppsCommand)
+        let cmd = try #require(try appitool.parseAsRoot(["google", "apps", "list", "-n", "alpha", "-l", "3"]) as? GoogleListAppsCommand)
         #expect(cmd.name == "alpha")
         #expect(cmd.limit == 3)
         #expect(GoogleListAppsCommand.hint(for: .apiError(status: 403, message: "x"))?.contains("Reporting API") == true)
@@ -62,26 +62,26 @@ struct GoogleUsersTests {
 
     @Test("Google user commands parse, validate inputs, and destructive ones are CI-guarded")
     func commandValidation() throws {
-        let list = try #require(try appitool.parseAsRoot(["google", "list-users", "--account-id", "123", "-e", "a@b.com", "-l", "5"]) as? GoogleListUsersCommand)
+        let list = try #require(try appitool.parseAsRoot(["google", "users", "list", "--account-id", "123", "-e", "a@b.com", "-l", "5"]) as? GoogleListUsersCommand)
         #expect(try list.account.requireAccountId() == "123")
-        _ = try appitool.parseAsRoot(["google", "list-invitations", "--account-id", "123"])
+        _ = try appitool.parseAsRoot(["google", "invitations", "list", "--account-id", "123"])
         #expect(throws: (any Error).self) {
-            _ = try appitool.parseAsRoot(["google", "list-users", "--developer-id", "123"])
+            _ = try appitool.parseAsRoot(["google", "users", "list", "--developer-id", "123"])
         }
-        _ = try appitool.parseAsRoot(["google", "invite-user", "-e", "a@b.com", "--permissions", "can-see-all-apps"])
-        _ = try appitool.parseAsRoot(["google", "invite-user", "-e", "a@b.com", "--package-name", "com.example", "--app-permissions", "can-access-app"])
-        _ = try appitool.parseAsRoot(["google", "update-user", "-e", "a@b.com", "--expiration", "2099-01-01T00:00:00Z"])
-        _ = try appitool.parseAsRoot(["google", "grant-access", "-e", "a@b.com", "--permissions", "can-access-app"])
+        _ = try appitool.parseAsRoot(["google", "users", "invite", "-e", "a@b.com", "--permissions", "can-see-all-apps"])
+        _ = try appitool.parseAsRoot(["google", "users", "invite", "-e", "a@b.com", "--package-name", "com.example", "--app-permissions", "can-access-app"])
+        _ = try appitool.parseAsRoot(["google", "users", "update", "-e", "a@b.com", "--expiration", "2099-01-01T00:00:00Z"])
+        _ = try appitool.parseAsRoot(["google", "users", "grant", "-e", "a@b.com", "--permissions", "can-access-app"])
 
         for args in [
-            ["google", "invite-user", "-e", "a@b.com"],
-            ["google", "invite-user", "-e", "a@b.com", "--app-permissions", "can-access-app"],
-            ["google", "invite-user", "-e", "a@b.com", "--package-name", "com.example"],
-            ["google", "invite-user", "-e", "a@b.com", "--permissions", "can-fly"],
-            ["google", "update-user", "-e", "a@b.com"],
-            ["google", "update-user", "-e", "a@b.com", "--expiration", "2001-01-01T00:00:00Z"],
-            ["google", "update-user", "-e", "a@b.com", "--expiration", "tomorrow"],
-            ["google", "grant-access", "-e", "a@b.com", "--permissions", "can-see-all-apps"],
+            ["google", "users", "invite", "-e", "a@b.com"],
+            ["google", "users", "invite", "-e", "a@b.com", "--app-permissions", "can-access-app"],
+            ["google", "users", "invite", "-e", "a@b.com", "--package-name", "com.example"],
+            ["google", "users", "invite", "-e", "a@b.com", "--permissions", "can-fly"],
+            ["google", "users", "update", "-e", "a@b.com"],
+            ["google", "users", "update", "-e", "a@b.com", "--expiration", "2001-01-01T00:00:00Z"],
+            ["google", "users", "update", "-e", "a@b.com", "--expiration", "tomorrow"],
+            ["google", "users", "grant", "-e", "a@b.com", "--permissions", "can-see-all-apps"],
         ] {
             #expect(throws: (any Error).self) {
                 _ = try appitool.parseAsRoot(args)
@@ -89,9 +89,9 @@ struct GoogleUsersTests {
         }
 
         for (args, description) in [
-            (["google", "delete-user", "-e", "a@b.com", "--ci"], "google delete-user"),
-            (["google", "cancel-invitation", "-e", "a@b.com", "--ci"], "google cancel-invitation"),
-            (["google", "revoke-access", "-e", "a@b.com", "--ci"], "google revoke-access"),
+            (["google", "users", "delete", "-e", "a@b.com", "--ci"], "google users delete"),
+            (["google", "invitations", "cancel", "-e", "a@b.com", "--ci"], "google invitations cancel"),
+            (["google", "users", "revoke", "-e", "a@b.com", "--ci"], "google users revoke"),
         ] {
             let cmd = try #require(try appitool.parseAsRoot(args) as? any BaseCommand)
             #expect(cmd.isDestructive == true)

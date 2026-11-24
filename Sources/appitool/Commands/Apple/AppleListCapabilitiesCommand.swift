@@ -6,7 +6,7 @@ import Rainbow
 
 struct AppleListCapabilitiesCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-capabilities",
+        commandName: "list",
         abstract: "Lists all available App Identifier capabilities or shows capabilities enabled for a specific App ID."
     )
 
@@ -45,8 +45,8 @@ struct AppleListCapabilitiesCommand: BaseCommand {
             return
         }
 
-        // Otherwise, list all supported capabilities that can be passed to create-identifier
-        Log("\nSupported capabilities for " + "apple create-identifier --capabilities <list>".cyan.bold + ":\n")
+        // Otherwise, list all supported capabilities that can be passed to identifiers create
+        Log("\nSupported capabilities for " + "apple identifiers create --capabilities <list>".cyan.bold + ":\n")
 
         var currentCategory = ""
         for item in AppleTypeMapper.supportedCapabilities {
@@ -59,9 +59,9 @@ struct AppleListCapabilitiesCommand: BaseCommand {
         }
 
         Log("\n💡 Usage example:")
-        Log("  appitool apple create-identifier -b \"com.example.app\" -c \"push-notifications,sign-in-with-apple\"".green)
+        Log("  appitool apple identifiers create -b \"com.example.app\" -c \"push-notifications,sign-in-with-apple\"".green)
         Log("\n💡 To view enabled capabilities on an existing App Identifier:")
-        Log("  appitool apple list-capabilities -b \"com.example.app\"".yellow)
+        Log("  appitool apple capabilities list -b \"com.example.app\"".yellow)
         Log("")
     }
 }

@@ -63,9 +63,9 @@ struct AppVersionPolicyTests {
             _ = try AppleDeleteVersionCommand.selectTarget(versions: versions, explicit: "2.0.0")
         }
 
-        let cmd = try #require(try appitool.parseAsRoot(["apple", "delete-version", "--dry-run", "--ci"]) as? AppleDeleteVersionCommand)
+        let cmd = try #require(try appitool.parseAsRoot(["apple", "versions", "delete", "--dry-run", "--ci"]) as? AppleDeleteVersionCommand)
         #expect(cmd.isDestructive == true)
-        #expect(cmd.destructiveCommandDescription == "apple delete-version")
+        #expect(cmd.destructiveCommandDescription == "apple versions delete")
         #expect(cmd.ciSkipResolution(environment: [:])?.isCI == true)
         #expect(AppleDeleteVersionCommand.hint(for: .apiError(status: 409, message: "x"))?.contains("never submitted") == true)
     }
@@ -73,17 +73,17 @@ struct AppVersionPolicyTests {
     @Test("create-version validates release options and explains App Store Connect errors")
     func commandValidation() throws {
         let cmd = try #require(
-            try appitool.parseAsRoot(["apple", "create-version", "--app-version", "1.2.0", "--release-type", "after-approval", "--dry-run"]) as? AppleCreateVersionCommand
+            try appitool.parseAsRoot(["apple", "versions", "create", "--app-version", "1.2.0", "--release-type", "after-approval", "--dry-run"]) as? AppleCreateVersionCommand
         )
         #expect(cmd.app.appVersion == "1.2.0")
         #expect(try AppleCreateVersionCommand.releaseTypeValue("after-approval") == "AFTER_APPROVAL")
-        _ = try appitool.parseAsRoot(["apple", "create-version", "--release-type", "scheduled", "--release-date", "2026-12-01T09:00:00Z"])
+        _ = try appitool.parseAsRoot(["apple", "versions", "create", "--release-type", "scheduled", "--release-date", "2026-12-01T09:00:00Z"])
 
         for args in [
-            ["apple", "create-version", "--release-type", "scheduled"],
-            ["apple", "create-version", "--release-date", "2026-12-01T09:00:00Z"],
-            ["apple", "create-version", "--release-type", "scheduled", "--release-date", "next week"],
-            ["apple", "create-version", "--release-type", "soon"],
+            ["apple", "versions", "create", "--release-type", "scheduled"],
+            ["apple", "versions", "create", "--release-date", "2026-12-01T09:00:00Z"],
+            ["apple", "versions", "create", "--release-type", "scheduled", "--release-date", "next week"],
+            ["apple", "versions", "create", "--release-type", "soon"],
         ] {
             #expect(throws: (any Error).self) {
                 _ = try appitool.parseAsRoot(args)

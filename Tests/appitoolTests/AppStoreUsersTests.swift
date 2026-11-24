@@ -471,17 +471,17 @@ struct AppStoreUsersTests {
 
     // MARK: - CLI Subcommand Parsing Tests
 
-    @Test("AppleCommand parses all six Users & Invitations subcommands and options")
+    @Test("apple users and apple invitations parse all six subcommands and options")
     func appleCommandUserSubcommandParsing() throws {
-        #expect(AppleCommand.configuration.subcommands.contains { $0 == AppleListUsersCommand.self })
-        #expect(AppleCommand.configuration.subcommands.contains { $0 == AppleInviteUserCommand.self })
-        #expect(AppleCommand.configuration.subcommands.contains { $0 == AppleUpdateUserCommand.self })
-        #expect(AppleCommand.configuration.subcommands.contains { $0 == AppleDeleteUserCommand.self })
-        #expect(AppleCommand.configuration.subcommands.contains { $0 == AppleListInvitationsCommand.self })
-        #expect(AppleCommand.configuration.subcommands.contains { $0 == AppleCancelInvitationCommand.self })
+        #expect(AppleUsersCommand.configuration.subcommands.contains { $0 == AppleListUsersCommand.self })
+        #expect(AppleUsersCommand.configuration.subcommands.contains { $0 == AppleInviteUserCommand.self })
+        #expect(AppleUsersCommand.configuration.subcommands.contains { $0 == AppleUpdateUserCommand.self })
+        #expect(AppleUsersCommand.configuration.subcommands.contains { $0 == AppleDeleteUserCommand.self })
+        #expect(AppleInvitationsCommand.configuration.subcommands.contains { $0 == AppleListInvitationsCommand.self })
+        #expect(AppleInvitationsCommand.configuration.subcommands.contains { $0 == AppleCancelInvitationCommand.self })
 
         let listUsers = try #require(
-            try AppleCommand.parseAsRoot(["list-users", "--username", "alice@example.com", "-r", "admin,developer", "-l", "25"]) as? AppleListUsersCommand
+            try AppleCommand.parseAsRoot(["users", "list", "--username", "alice@example.com", "-r", "admin,developer", "-l", "25"]) as? AppleListUsersCommand
         )
         #expect(listUsers.username == "alice@example.com")
         #expect(listUsers.roles == "admin,developer")
@@ -489,7 +489,7 @@ struct AppStoreUsersTests {
 
         let inviteUser = try #require(
             try AppleCommand.parseAsRoot([
-                "invite-user",
+                "users", "invite",
                 "-e", "bob@example.com",
                 "--first-name", "Bob",
                 "--last-name", "Jones",
@@ -509,7 +509,7 @@ struct AppStoreUsersTests {
 
         let updateUser = try #require(
             try AppleCommand.parseAsRoot([
-                "update-user",
+                "users", "update",
                 "--id", "u-1",
                 "-r", "admin",
                 "--all-apps-visible",
@@ -522,20 +522,20 @@ struct AppStoreUsersTests {
         #expect(updateUser.provisioningAllowed == false)
 
         let deleteUser = try #require(
-            try AppleCommand.parseAsRoot(["delete-user", "--username", "alice@example.com"]) as? AppleDeleteUserCommand
+            try AppleCommand.parseAsRoot(["users", "delete", "--username", "alice@example.com"]) as? AppleDeleteUserCommand
         )
         #expect(deleteUser.username == "alice@example.com")
         #expect(deleteUser.id == nil)
 
         let listInvitations = try #require(
-            try AppleCommand.parseAsRoot(["list-invitations", "-e", "bob@example.com", "-r", "developer", "-l", "10"]) as? AppleListInvitationsCommand
+            try AppleCommand.parseAsRoot(["invitations", "list", "-e", "bob@example.com", "-r", "developer", "-l", "10"]) as? AppleListInvitationsCommand
         )
         #expect(listInvitations.email == "bob@example.com")
         #expect(listInvitations.roles == "developer")
         #expect(listInvitations.limit == 10)
 
         let cancelInvitation = try #require(
-            try AppleCommand.parseAsRoot(["cancel-invitation", "--id", "inv-1"]) as? AppleCancelInvitationCommand
+            try AppleCommand.parseAsRoot(["invitations", "cancel", "--id", "inv-1"]) as? AppleCancelInvitationCommand
         )
         #expect(cancelInvitation.id == "inv-1")
         #expect(cancelInvitation.email == nil)

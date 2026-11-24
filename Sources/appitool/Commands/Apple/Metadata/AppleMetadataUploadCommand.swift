@@ -193,10 +193,10 @@ enum AppleMetadataPlanner {
         }
         let storeLevels = Set(storeChanges.compactMap { AppleStoreField(rawValue: $0.field.key)?.level })
         if storeLevels.contains(.appInfo) && !isAppInfoEditable {
-            errors.append("Category changes need an editable app info (current: \(appInfoState)). Create a new version first ('appitool apple create-version').")
+            errors.append("Category changes need an editable app info (current: \(appInfoState)). Create a new version first ('appitool apple versions create').")
         }
         if (storeLevels.contains(.version) || storeLevels.contains(.review)) && !isVersionEditable {
-            errors.append("Copyright and App Review details need an editable version (\(versionLabel) is not). Create a new version ('appitool apple create-version') or pass --app-version.")
+            errors.append("Copyright and App Review details need an editable version (\(versionLabel) is not). Create a new version ('appitool apple versions create') or pass --app-version.")
         }
 
         for input in inputs {
@@ -219,10 +219,10 @@ enum AppleMetadataPlanner {
         let hasInfoChanges = changes.contains { infoKeys.contains($0.field.key) }
         let versionChangeKeys = Set(changes.map(\.field.key)).subtracting(infoKeys)
         if hasInfoChanges && !isAppInfoEditable {
-            errors.append("Name/subtitle/privacy changes need an editable app info (current: \(appInfoState)). Create a new version first ('appitool apple create-version').")
+            errors.append("Name/subtitle/privacy changes need an editable app info (current: \(appInfoState)). Create a new version first ('appitool apple versions create').")
         }
         if !versionChangeKeys.isEmpty && !isVersionEditable && versionChangeKeys != [AppleMetadataField.promotionalText.rawValue] {
-            errors.append("Version \(versionLabel) is not editable; only promotional_text can change on a live version. Create a new version ('appitool apple create-version') or pass --app-version.")
+            errors.append("Version \(versionLabel) is not editable; only promotional_text can change on a live version. Create a new version ('appitool apple versions create') or pass --app-version.")
         }
 
         guard errors.isEmpty else {

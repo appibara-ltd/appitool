@@ -6,11 +6,11 @@ import Rainbow
 
 struct ApplePruneCertificatesCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
-        commandName: "prune-certificates",
+        commandName: "prune",
         abstract: "Deletes (revokes) all expired certificates from Apple Developer Portal."
     )
 
-    var destructiveCommandDescription: String { "apple prune-certificates" }
+    var destructiveCommandDescription: String { "apple certificates prune" }
 
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions

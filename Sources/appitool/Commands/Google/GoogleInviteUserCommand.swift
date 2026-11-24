@@ -5,7 +5,7 @@ import Rainbow
 
 struct GoogleInviteUserCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "invite-user",
+        commandName: "invite",
         abstract: "Invites a user to the Play Console account, optionally with access to one app."
     )
 
@@ -66,7 +66,7 @@ struct GoogleInviteUserCommand: BaseCommand {
 
 struct GoogleUpdateUserCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "update-user",
+        commandName: "update",
         abstract: "Updates a Play Console user's account-wide permissions and/or access expiration."
     )
 
@@ -86,7 +86,7 @@ struct GoogleUpdateUserCommand: BaseCommand {
         let accountPermissions = try GoogleUserSupport.permissions(permissions, developerLevel: true)
         let expirationTime = try GoogleUserSupport.expiration(expiration)
         if accountPermissions == nil && expirationTime == nil {
-            throw ValidationError("Provide --permissions and/or --expiration. Use grant-access / revoke-access for per-app permissions.")
+            throw ValidationError("Provide --permissions and/or --expiration. Use users grant / users revoke for per-app permissions.")
         }
     }
 

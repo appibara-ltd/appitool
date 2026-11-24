@@ -5,7 +5,7 @@ import Rainbow
 
 struct AppleAddDeviceCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "add-device",
+        commandName: "create",
         abstract: "Registers a new Device on Apple Developer Portal."
     )
 

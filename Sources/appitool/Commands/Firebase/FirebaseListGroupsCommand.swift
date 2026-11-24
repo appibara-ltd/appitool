@@ -5,7 +5,7 @@ import Rainbow
 
 struct FirebaseListGroupsCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-groups",
+        commandName: "list",
         abstract: "Lists tester groups registered in a Firebase project."
     )
 

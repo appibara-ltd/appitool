@@ -9,7 +9,7 @@ import Rainbow
 /// is bumped and the Xcode project is updated to match.
 struct AppleCreateVersionCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "create-version",
+        commandName: "create",
         abstract: "Creates a new App Store version (defaults to the Xcode project version, or the latest App Store version with the patch number bumped)."
     )
 

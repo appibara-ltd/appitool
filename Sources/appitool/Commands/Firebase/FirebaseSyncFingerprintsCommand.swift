@@ -6,7 +6,7 @@ import Rainbow
 /// Registers Play App Signing (and other) certificate fingerprints on a Firebase Android app.
 struct FirebaseSyncFingerprintsCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "sync-fingerprints",
+        commandName: "sync",
         abstract: "Adds the Play App Signing certificate fingerprints (SHA-1 and SHA-256) to a Firebase Android app."
     )
 

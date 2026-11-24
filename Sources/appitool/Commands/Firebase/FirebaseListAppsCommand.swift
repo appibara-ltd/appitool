@@ -6,7 +6,7 @@ import Rainbow
 /// Lists the iOS, Android, and web apps registered in a Firebase project.
 struct FirebaseListAppsCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-apps",
+        commandName: "list",
         abstract: "Lists the iOS, Android, and web apps registered in a Firebase project."
     )
 

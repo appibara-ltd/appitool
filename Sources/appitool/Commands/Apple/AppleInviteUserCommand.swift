@@ -5,7 +5,7 @@ import Rainbow
 
 struct AppleInviteUserCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "invite-user",
+        commandName: "invite",
         abstract: "Invites a new User to join your App Store Connect team."
     )
 

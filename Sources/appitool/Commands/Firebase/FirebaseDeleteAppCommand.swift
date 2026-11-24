@@ -6,11 +6,11 @@ import Rainbow
 /// Removes an app from a Firebase project (restorable for 30 days unless `--immediate`).
 struct FirebaseDeleteAppCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
-        commandName: "delete-app",
+        commandName: "delete",
         abstract: "Removes an app from a Firebase project (restorable for 30 days unless --immediate)."
     )
 
-    var destructiveCommandDescription: String { "firebase delete-app" }
+    var destructiveCommandDescription: String { "firebase apps delete" }
 
     @OptionGroup
     var projectOptions: FirebaseProjectOptions
@@ -100,7 +100,7 @@ struct FirebaseDeleteAppCommand: DestructiveCommand {
         let active = apps.filter { $0.state != "DELETED" }
         if let appId = CLIValues.trimmedNonEmpty(appId) {
             guard let app = active.first(where: { $0.appId == appId }) else {
-                throw CommandError("No app with App ID \(appId) in this Firebase project.", hint: "Run 'appitool firebase list-apps' to see the registered apps.")
+                throw CommandError("No app with App ID \(appId) in this Firebase project.", hint: "Run 'appitool firebase apps list' to see the registered apps.")
             }
             return app
         }
@@ -111,7 +111,7 @@ struct FirebaseDeleteAppCommand: DestructiveCommand {
             return app.displayName == displayName
         }
         guard let app = matches.first else {
-            throw CommandError("No \(platform?.rawValue ?? "") app '\(identifier ?? displayName ?? "")' in this Firebase project.", hint: "Run 'appitool firebase list-apps' to see the registered apps.")
+            throw CommandError("No \(platform?.rawValue ?? "") app '\(identifier ?? displayName ?? "")' in this Firebase project.", hint: "Run 'appitool firebase apps list' to see the registered apps.")
         }
         guard matches.count == 1 else {
             throw CommandError("\(matches.count) apps match '\(identifier ?? displayName ?? "")'.", hint: "Pass --firebase-app-id to choose one.")

@@ -42,6 +42,7 @@
 # Command Structure Conventions
 - Commands partitioned into platform-specific subcommands (e.g., `ios` and `android`) must be grouped into a dedicated subdirectory inside `Sources/appitool/Commands/` named after the root command (e.g., `Commands/Build/` for `BuildCommand.swift`, `BuildIOSCommand.swift`, `BuildAndroidCommand.swift`, and `Commands/Check/` for `CheckCommand.swift`, `CheckIOSCommand.swift`, `CheckAndroidCommand.swift`).
 - Standalone commands without platform subcommands remain directly under `Sources/appitool/Commands/`.
+- Store commands (`apple`, `google`, `firebase`) use `<store> <resource> <action>`: the resource is a plural noun group command and the action is a single verb (e.g. `apple users list`, `google invitations cancel`, `firebase apps create`), never a dashed action name such as `list-users`. Prefer the verbs `list`, `create`, `update`, `delete`, plus resource-specific verbs (`prune`, `disable`, `invite`, `cancel`, `grant`, `revoke`, `sync`, `export`). The same concept uses the same resource and verb in every store (e.g. `invitations list|cancel`). `CommandStructureTests` enforces this.
 
 # Flow Preset Structure Conventions
 - Flow presets are grouped by platform under `Sources/appitool/Flow/Presets/`: `iOS/` (iOS presets + `IOSPresetHelpers.swift`), `Android/` (Android presets + `AndroidPresetHelpers.swift`), and `Shared/` (cross-platform helpers such as `FirebasePresetHelpers.swift`). `FlowPreset.swift` stays at the `Presets/` root.

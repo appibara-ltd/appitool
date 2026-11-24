@@ -6,11 +6,11 @@ import Rainbow
 
 struct ApplePruneProfilesCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
-        commandName: "prune-profiles",
+        commandName: "prune",
         abstract: "Deletes all invalid (and optionally expired) provisioning profiles from Apple Developer Portal."
     )
 
-    var destructiveCommandDescription: String { "apple prune-profiles" }
+    var destructiveCommandDescription: String { "apple profiles prune" }
 
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions

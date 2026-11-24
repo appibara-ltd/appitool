@@ -6,7 +6,7 @@ import Rainbow
 /// Registers an iOS, Android, or web app in a Firebase project (or reports the existing one).
 struct FirebaseAddAppCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "add-app",
+        commandName: "create",
         abstract: "Registers an iOS, Android, or web app in a Firebase project (reports the existing app if already registered)."
     )
 
@@ -31,7 +31,7 @@ struct FirebaseAddAppCommand: BaseCommand {
     @Option(name: .long, help: "iOS only: Apple Developer Team ID.")
     var teamId: String?
 
-    @Option(name: .long, help: "Android only: SHA-1 certificate fingerprint to register (repeatable; e.g. from 'google signing-certs').")
+    @Option(name: .long, help: "Android only: SHA-1 certificate fingerprint to register (repeatable; e.g. from 'google signing-certs list').")
     var sha1: [String] = []
 
     @Option(name: .long, help: "Android only: SHA-256 certificate fingerprint to register (repeatable).")

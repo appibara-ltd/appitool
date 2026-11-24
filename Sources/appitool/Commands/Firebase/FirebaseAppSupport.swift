@@ -51,7 +51,7 @@ enum FirebaseAppSupport {
         guard let app = apps.first(where: { $0.platform == FirebaseAppPlatform.android.rawValue && $0.namespace == packageName && $0.state != "DELETED" }) else {
             throw CommandError(
                 "No Firebase Android app for \(packageName) in project [\(project)].",
-                hint: "Register it with 'appitool firebase add-app -p android --package-name \(packageName)'."
+                hint: "Register it with 'appitool firebase apps create -p android --package-name \(packageName)'."
             )
         }
         return app.appId

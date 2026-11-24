@@ -5,7 +5,7 @@ import Rainbow
 
 struct AppleListDevicesCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-devices",
+        commandName: "list",
         abstract: "Lists Devices registered on Apple Developer Portal."
     )
 

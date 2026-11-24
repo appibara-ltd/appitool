@@ -7,20 +7,20 @@ All `google assets` subcommands (except `types`) accept [`GooglePlayAppOptions`]
 The default local folder is `~/.appitool/assets/<package-name>/google/`. When [`STORE_ASSETS_PATH`](/guide/configuration#store-assets-apple-assets-google-assets) is set, it is `<STORE_ASSETS_PATH>/google/` instead (default paths below then refer to that folder).
 
 > [!NOTE]
-> **CI Guard:** Destructive subcommands (`assets delete`, `delete-user`, `cancel-invitation`, `revoke-access`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
+> **CI Guard:** Destructive subcommands (`assets delete`, `users delete`, `invitations cancel`, `users revoke`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
 
 ## Synopsis
 
 ```bash
-appitool google <subcommand> [options]
+appitool google <resource> <action> [options]
 ```
 
 ## Subcommands Summary
 
 | Domain | Subcommand | Description |
 |:---|:---|:---|
-| **Apps** | `list-apps` | Lists apps accessible with the service account key (package name and Play Console title). |
-| | `signing-certs` | Shows SHA-1 / SHA-256 of Play App Signing certificates (incl. hybrid post-quantum) from Play-generated APKs or local certificate files. |
+| **Apps** | `apps list` | Lists apps accessible with the service account key (package name and Play Console title). |
+| | `signing-certs list` | Shows SHA-1 / SHA-256 of Play App Signing certificates (incl. hybrid post-quantum) from Play-generated APKs or local certificate files. |
 | **Store Visuals (`assets`)** | `assets list` | Lists existing store screenshots and graphic assets by locale and image type. |
 | | `assets upload` | Uploads PNG/JPEG screenshots, icons, feature graphics, or banners and commits an edit. |
 | | `assets download` | Downloads store screenshots and graphics locally to `~/.appitool/assets/<package>/google/` (or `-o`). |
@@ -29,14 +29,14 @@ appitool google <subcommand> [options]
 | **Store Listing Text (`metadata`)** | `metadata list` | Shows title, short/full description, and video per language. |
 | | `metadata download` | Writes listing text to `<locale>/metadata/<field>.txt` files. |
 | | `metadata upload` | Sends changed fields in one edit and commits it. |
-| **Users & Invitations** | `list-users` | Lists developer account users with account and per-app permissions. |
-| | `invite-user` | Invites a user (account permissions and/or access to one app). |
-| | `update-user` | Changes a user's account permissions or access expiration. |
-| | `delete-user` | Removes a user. |
-| | `list-invitations` | Lists pending or expired invitations. |
-| | `cancel-invitation` | Cancels a pending invitation. |
-| | `grant-access` | Gives a user permissions for one app (creates or replaces the grant). |
-| | `revoke-access` | Removes a user's permissions for one app. |
+| **Users** | `users list` | Lists developer account users with account and per-app permissions. |
+| | `users invite` | Invites a user (account permissions and/or access to one app). |
+| | `users update` | Changes a user's account permissions or access expiration. |
+| | `users delete` | Removes a user. |
+| | `users grant` | Gives a user permissions for one app (creates or replaces the grant). |
+| | `users revoke` | Removes a user's permissions for one app. |
+| **Invitations** | `invitations list` | Lists pending or expired invitations. |
+| | `invitations cancel` | Cancels a pending invitation. |
 
 ---
 
@@ -242,7 +242,7 @@ appitool google metadata upload
 
 ## Apps
 
-### `appitool google list-apps`
+### `appitool google apps list`
 
 Lists every app the service account can access, using the Play Developer Reporting API `apps.search` (`GET https://playdeveloperreporting.googleapis.com/v1beta1/apps:search`, all pages). Useful for finding package names (`GOOGLE_PACKAGE_NAME`) and checking that a key works. It does not return Play Console account IDs; no Google Play API exposes those (see [`GOOGLE_PLAY_ACCOUNT_ID`](/guide/configuration)).
 
@@ -255,11 +255,11 @@ Requires the **Google Play Developer Reporting API** to be enabled in the servic
 | `-l, --limit <count>` | Maximum number of apps to show. |
 
 ```bash
-appitool google list-apps
-appitool google list-apps -n kokono
+appitool google apps list
+appitool google apps list -n kokono
 ```
 
-### `appitool google signing-certs`
+### `appitool google signing-certs list`
 
 Shows the SHA-1 and SHA-256 fingerprints of the certificates Play App Signing uses, e.g. for Firebase, Google Sign-In, or `assetlinks.json`. Play Console's certificate download can contain three certificates: `deployment_cert.der` (app signing, RSA), `hybrid_classical_cert.der` (RSA), and `hybrid_pqc_cert.der` (post-quantum ML-DSA); all are covered.
 
@@ -282,10 +282,10 @@ Generated APKs exist for app bundles (AAB) uploaded with Play App Signing, so th
 
 ```bash
 # Fingerprints from Play (latest version code)
-appitool google signing-certs
+appitool google signing-certs list
 
 # Fingerprints of the certificates downloaded from Play Console
-appitool google signing-certs -f ~/Downloads/certificates
+appitool google signing-certs list -f ~/Downloads/certificates
 ```
 
 ---
@@ -298,26 +298,26 @@ All user commands accept `-g, --google-key` (`GOOGLE_KEY`) and `--account-id <id
 
 **Permission values** are comma-separated and case-insensitive, written as `can-see-all-apps` or `CAN_SEE_ALL_APPS`:
 
-- Account-wide (`--permissions` on `invite-user` / `update-user`; the `_GLOBAL` suffix is optional): `can-see-all-apps`, `can-view-financial-data`, `can-manage-permissions`, `can-edit-games`, `can-publish-games`, `can-reply-to-reviews`, `can-manage-public-apks`, `can-manage-track-apks`, `can-manage-track-users`, `can-manage-public-listing`, `can-manage-draft-apps`, `can-create-managed-play-apps`, `can-change-managed-play-setting`, `can-manage-orders`, `can-manage-app-content`, `can-view-non-financial-data`, `can-view-app-quality`, `can-manage-deeplinks`, `can-view-connected-apps`, `can-edit-connected-apps`.
-- Per app (`--app-permissions` on `invite-user`, `--permissions` on `grant-access`): `can-access-app`, `can-view-financial-data`, `can-manage-permissions`, `can-reply-to-reviews`, `can-manage-public-apks`, `can-manage-track-apks`, `can-manage-track-users`, `can-manage-public-listing`, `can-manage-draft-apps`, `can-manage-orders`, `can-manage-app-content`, `can-view-non-financial-data`, `can-view-app-quality`, `can-manage-deeplinks`.
+- Account-wide (`--permissions` on `users invite` / `users update`; the `_GLOBAL` suffix is optional): `can-see-all-apps`, `can-view-financial-data`, `can-manage-permissions`, `can-edit-games`, `can-publish-games`, `can-reply-to-reviews`, `can-manage-public-apks`, `can-manage-track-apks`, `can-manage-track-users`, `can-manage-public-listing`, `can-manage-draft-apps`, `can-create-managed-play-apps`, `can-change-managed-play-setting`, `can-manage-orders`, `can-manage-app-content`, `can-view-non-financial-data`, `can-view-app-quality`, `can-manage-deeplinks`, `can-view-connected-apps`, `can-edit-connected-apps`.
+- Per app (`--app-permissions` on `users invite`, `--permissions` on `users grant`): `can-access-app`, `can-view-financial-data`, `can-manage-permissions`, `can-reply-to-reviews`, `can-manage-public-apks`, `can-manage-track-apks`, `can-manage-track-users`, `can-manage-public-listing`, `can-manage-draft-apps`, `can-manage-orders`, `can-manage-app-content`, `can-view-non-financial-data`, `can-view-app-quality`, `can-manage-deeplinks`.
 
 Some of these values are returned by the live API but missing from Google's API spec; they are accepted as well.
 
 | Command | Options | Notes |
 |:---|:---|:---|
-| `list-users` | `-e, --email`, `-l, --limit` | Users who accepted (state `ACCESS_GRANTED` / `ACCESS_EXPIRED`), with account permissions, expiration, and per-app grants. |
-| `list-invitations` | `-e, --email`, `-l, --limit` | Users in `INVITED` / `INVITATION_EXPIRED` state. |
-| `invite-user` | `-e, --email` (required), `--permissions`, `--package-name` + `--app-permissions`, `--expiration <iso8601>` | At least one of `--permissions` or `--app-permissions` is required; `--package-name` and `--app-permissions` go together. The app grant is created right after the invitation. |
-| `update-user` | `-e, --email` (required), `--permissions`, `--expiration <iso8601>` | Replaces the account-wide permissions and/or sets a new (future) expiration. Per-app permissions use `grant-access` / `revoke-access`. |
-| `delete-user` | `-e, --email` (required) | Removes the user. Destructive (CI-guarded). |
-| `cancel-invitation` | `-e, --email` (required) | Only for users who have not accepted yet; otherwise use `delete-user`. Destructive (CI-guarded). |
-| `grant-access` | `-e, --email` (required), `--package-name` (`GOOGLE_PACKAGE_NAME` / project), `--permissions` (required) | Creates the app grant, or replaces its permissions if the user already has one. The user must exist (invite first). |
-| `revoke-access` | `-e, --email` (required), `--package-name` | Removes the user's grant for that app. Destructive (CI-guarded). |
+| `users list` | `-e, --email`, `-l, --limit` | Users who accepted (state `ACCESS_GRANTED` / `ACCESS_EXPIRED`), with account permissions, expiration, and per-app grants. |
+| `invitations list` | `-e, --email`, `-l, --limit` | Users in `INVITED` / `INVITATION_EXPIRED` state. |
+| `users invite` | `-e, --email` (required), `--permissions`, `--package-name` + `--app-permissions`, `--expiration <iso8601>` | At least one of `--permissions` or `--app-permissions` is required; `--package-name` and `--app-permissions` go together. The app grant is created right after the invitation. |
+| `users update` | `-e, --email` (required), `--permissions`, `--expiration <iso8601>` | Replaces the account-wide permissions and/or sets a new (future) expiration. Per-app permissions use `users grant` / `users revoke`. |
+| `users delete` | `-e, --email` (required) | Removes the user. Destructive (CI-guarded). |
+| `invitations cancel` | `-e, --email` (required) | Only for users who have not accepted yet; otherwise use `users delete`. Destructive (CI-guarded). |
+| `users grant` | `-e, --email` (required), `--package-name` (`GOOGLE_PACKAGE_NAME` / project), `--permissions` (required) | Creates the app grant, or replaces its permissions if the user already has one. The user must exist (invite first). |
+| `users revoke` | `-e, --email` (required), `--package-name` | Removes the user's grant for that app. Destructive (CI-guarded). |
 
 ```bash
-appitool google list-users
-appitool google invite-user -e dev@example.com --package-name com.example.app --app-permissions can-access-app,can-manage-track-apks
-appitool google grant-access -e dev@example.com --permissions can-access-app,can-reply-to-reviews
-appitool google update-user -e dev@example.com --expiration 2027-01-01T00:00:00Z
-appitool google cancel-invitation -e dev@example.com
+appitool google users list
+appitool google users invite -e dev@example.com --package-name com.example.app --app-permissions can-access-app,can-manage-track-apks
+appitool google users grant -e dev@example.com --permissions can-access-app,can-reply-to-reviews
+appitool google users update -e dev@example.com --expiration 2027-01-01T00:00:00Z
+appitool google invitations cancel -e dev@example.com
 ```

@@ -6,7 +6,7 @@ import Rainbow
 
 struct AppleCreateProfileCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "create-profile",
+        commandName: "create",
         abstract: "Creates and downloads a provisioning profile on Apple Developer Portal."
     )
 

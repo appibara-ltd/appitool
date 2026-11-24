@@ -6,7 +6,7 @@ import Rainbow
 
 struct AppleCreateIdentifierCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "create-identifier",
+        commandName: "create",
         abstract: "Registers a new App/Bundle Identifier with optional capabilities on Apple Developer Portal."
     )
 

@@ -5,8 +5,8 @@ import Rainbow
 
 struct GoogleListUsersCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-users",
-        abstract: "Lists users of the Play Console account (accepted access; see list-invitations for pending ones)."
+        commandName: "list",
+        abstract: "Lists users of the Play Console account (accepted access; see invitations list for pending ones)."
     )
 
     @OptionGroup
@@ -38,7 +38,7 @@ struct GoogleListUsersCommand: BaseCommand {
 
 struct GoogleListInvitationsCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-invitations",
+        commandName: "list",
         abstract: "Lists pending (or expired) invitations to the Play Console account."
     )
 

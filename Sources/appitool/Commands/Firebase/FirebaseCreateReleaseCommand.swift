@@ -5,7 +5,7 @@ import Rainbow
 
 struct FirebaseCreateReleaseCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "create-release",
+        commandName: "create",
         abstract: "Uploads an APK, AAB, or IPA binary to Firebase App Distribution, attaches notes, and distributes."
     )
 

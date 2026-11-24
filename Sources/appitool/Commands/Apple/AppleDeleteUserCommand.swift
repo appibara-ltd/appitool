@@ -5,11 +5,11 @@ import Rainbow
 
 struct AppleDeleteUserCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
-        commandName: "delete-user",
+        commandName: "delete",
         abstract: "Removes an active team User from App Store Connect."
     )
 
-    var destructiveCommandDescription: String { "apple delete-user" }
+    var destructiveCommandDescription: String { "apple users delete" }
 
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions

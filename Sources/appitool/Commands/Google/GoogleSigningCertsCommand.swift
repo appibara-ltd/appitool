@@ -6,7 +6,7 @@ import Rainbow
 /// Shows SHA-1 and SHA-256 fingerprints of every certificate Play App Signing uses for a version code.
 struct GoogleSigningCertsCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "signing-certs",
+        commandName: "list",
         abstract: "Shows SHA-1 and SHA-256 of Play App Signing certificates (from Play-generated APKs, or local certificate files with -f)."
     )
 

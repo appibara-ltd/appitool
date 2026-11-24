@@ -127,7 +127,7 @@ App identifiers are resolved the same way by every command: **CLI option → `.e
 
 ### CI Mode & Destructive Command Guard
 
-`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `apple delete-version`, `apple assets delete`, `google assets delete`, `google delete-user`, `google cancel-invitation`, `google revoke-access`, `firebase delete-app`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, `match ios prune`) are skipped as a no-op with a warning and exit code `0`.
+`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple devices disable`, `apple invitations cancel`, `apple versions delete`, `apple assets delete`, `google assets delete`, `google users delete`, `google invitations cancel`, `google users revoke`, `firebase apps delete`, `firebase users delete`, `firebase firestore delete`, `match ios nuke`, `match ios prune`) are skipped as a no-op with a warning and exit code `0`.
 
 | Variable | Description | Notes |
 |:---|:---|:---|

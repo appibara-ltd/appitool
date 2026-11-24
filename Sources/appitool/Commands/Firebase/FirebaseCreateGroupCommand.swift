@@ -5,7 +5,7 @@ import Rainbow
 
 struct FirebaseCreateGroupCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "create-group",
+        commandName: "create",
         abstract: "Creates a new tester group (or retrieves existing if already present)."
     )
 

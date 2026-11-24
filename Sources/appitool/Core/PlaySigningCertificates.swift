@@ -2,7 +2,7 @@ import Foundation
 import GoogleServices
 
 /// Play App Signing certificates of a version code, read from Play-generated APKs.
-/// Shared by `google signing-certs` and `firebase sync-fingerprints`.
+/// Shared by `google signing-certs list` and `firebase fingerprints sync`.
 enum PlaySigningCertificates {
     /// One Play signing key and the certificates read from its smallest generated APK.
     struct Key: Sendable {

@@ -7,18 +7,12 @@ struct GoogleCommand: AsyncParsableCommand {
         commandName: "google",
         abstract: "Manage Google Play Console store visuals and resources.",
         subcommands: [
-            GoogleListAppsCommand.self,
-            GoogleSigningCertsCommand.self,
+            GoogleAppsCommand.self,
+            GoogleSigningCertsGroupCommand.self,
+            GoogleUsersCommand.self,
+            GoogleInvitationsCommand.self,
             GoogleAssetsCommand.self,
             GoogleMetadataCommand.self,
-            GoogleListUsersCommand.self,
-            GoogleInviteUserCommand.self,
-            GoogleUpdateUserCommand.self,
-            GoogleDeleteUserCommand.self,
-            GoogleListInvitationsCommand.self,
-            GoogleCancelInvitationCommand.self,
-            GoogleGrantAccessCommand.self,
-            GoogleRevokeAccessCommand.self,
         ]
     )
 }

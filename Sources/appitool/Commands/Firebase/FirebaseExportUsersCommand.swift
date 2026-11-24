@@ -5,7 +5,7 @@ import Rainbow
 
 struct FirebaseExportUsersCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "export-users",
+        commandName: "export",
         abstract: "Exports all Firebase Authentication users to a CSV file in the current directory."
     )
 

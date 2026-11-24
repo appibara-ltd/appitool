@@ -5,7 +5,7 @@ import Rainbow
 
 struct FirebaseUpdateReleaseCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "update-release",
+        commandName: "update",
         abstract: "Updates an existing release (attaches release notes or distributes to tester groups/emails)."
     )
 

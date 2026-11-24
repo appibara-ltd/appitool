@@ -5,11 +5,11 @@ import Rainbow
 
 struct AppleDeleteCertificateCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
-        commandName: "delete-certificate",
+        commandName: "delete",
         abstract: "Deletes (revokes) a Certificate from Apple Developer Portal."
     )
 
-    var destructiveCommandDescription: String { "apple delete-certificate" }
+    var destructiveCommandDescription: String { "apple certificates delete" }
 
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions

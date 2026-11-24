@@ -5,7 +5,7 @@ import Rainbow
 
 struct AppleListIdentifiersCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-identifiers",
+        commandName: "list",
         abstract: "Lists App/Bundle Identifiers registered on Apple Developer Portal."
     )
 

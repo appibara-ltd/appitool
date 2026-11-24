@@ -5,7 +5,7 @@ import Rainbow
 
 struct FirebaseListUsersCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-users",
+        commandName: "list",
         abstract: "Lists Firebase Authentication users with optional search and anonymous filtering."
     )
 
@@ -119,7 +119,7 @@ struct FirebaseListUsersCommand: BaseCommand {
 
         if let nextToken = currentToken, !nextToken.isEmpty {
             Log("\n⏭️  Next Page Token: ".dim + "\(nextToken)".yellow)
-            Log("   Fetch next page with: ".dim + "appitool firebase list-users -l \(targetLimit) -t \"\(nextToken)\"".cyan)
+            Log("   Fetch next page with: ".dim + "appitool firebase users list -l \(targetLimit) -t \"\(nextToken)\"".cyan)
         }
         Log("")
     }

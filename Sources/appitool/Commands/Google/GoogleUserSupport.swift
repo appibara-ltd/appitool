@@ -80,7 +80,7 @@ enum GoogleUserSupport {
         case 404:
             return "Check --account-id / GOOGLE_PLAY_ACCOUNT_ID and the email address."
         case 409:
-            return "The user or grant already exists; use update-user or grant-access to change it."
+            return "The user or grant already exists; use users update or users grant to change it."
         default:
             return nil
         }

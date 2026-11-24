@@ -6,7 +6,7 @@ import Rainbow
 
 struct AppleListCertificatesCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-certificates",
+        commandName: "list",
         abstract: "Lists Certificates registered on Apple Developer Portal."
     )
 

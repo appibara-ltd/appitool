@@ -6,7 +6,7 @@ import Rainbow
 
 struct AppleCreateCertificateCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "create-certificate",
+        commandName: "create",
         abstract: "Creates a new signing certificate on Apple Developer Portal."
     )
 

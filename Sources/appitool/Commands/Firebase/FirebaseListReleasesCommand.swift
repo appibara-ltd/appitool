@@ -5,7 +5,7 @@ import Rainbow
 
 struct FirebaseListReleasesCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-releases",
+        commandName: "list",
         abstract: "Lists uploaded releases for a Firebase application."
     )
 

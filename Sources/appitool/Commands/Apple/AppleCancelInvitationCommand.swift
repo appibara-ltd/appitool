@@ -5,11 +5,11 @@ import Rainbow
 
 struct AppleCancelInvitationCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
-        commandName: "cancel-invitation",
+        commandName: "cancel",
         abstract: "Cancels a pending User Invitation in App Store Connect."
     )
 
-    var destructiveCommandDescription: String { "apple cancel-invitation" }
+    var destructiveCommandDescription: String { "apple invitations cancel" }
 
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions

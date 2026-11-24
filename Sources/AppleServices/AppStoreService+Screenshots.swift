@@ -113,7 +113,7 @@ extension AppStoreService {
                 }
                 .joined(separator: ", ")
             throw AppStoreServiceError.notFound(
-                "No editable App Store version found on platform '\(platform.rawValue)' (available: \(available.isEmpty ? "none" : available)). Create one with 'appitool apple create-version' or specify --app-version."
+                "No editable App Store version found on platform '\(platform.rawValue)' (available: \(available.isEmpty ? "none" : available)). Create one with 'appitool apple versions create' or specify --app-version."
             )
         }
 

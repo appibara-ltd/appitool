@@ -6,18 +6,11 @@ struct FirebaseCommand: AsyncParsableCommand {
         commandName: "firebase",
         abstract: "Manage Firebase apps, App Distribution releases/groups, Auth users, and Cloud Firestore.",
         subcommands: [
-            FirebaseListAppsCommand.self,
-            FirebaseAddAppCommand.self,
-            FirebaseDeleteAppCommand.self,
-            FirebaseSyncFingerprintsCommand.self,
-            FirebaseListReleasesCommand.self,
-            FirebaseListGroupsCommand.self,
-            FirebaseListUsersCommand.self,
-            FirebaseDeleteUserCommand.self,
-            FirebaseExportUsersCommand.self,
-            FirebaseCreateGroupCommand.self,
-            FirebaseCreateReleaseCommand.self,
-            FirebaseUpdateReleaseCommand.self,
+            FirebaseAppsCommand.self,
+            FirebaseFingerprintsCommand.self,
+            FirebaseReleasesCommand.self,
+            FirebaseGroupsCommand.self,
+            FirebaseUsersCommand.self,
             FirebaseFirestoreCommand.self,
         ]
     )

@@ -5,7 +5,7 @@ import Rainbow
 
 struct AppleUpdateUserCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "update-user",
+        commandName: "update",
         abstract: "Updates an active team User's roles or permissions in App Store Connect."
     )
 

@@ -5,7 +5,7 @@ import Rainbow
 
 struct AppleListProfilesCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-profiles",
+        commandName: "list",
         abstract: "Lists Provisioning Profiles registered on Apple Developer Portal."
     )
 

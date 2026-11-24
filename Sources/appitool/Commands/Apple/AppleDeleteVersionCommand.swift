@@ -7,11 +7,11 @@ import Rainbow
 /// Deletes an editable (not yet released) App Store version. Destructive: skipped in CI mode unless `--no-ci`.
 struct AppleDeleteVersionCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
-        commandName: "delete-version",
+        commandName: "delete",
         abstract: "Deletes an editable App Store version (defaults to the platform's current editable version)."
     )
 
-    var destructiveCommandDescription: String { "apple delete-version" }
+    var destructiveCommandDescription: String { "apple versions delete" }
 
     @OptionGroup
     var app: AppleAssetAppOptions
@@ -45,7 +45,7 @@ struct AppleDeleteVersionCommand: DestructiveCommand {
         do {
             if try await service.deleteAppStoreVersion(id: target.id) {
                 Log("🟢 Deleted App Store version \(label).".green.bold)
-                Log("   Asset Library images stay in the library; a MARKETING_VERSION bumped by 'apple create-version' is not reverted.".dim)
+                Log("   Asset Library images stay in the library; a MARKETING_VERSION bumped by 'apple versions create' is not reverted.".dim)
             } else {
                 Log("🟡 Version \(label) no longer exists (already deleted).".yellow)
             }

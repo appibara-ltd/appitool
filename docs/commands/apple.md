@@ -5,24 +5,26 @@ Direct management of Apple App Store Connect and Apple Developer Portal resource
 All `apple` subcommands accept [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`), falling back to `APPLE_KEY_ID`, `APPLE_ISSUER_ID`, and `APPLE_KEY` in `.env` / environment variables.
 
 > [!NOTE]
-> **CI Guard:** Destructive subcommands (`delete-identifier`, `delete-profile`, `prune-profiles`, `delete-certificate`, `prune-certificates`, `disable-device`, `delete-user`, `cancel-invitation`, `delete-version`, and `assets delete`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
+> **CI Guard:** Destructive subcommands (`identifiers delete`, `profiles delete`, `profiles prune`, `certificates delete`, `certificates prune`, `devices disable`, `users delete`, `invitations cancel`, `versions delete`, and `assets delete`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
 
 ## Synopsis
 
 ```bash
-appitool apple <subcommand> [options]
+appitool apple <resource> <action> [options]
 ```
 
 ## Subcommands Summary
 
 | Category | Subcommands |
 |:---|:---|
-| **Apps** | `list-apps`, `create-version`, `delete-version` |
-| **App / Bundle Identifiers** | `list-identifiers`, `create-identifier`, `delete-identifier`, `list-capabilities` |
-| **Provisioning Profiles** | `list-profiles`, `create-profile`, `delete-profile`, `prune-profiles` |
-| **Certificates** | `list-certificates`, `create-certificate`, `delete-certificate`, `prune-certificates` |
-| **Devices** | `list-devices`, `add-device`, `disable-device` |
-| **Users & Invitations** | `list-users`, `invite-user`, `update-user`, `delete-user`, `list-invitations`, `cancel-invitation` |
+| **Apps** | `apps list` |
+| **Versions** | `versions create`, `versions delete` |
+| **App / Bundle Identifiers** | `identifiers list`, `identifiers create`, `identifiers delete`, `capabilities list` |
+| **Provisioning Profiles** | `profiles list`, `profiles create`, `profiles delete`, `profiles prune` |
+| **Certificates** | `certificates list`, `certificates create`, `certificates delete`, `certificates prune` |
+| **Devices** | `devices list`, `devices create`, `devices disable` |
+| **Users** | `users list`, `users invite`, `users update`, `users delete` |
+| **Invitations** | `invitations list`, `invitations cancel` |
 | **Assets** (screenshots, product page header, search results) | `assets list`, `assets upload`, `assets download`, `assets delete`, `assets types`, `assets specs` |
 | **Metadata** (name, subtitle, description, keywords, promotional text, what's new, URLs) | `metadata list`, `metadata download`, `metadata upload` |
 
@@ -30,7 +32,7 @@ appitool apple <subcommand> [options]
 
 ## Apps
 
-### `appitool apple list-apps`
+### `appitool apple apps list`
 
 Lists applications registered in App Store Connect (name, bundle ID, App ID, SKU, primary locale).
 
@@ -41,11 +43,11 @@ Lists applications registered in App Store Connect (name, bundle ID, App ID, SKU
 | `-l, --limit <count>` | Maximum number of items to return (omit to fetch all). |
 
 ```bash
-appitool apple list-apps
-appitool apple list-apps -b com.example.app
+appitool apple apps list
+appitool apple apps list -b com.example.app
 ```
 
-### `appitool apple create-version`
+### `appitool apple versions create`
 
 Creates a new App Store version (`POST /v1/appStoreVersions`). App Store Connect copies the previous version's texts and screenshots into it, and an editable app info becomes available, so [`apple metadata`](#metadata-appitool-apple-metadata) and [`apple assets`](#assets-appitool-apple-assets) can edit it right away.
 
@@ -70,16 +72,16 @@ Creates a new App Store version (`POST /v1/appStoreVersions`). App Store Connect
 
 ```bash
 # Use the Xcode project version, or bump the latest App Store version
-appitool apple create-version --dry-run
-appitool apple create-version
+appitool apple versions create --dry-run
+appitool apple versions create
 
 # Create an explicit version that is released automatically after approval
-appitool apple create-version --app-version 2.0.0 --release-type after-approval
+appitool apple versions create --app-version 2.0.0 --release-type after-approval
 ```
 
-### `appitool apple delete-version`
+### `appitool apple versions delete`
 
-Deletes an App Store version that is still being prepared (`DELETE /v1/appStoreVersions/{id}`), including its localized texts, screenshots, and App Review details. Asset Library images stay in the library, and a `MARKETING_VERSION` bumped by `create-version` is not reverted. Destructive: skipped in CI mode unless `--no-ci` is passed.
+Deletes an App Store version that is still being prepared (`DELETE /v1/appStoreVersions/{id}`), including its localized texts, screenshots, and App Review details. Asset Library images stay in the library, and a `MARKETING_VERSION` bumped by `versions create` is not reverted. Destructive: skipped in CI mode unless `--no-ci` is passed.
 
 - Without `--app-version`, the platform's editable version is deleted; if there is none, nothing happens.
 - With `--app-version`, that version must exist and be editable; live, in-review, or released versions are refused before calling App Store Connect.
@@ -94,15 +96,15 @@ Deletes an App Store version that is still being prepared (`DELETE /v1/appStoreV
 | `--ci` / `--no-ci` | auto | CI guard (see [`GlobalCIOptions`](/commands/overview#globalcioptions)). |
 
 ```bash
-appitool apple delete-version --dry-run
-appitool apple delete-version --app-version 1.0.9
+appitool apple versions delete --dry-run
+appitool apple versions delete --app-version 1.0.9
 ```
 
 ---
 
 ## Bundle Identifiers & Capabilities
 
-### `appitool apple list-identifiers`
+### `appitool apple identifiers list`
 
 Lists App/Bundle Identifiers registered on Apple Developer Portal.
 
@@ -112,10 +114,10 @@ Lists App/Bundle Identifiers registered on Apple Developer Portal.
 | `-l, --limit <count>` | Maximum number of items to return. |
 
 ```bash
-appitool apple list-identifiers
+appitool apple identifiers list
 ```
 
-### `appitool apple create-identifier`
+### `appitool apple identifiers create`
 
 Registers a new App/Bundle Identifier with optional capabilities on Apple Developer Portal.
 
@@ -127,13 +129,13 @@ Registers a new App/Bundle Identifier with optional capabilities on Apple Develo
 | `--capabilities <list>` | — | Comma-separated capability keys (e.g. `push-notifications,in-app-purchase`). |
 
 ```bash
-appitool apple create-identifier \
+appitool apple identifiers create \
   -b com.example.app \
   -n "Example App" \
   --capabilities "push-notifications,sign-in-with-apple,associated-domains"
 ```
 
-### `appitool apple delete-identifier`
+### `appitool apple identifiers delete`
 
 Deletes an App/Bundle Identifier from Apple Developer Portal. Any provisioning profiles tied to the identifier are invalidated by Apple. Bundle IDs actively linked to an App Store Connect App record cannot be deleted.
 
@@ -142,20 +144,20 @@ Deletes an App/Bundle Identifier from Apple Developer Portal. Any provisioning p
 | `-b, --bundle-id <id>` | App/Bundle identifier to delete (required). |
 
 ```bash
-appitool apple delete-identifier -b com.example.app
+appitool apple identifiers delete -b com.example.app
 ```
 
-### `appitool apple list-capabilities`
+### `appitool apple capabilities list`
 
 - When called **without `-b`**: Lists all 28 supported capability keys and their App Store Connect enum names (no credentials required).
 - When called **with `-b, --bundle-id <id>`**: Queries Apple Developer Portal and lists capabilities enabled for that Bundle ID.
 
 ```bash
 # List all supported capability keys
-appitool apple list-capabilities
+appitool apple capabilities list
 
 # Inspect capabilities enabled for an existing App ID
-appitool apple list-capabilities -b com.example.app
+appitool apple capabilities list -b com.example.app
 ```
 
 #### Supported Capability Keys
@@ -195,7 +197,7 @@ appitool apple list-capabilities -b com.example.app
 
 ## Provisioning Profiles
 
-### `appitool apple list-profiles`
+### `appitool apple profiles list`
 
 Lists provisioning profiles on Apple Developer Portal (name, Portal ID, UUID, type, state, expiration date).
 
@@ -204,7 +206,7 @@ Lists provisioning profiles on Apple Developer Portal (name, Portal ID, UUID, ty
 | `-n, --name <name>` | Filter by provisioning profile name. |
 | `-l, --limit <count>` | Maximum number of items to return. |
 
-### `appitool apple create-profile`
+### `appitool apple profiles create`
 
 Creates and optionally downloads a provisioning profile on Apple Developer Portal.
 
@@ -219,10 +221,10 @@ Creates and optionally downloads a provisioning profile on Apple Developer Porta
 | `-o, --output <path>` | — | File path to save the generated `.mobileprovision` / `.provisionprofile`. |
 
 ```bash
-appitool apple create-profile -b com.example.app -t adhoc -o ./AdHoc_com.example.app.mobileprovision
+appitool apple profiles create -b com.example.app -t adhoc -o ./AdHoc_com.example.app.mobileprovision
 ```
 
-### `appitool apple delete-profile`
+### `appitool apple profiles delete`
 
 Deletes a single provisioning profile by name, UUID, or Portal ID.
 
@@ -232,7 +234,7 @@ Deletes a single provisioning profile by name, UUID, or Portal ID.
 | `--uuid <uuid>` | Provisioning profile UUID. |
 | `--portal-id <id>` | Provisioning profile Portal ID. |
 
-### `appitool apple prune-profiles`
+### `appitool apple profiles prune`
 
 Deletes all `INVALID` (and optionally expired) provisioning profiles from Apple Developer Portal.
 
@@ -242,14 +244,14 @@ Deletes all `INVALID` (and optionally expired) provisioning profiles from Apple 
 | `--include-expired` | `false` | Also prune expired profiles in addition to `INVALID` profiles. |
 
 ```bash
-appitool apple prune-profiles --include-expired --dry-run
+appitool apple profiles prune --include-expired --dry-run
 ```
 
 ---
 
 ## Signing Certificates
 
-### `appitool apple list-certificates`
+### `appitool apple certificates list`
 
 Lists certificates registered on Apple Developer Portal with status (`ACTIVE` / `EXPIRED`), type, serial number, and expiration date.
 
@@ -258,7 +260,7 @@ Lists certificates registered on Apple Developer Portal with status (`ACTIVE` / 
 | `-t, --type <filter>` | Filter by certificate type (`distribution`, `development`, `developer-id`, `ios-distribution`, `ios-development`, `mac-distribution`, `mac-development`). |
 | `-l, --limit <count>` | Maximum number of items to return. |
 
-### `appitool apple create-certificate`
+### `appitool apple certificates create`
 
 Generates an RSA 2048-bit private key and CSR locally, submits it to Apple Developer Portal, and saves the `.cer` and private `.key` (plus optional `.p12` and Keychain import).
 
@@ -275,10 +277,10 @@ Generates an RSA 2048-bit private key and CSR locally, submits it to Apple Devel
 | `--save-to-keychain` | `false` | Import certificate and private key into the `appitool` Keychain and delete `.p12` once verified. |
 
 ```bash
-appitool apple create-certificate -t distribution --p12 --save-to-keychain
+appitool apple certificates create -t distribution --p12 --save-to-keychain
 ```
 
-### `appitool apple delete-certificate`
+### `appitool apple certificates delete`
 
 Revokes/deletes a certificate from Apple Developer Portal by Portal ID, name, or serial number.
 
@@ -288,7 +290,7 @@ Revokes/deletes a certificate from Apple Developer Portal by Portal ID, name, or
 | `-n, --name <name>` | Certificate name. |
 | `--serial-number <serial>` | Certificate serial number. |
 
-### `appitool apple prune-certificates`
+### `appitool apple certificates prune`
 
 Deletes/revokes all expired certificates from Apple Developer Portal.
 
@@ -301,7 +303,7 @@ Deletes/revokes all expired certificates from Apple Developer Portal.
 
 ## Devices
 
-### `appitool apple list-devices`
+### `appitool apple devices list`
 
 Lists registered devices on Apple Developer Portal.
 
@@ -312,7 +314,7 @@ Lists registered devices on Apple Developer Portal.
 | `-n, --name <query>` | Case-insensitive substring filter on device name. |
 | `-l, --limit <count>` | Maximum number of items to return. |
 
-### `appitool apple add-device`
+### `appitool apple devices create`
 
 Registers a new test device on Apple Developer Portal.
 
@@ -323,10 +325,10 @@ Registers a new test device on Apple Developer Portal.
 | `-p, --platform <platform>` | `ios` | Platform: `ios`, `macos`, `universal`. |
 
 ```bash
-appitool apple add-device -n "QA iPhone" --udid 00008130-001234567890001E
+appitool apple devices create -n "QA iPhone" --udid 00008130-001234567890001E
 ```
 
-### `appitool apple disable-device`
+### `appitool apple devices disable`
 
 Disables a registered device by UDID on Apple Developer Portal so it is excluded from new provisioning profiles.
 
@@ -335,7 +337,7 @@ Disables a registered device by UDID on Apple Developer Portal so it is excluded
 | `--udid <udid>` | Device UDID to disable (**Required**). |
 
 ```bash
-appitool apple disable-device --udid 00008130-001234567890001E
+appitool apple devices disable --udid 00008130-001234567890001E
 ```
 
 ---
@@ -347,7 +349,7 @@ appitool apple disable-device --udid 00008130-001234567890001E
 >
 > **Supported Role Keys (comma-separated):** `admin`, `app-manager`, `developer`, `finance`, `sales`, `marketing`, `customer-support` (alias: `support`), `access-to-reports` (alias: `reports`), `create-apps`, `cloud-managed-developer-id`, `cloud-managed-app-distribution`, `generate-individual-keys`.
 
-### `appitool apple list-users`
+### `appitool apple users list`
 
 Lists active team users in App Store Connect.
 
@@ -358,11 +360,11 @@ Lists active team users in App Store Connect.
 | `-l, --limit <count>` | Maximum number of items to return (omit to fetch all). |
 
 ```bash
-appitool apple list-users
-appitool apple list-users -r admin,developer
+appitool apple users list
+appitool apple users list -r admin,developer
 ```
 
-### `appitool apple invite-user`
+### `appitool apple users invite`
 
 Sends an email invitation to add a new user to your App Store Connect team.
 
@@ -377,7 +379,7 @@ Sends an email invitation to add a new user to your App Store Connect team.
 | `--provisioning-allowed` / `--no-provisioning-allowed` | Role default | Allow access to certificates, identifiers, and profiles. |
 
 ```bash
-appitool apple invite-user \
+appitool apple users invite \
   -e dev@example.com \
   --first-name Jane \
   --last-name Doe \
@@ -386,7 +388,7 @@ appitool apple invite-user \
   --provisioning-allowed
 ```
 
-### `appitool apple update-user`
+### `appitool apple users update`
 
 Updates an active team user's roles, app visibility, or provisioning access (identify user with `--id` or `--username`).
 
@@ -400,10 +402,10 @@ Updates an active team user's roles, app visibility, or provisioning access (ide
 | `--provisioning-allowed` / `--no-provisioning-allowed` | Allow or disallow access to certificates, identifiers, and profiles. |
 
 ```bash
-appitool apple update-user --username dev@example.com -r app-manager --all-apps-visible
+appitool apple users update --username dev@example.com -r app-manager --all-apps-visible
 ```
 
-### `appitool apple delete-user`
+### `appitool apple users delete`
 
 Removes an active team user from App Store Connect (identify user with `--id` or `--username`).
 
@@ -413,10 +415,10 @@ Removes an active team user from App Store Connect (identify user with `--id` or
 | `--username <email>` | User username (Apple ID email) to remove. |
 
 ```bash
-appitool apple delete-user --username dev@example.com
+appitool apple users delete --username dev@example.com
 ```
 
-### `appitool apple list-invitations`
+### `appitool apple invitations list`
 
 Lists pending team user invitations in App Store Connect.
 
@@ -427,10 +429,10 @@ Lists pending team user invitations in App Store Connect.
 | `-l, --limit <count>` | Maximum number of items to return (omit to fetch all). |
 
 ```bash
-appitool apple list-invitations
+appitool apple invitations list
 ```
 
-### `appitool apple cancel-invitation`
+### `appitool apple invitations cancel`
 
 Cancels a pending user invitation in App Store Connect (identify invitation with `--id` or `-e, --email`).
 
@@ -440,7 +442,7 @@ Cancels a pending user invitation in App Store Connect (identify invitation with
 | `-e, --email <email>` | Invitee email address whose pending invitation should be canceled. |
 
 ```bash
-appitool apple cancel-invitation -e dev@example.com
+appitool apple invitations cancel -e dev@example.com
 ```
 
 ---

@@ -5,7 +5,7 @@ import Rainbow
 
 struct AppleListInvitationsCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-invitations",
+        commandName: "list",
         abstract: "Lists pending team User Invitations in App Store Connect."
     )
 

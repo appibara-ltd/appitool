@@ -6,7 +6,7 @@ import Rainbow
 /// Lists the Google Play apps the service account (`-g, --google-key` / `GOOGLE_KEY`) can access.
 struct GoogleListAppsCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-apps",
+        commandName: "list",
         abstract: "Lists Google Play apps accessible with the service account key (package name and Play Console title)."
     )
 

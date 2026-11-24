@@ -76,24 +76,24 @@ struct CIGuardTests {
     @Test("Root and subcommand --ci / --no-ci flags parse cleanly in any position with last-wins exclusivity")
     func cliFlagPositionAndPrecedence() throws {
         let prefix = try #require(
-            try appitool.parseAsRoot(["--ci", "apple", "delete-user", "--username", "a@b.com"]) as? AppleDeleteUserCommand
+            try appitool.parseAsRoot(["--ci", "apple", "users", "delete", "--username", "a@b.com"]) as? AppleDeleteUserCommand
         )
         #expect(prefix.ciFlagOverride == true)
         #expect(prefix.isDestructive == true)
-        #expect(prefix.destructiveCommandDescription == "apple delete-user")
+        #expect(prefix.destructiveCommandDescription == "apple users delete")
 
         let suffix = try #require(
-            try appitool.parseAsRoot(["apple", "delete-user", "--username", "a@b.com", "--ci"]) as? AppleDeleteUserCommand
+            try appitool.parseAsRoot(["apple", "users", "delete", "--username", "a@b.com", "--ci"]) as? AppleDeleteUserCommand
         )
         #expect(suffix.ciFlagOverride == true)
 
         let overridden = try #require(
-            try appitool.parseAsRoot(["--ci", "apple", "delete-user", "--username", "a@b.com", "--no-ci"]) as? AppleDeleteUserCommand
+            try appitool.parseAsRoot(["--ci", "apple", "users", "delete", "--username", "a@b.com", "--no-ci"]) as? AppleDeleteUserCommand
         )
         #expect(overridden.ciFlagOverride == false)
 
         let directSubcommand = try #require(
-            try AppleCommand.parseAsRoot(["delete-user", "--username", "a@b.com", "--ci"]) as? AppleDeleteUserCommand
+            try AppleCommand.parseAsRoot(["users", "delete", "--username", "a@b.com", "--ci"]) as? AppleDeleteUserCommand
         )
         #expect(directSubcommand.ciFlagOverride == true)
     }
@@ -101,17 +101,17 @@ struct CIGuardTests {
     @Test("All 12 always-destructive commands respect --ci and --no-ci flags")
     func allAlwaysDestructiveCommandsRespectCIGuard() throws {
         let cases: [([String], String)] = [
-            (["apple", "delete-identifier", "-b", "com.example.app"], "apple delete-identifier"),
-            (["apple", "delete-profile", "-n", "TestProfile"], "apple delete-profile"),
-            (["apple", "prune-profiles"], "apple prune-profiles"),
-            (["apple", "delete-certificate", "-n", "TestCert"], "apple delete-certificate"),
-            (["apple", "prune-certificates"], "apple prune-certificates"),
-            (["apple", "disable-device", "--udid", "00008020-000000000000002E"], "apple disable-device"),
-            (["apple", "delete-user", "--username", "a@b.com"], "apple delete-user"),
-            (["apple", "cancel-invitation", "--id", "inv-1"], "apple cancel-invitation"),
+            (["apple", "identifiers", "delete", "-b", "com.example.app"], "apple identifiers delete"),
+            (["apple", "profiles", "delete", "-n", "TestProfile"], "apple profiles delete"),
+            (["apple", "profiles", "prune"], "apple profiles prune"),
+            (["apple", "certificates", "delete", "-n", "TestCert"], "apple certificates delete"),
+            (["apple", "certificates", "prune"], "apple certificates prune"),
+            (["apple", "devices", "disable", "--udid", "00008020-000000000000002E"], "apple devices disable"),
+            (["apple", "users", "delete", "--username", "a@b.com"], "apple users delete"),
+            (["apple", "invitations", "cancel", "--id", "inv-1"], "apple invitations cancel"),
             (["apple", "assets", "delete", "--id", "ss-1"], "apple assets delete"),
             (["google", "assets", "delete", "--locale", "en-US", "-t", "phone", "--all"], "google assets delete"),
-            (["firebase", "delete-user", "--uid", "uid-1"], "firebase delete-user"),
+            (["firebase", "users", "delete", "--uid", "uid-1"], "firebase users delete"),
             (["firebase", "firestore", "delete", "users/alice"], "firebase firestore delete"),
         ]
 
@@ -197,7 +197,7 @@ struct CIGuardTests {
         _ = try appitool.parseAsRoot(["status", "--ci"])
         _ = try appitool.parseAsRoot(["--ci", "clean", "--dry-run"])
 
-        let listUsers = try #require(try appitool.parseAsRoot(["--ci", "apple", "list-users"]) as? AppleListUsersCommand)
+        let listUsers = try #require(try appitool.parseAsRoot(["--ci", "apple", "users", "list"]) as? AppleListUsersCommand)
         #expect(listUsers.isDestructive == false)
         #expect(listUsers.ciSkipResolution(environment: ["CI": "true"]) == nil)
 
@@ -218,13 +218,13 @@ struct CIGuardTests {
     @Test("Destructive commands return cleanly without credentials when --ci is active")
     func destructiveCommandsSkipCleanlyAtRuntime() async throws {
         let commands: [[String]] = [
-            ["--ci", "apple", "delete-user", "--username", "a@b.com"],
-            ["--ci", "apple", "delete-identifier", "--bundle-id", "com.example.app"],
+            ["--ci", "apple", "users", "delete", "--username", "a@b.com"],
+            ["--ci", "apple", "identifiers", "delete", "--bundle-id", "com.example.app"],
             ["--ci", "apple", "assets", "delete", "--id", "ss-1"],
             ["--ci", "google", "assets", "delete", "--locale", "en-US", "-t", "phone", "--all"],
             ["--ci", "match", "ios", "nuke"],
             ["--ci", "match", "ios", "prune", "--all"],
-            ["--ci", "firebase", "delete-user", "--uid", "uid-1"],
+            ["--ci", "firebase", "users", "delete", "--uid", "uid-1"],
             ["--ci", "firebase", "firestore", "delete", "users/alice"],
         ]
 

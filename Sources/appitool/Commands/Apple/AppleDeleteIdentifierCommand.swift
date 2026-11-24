@@ -5,11 +5,11 @@ import Rainbow
 
 struct AppleDeleteIdentifierCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
-        commandName: "delete-identifier",
+        commandName: "delete",
         abstract: "Deletes an App/Bundle Identifier from Apple Developer Portal."
     )
 
-    var destructiveCommandDescription: String { "apple delete-identifier" }
+    var destructiveCommandDescription: String { "apple identifiers delete" }
 
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions

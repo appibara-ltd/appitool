@@ -5,11 +5,11 @@ import Rainbow
 
 struct AppleDisableDeviceCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
-        commandName: "disable-device",
+        commandName: "disable",
         abstract: "Disables a registered Device by UDID on Apple Developer Portal."
     )
 
-    var destructiveCommandDescription: String { "apple disable-device" }
+    var destructiveCommandDescription: String { "apple devices disable" }
 
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions

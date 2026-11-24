@@ -3,30 +3,30 @@
 Manages Firebase apps (iOS, Android, web), App Distribution releases and tester groups, Firebase Authentication user accounts, and Cloud Firestore collections and documents.
 
 > [!NOTE]
-> **CI Guard:** Destructive subcommands (`delete-app`, `delete-user`, and `firestore delete`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
+> **CI Guard:** Destructive subcommands (`apps delete`, `users delete`, and `firestore delete`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
 
 ## Synopsis
 
 ```bash
-appitool firebase <subcommand> [options]
+appitool firebase <resource> <action> [options]
 ```
 
 ## Subcommands Summary
 
 | Domain | Subcommand | Description |
 |:---|:---|:---|
-| **Apps** | `list-apps` | Lists the iOS, Android, and web apps registered in a Firebase project. |
-| | `add-app` | Registers an iOS, Android, or web app (reports the existing app if already registered). |
-| | `delete-app` | Removes an app (restorable for 30 days unless `--immediate`). |
-| | `sync-fingerprints` | Adds the Play App Signing SHA-1/SHA-256 fingerprints to a Firebase Android app. |
-| **App Distribution** | `list-releases` | Lists uploaded releases for a Firebase App ID. |
-| | `create-release` | Uploads an `.apk`, `.aab`, or `.ipa` binary, attaches notes, and distributes to groups/testers. |
-| | `update-release` | Updates release notes or distributes an existing release to tester groups/emails. |
-| | `list-groups` | Lists tester groups registered in a Firebase project. |
-| | `create-group` | Creates a new tester group or retrieves an existing one by alias. |
-| **Authentication** | `list-users` | Lists Firebase Auth users with search, anonymous filter, and pagination. |
-| | `delete-user` | Deletes user(s) by UID, email, or bulk-deletes all anonymous users. |
-| | `export-users` | Exports Firebase Auth users to a CSV file. |
+| **Apps** | `apps list` | Lists the iOS, Android, and web apps registered in a Firebase project. |
+| | `apps create` | Registers an iOS, Android, or web app (reports the existing app if already registered). |
+| | `apps delete` | Removes an app (restorable for 30 days unless `--immediate`). |
+| | `fingerprints sync` | Adds the Play App Signing SHA-1/SHA-256 fingerprints to a Firebase Android app. |
+| **App Distribution** | `releases list` | Lists uploaded releases for a Firebase App ID. |
+| | `releases create` | Uploads an `.apk`, `.aab`, or `.ipa` binary, attaches notes, and distributes to groups/testers. |
+| | `releases update` | Updates release notes or distributes an existing release to tester groups/emails. |
+| | `groups list` | Lists tester groups registered in a Firebase project. |
+| | `groups create` | Creates a new tester group or retrieves an existing one by alias. |
+| **Authentication** | `users list` | Lists Firebase Auth users with search, anonymous filter, and pagination. |
+| | `users delete` | Deletes user(s) by UID, email, or bulk-deletes all anonymous users. |
+| | `users export` | Exports Firebase Auth users to a CSV file. |
 | **Cloud Firestore** | `firestore collections` | Lists root collection IDs or subcollections under a document path. |
 | | `firestore list` | Lists documents in a Firestore collection. |
 | | `firestore get` | Fetches a single Firestore document by path. |
@@ -40,7 +40,7 @@ appitool firebase <subcommand> [options]
 
 Uses the Firebase Management API (`projects.searchApps`, `projects.{iosApps|androidApps|webApps}.create` / `.remove`, and `projects.androidApps.sha`). The service account needs a role that can manage Firebase apps in the project (e.g. Firebase Admin).
 
-### `appitool firebase list-apps`
+### `appitool firebase apps list`
 
 Uses [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `--project`).
 
@@ -52,10 +52,10 @@ Lists every app of the project grouped by platform, with display name, bundle ID
 | `--show-deleted` | `false` | Also list apps deleted within the last 30 days. |
 
 ```bash
-appitool firebase list-apps -p ios
+appitool firebase apps list -p ios
 ```
 
-### `appitool firebase add-app`
+### `appitool firebase apps create`
 
 Uses [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions).
 
@@ -73,12 +73,12 @@ Registers an app in the project and waits for Firebase to finish creating it, th
 | `--sha256 <hex>` | — | SHA-256 certificate fingerprint to register, colons optional (`-p android` only; repeatable). |
 
 ```bash
-appitool firebase add-app -p ios -n "My App"
-appitool firebase add-app -p android --package-name com.example.app --sha1 16:00:71:...
-appitool firebase add-app -p web -n "My Web App"
+appitool firebase apps create -p ios -n "My App"
+appitool firebase apps create -p android --package-name com.example.app --sha1 16:00:71:...
+appitool firebase apps create -p web -n "My Web App"
 ```
 
-### `appitool firebase delete-app`
+### `appitool firebase apps delete`
 
 Uses [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions) and [`GlobalCIOptions`](/commands/overview#globalcioptions) (skipped in CI unless `--no-ci`).
 
@@ -95,17 +95,17 @@ Removes an app from the project. By default the removal can be undone in the Fir
 | `--dry-run` | `false` | Validate the removal with Firebase without removing the app. |
 
 ```bash
-appitool firebase delete-app -p android --package-name com.example.app --dry-run
-appitool firebase delete-app --firebase-app-id 1:123456789:ios:abc123
+appitool firebase apps delete -p android --package-name com.example.app --dry-run
+appitool firebase apps delete --firebase-app-id 1:123456789:ios:abc123
 ```
 
-### `appitool firebase sync-fingerprints`
+### `appitool firebase fingerprints sync`
 
 Uses [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions). The same service account key (`-g, --google-key` / `GOOGLE_KEY`) is used for Google Play and Firebase, so it needs release access to the app in Play Console and a Firebase role that can manage apps.
 
 Registers certificate fingerprints on a Firebase Android app (needed for Google Sign-In, Phone Auth, Dynamic/App Links, etc.):
 
-1. Reads the Play App Signing certificates exactly like [`google signing-certs`](/commands/google#appitool-google-signing-certs) — the deployment certificate and the hybrid classical + post-quantum certificates — and takes the SHA-1 and SHA-256 of each. If an APK cannot be read, only the API's SHA-256 is used for that key.
+1. Reads the Play App Signing certificates exactly like [`google signing-certs list`](/commands/google#appitool-google-signing-certs-list) — the deployment certificate and the hybrid classical + post-quantum certificates — and takes the SHA-1 and SHA-256 of each. If an APK cannot be read, only the API's SHA-256 is used for that key.
 2. Adds certificates from `-f, --file` (e.g. your upload or debug certificate) and fingerprints from `--sha1` / `--sha256`.
 3. Compares with the app's registered fingerprints and adds the missing ones. Existing fingerprints are kept unless `--replace` is passed.
 
@@ -125,10 +125,10 @@ The Firebase app is `--firebase-app-id`, else `FIREBASE_ANDROID_APP_ID`, else th
 
 ```bash
 # Add the Play App Signing fingerprints (deployment + hybrid)
-appitool firebase sync-fingerprints
+appitool firebase fingerprints sync
 
 # Also register the upload certificate, preview first
-appitool firebase sync-fingerprints -f upload_cert.der --dry-run
+appitool firebase fingerprints sync -f upload_cert.der --dry-run
 ```
 
 ---
@@ -137,7 +137,7 @@ appitool firebase sync-fingerprints -f upload_cert.der --dry-run
 
 All three release subcommands use [`FirebaseCredentialsOptions`](/commands/overview#firebasecredentialsoptions) (`--firebase-app-id`, `-p, --platform`, `-g, --google-key`, `--project`).
 
-### `appitool firebase list-releases`
+### `appitool firebase releases list`
 
 Lists uploaded releases for a Firebase application (version, build, creation timestamp, release notes, and console URI).
 
@@ -147,10 +147,10 @@ Lists uploaded releases for a Firebase application (version, build, creation tim
 | `--order-by <expr>` | — | Ordering expression (e.g. `'createTime desc'`). |
 
 ```bash
-appitool firebase list-releases --platform ios -l 10
+appitool firebase releases list --platform ios -l 10
 ```
 
-### `appitool firebase create-release`
+### `appitool firebase releases create`
 
 Uploads an `.apk`, `.aab`, or `.ipa` binary to Firebase App Distribution, waits for processing, optionally attaches release notes, and distributes to tester groups/emails.
 
@@ -162,14 +162,14 @@ Uploads an `.apk`, `.aab`, or `.ipa` binary to Firebase App Distribution, waits 
 | `--tester-emails <emails>` | Comma-separated tester email addresses. |
 
 ```bash
-appitool firebase create-release \
+appitool firebase releases create \
   --platform android \
   --binary ./app-release.apk \
   --release-notes "QA build #42" \
   --test-groups "internal,qa"
 ```
 
-### `appitool firebase update-release`
+### `appitool firebase releases update`
 
 Updates an existing Firebase App Distribution release by attaching new release notes and/or distributing to tester groups or emails.
 
@@ -181,14 +181,14 @@ Updates an existing Firebase App Distribution release by attaching new release n
 | `--tester-emails <emails>` | Comma-separated tester emails to distribute to. |
 
 ```bash
-appitool firebase update-release \
+appitool firebase releases update \
   --platform ios \
   --release-id 1a2b3c4d5e \
   --release-notes "Updated notes" \
   --test-groups "internal"
 ```
 
-### `appitool firebase list-groups`
+### `appitool firebase groups list`
 
 Uses [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `--project`).
 
@@ -198,7 +198,7 @@ Lists tester groups registered in a Firebase project with alias, tester count, a
 |:---|:---|:---|
 | `-l, --limit <count>` | `25` | Maximum number of groups to return (`1–1000`). |
 
-### `appitool firebase create-group`
+### `appitool firebase groups create`
 
 Uses [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions).
 
@@ -210,7 +210,7 @@ Creates a new tester group (or returns the existing group if the alias already e
 | `-n, --name <display>` | `<alias>` | Human-readable display name (e.g. `'Internal Testers'`). |
 
 ```bash
-appitool firebase create-group --alias qa-team -n "QA Team"
+appitool firebase groups create --alias qa-team -n "QA Team"
 ```
 
 ---
@@ -219,7 +219,7 @@ appitool firebase create-group --alias qa-team -n "QA Team"
 
 All user management subcommands use [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `--project`).
 
-### `appitool firebase list-users`
+### `appitool firebase users list`
 
 Lists Firebase Authentication users with optional exact/partial search by email or UID, anonymous filtering, and pagination token support.
 
@@ -232,13 +232,13 @@ Lists Firebase Authentication users with optional exact/partial search by email 
 
 ```bash
 # List up to 50 non-anonymous users
-appitool firebase list-users -l 50 --anonymous exclude
+appitool firebase users list -l 50 --anonymous exclude
 
 # Search for a user by email
-appitool firebase list-users --search user@example.com
+appitool firebase users list --search user@example.com
 ```
 
-### `appitool firebase delete-user`
+### `appitool firebase users delete`
 
 Deletes Firebase Authentication user(s) by UID, by email lookup, or deletes all anonymous accounts in batches of 500.
 
@@ -251,13 +251,13 @@ Deletes Firebase Authentication user(s) by UID, by email lookup, or deletes all 
 
 ```bash
 # Preview bulk anonymous user cleanup
-appitool firebase delete-user --anonymous --dry-run
+appitool firebase users delete --anonymous --dry-run
 
 # Delete a specific user by email
-appitool firebase delete-user -e tester@example.com
+appitool firebase users delete -e tester@example.com
 ```
 
-### `appitool firebase export-users`
+### `appitool firebase users export`
 
 Exports all Firebase Authentication users to a UTF-8 CSV file with columns:
 `uid,email,email_verified,display_name,phone_number,photo_url,is_anonymous,disabled,providers,created_at,last_login_at`.
@@ -268,7 +268,7 @@ Exports all Firebase Authentication users to a UTF-8 CSV file with columns:
 | `-o, --output <path>` | `firebase_users_<project>.csv` | Output CSV filename or path. |
 
 ```bash
-appitool firebase export-users --anonymous exclude -o ./exports/users.csv
+appitool firebase users export --anonymous exclude -o ./exports/users.csv
 ```
 
 ---

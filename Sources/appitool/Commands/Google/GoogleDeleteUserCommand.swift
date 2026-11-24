@@ -5,11 +5,11 @@ import Rainbow
 
 struct GoogleDeleteUserCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
-        commandName: "delete-user",
+        commandName: "delete",
         abstract: "Removes a user from the Play Console account."
     )
 
-    var destructiveCommandDescription: String { "google delete-user" }
+    var destructiveCommandDescription: String { "google users delete" }
 
     @OptionGroup
     var account: GooglePlayAccountOptions
@@ -33,11 +33,11 @@ struct GoogleDeleteUserCommand: DestructiveCommand {
 
 struct GoogleCancelInvitationCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
-        commandName: "cancel-invitation",
+        commandName: "cancel",
         abstract: "Cancels a pending Play Console invitation."
     )
 
-    var destructiveCommandDescription: String { "google cancel-invitation" }
+    var destructiveCommandDescription: String { "google invitations cancel" }
 
     @OptionGroup
     var account: GooglePlayAccountOptions
@@ -56,7 +56,7 @@ struct GoogleCancelInvitationCommand: DestructiveCommand {
             throw CommandError("No invitation found for \(email).")
         }
         guard user.isInvitation else {
-            throw CommandError("\(email) has already accepted the invitation [\(user.accessState ?? "-")]; use delete-user to remove the user.")
+            throw CommandError("\(email) has already accepted the invitation [\(user.accessState ?? "-")]; use 'google users delete' to remove the user.")
         }
         try await GoogleUserSupport.run("cancel the invitation for \(email)") {
             try await service.deleteUser(developerId: accountId, email: email)
@@ -67,7 +67,7 @@ struct GoogleCancelInvitationCommand: DestructiveCommand {
 
 struct GoogleGrantAccessCommand: BaseCommand {
     static let configuration = CommandConfiguration(
-        commandName: "grant-access",
+        commandName: "grant",
         abstract: "Gives a Play Console user permissions for one app (creates or replaces the app grant)."
     )
 
@@ -97,7 +97,7 @@ struct GoogleGrantAccessCommand: BaseCommand {
 
         let users = try await GoogleUserSupport.run("list users") { try await service.listUsers(developerId: accountId) }
         guard let user = GoogleUserSupport.findUser(users, email: email) else {
-            throw CommandError("\(email) is not a user of Play Console account \(accountId).", hint: "Invite them first with 'appitool google invite-user'.")
+            throw CommandError("\(email) is not a user of Play Console account \(accountId).", hint: "Invite them first with 'appitool google users invite'.")
         }
         let hasGrant = (user.grants ?? []).contains { $0.packageName == package }
         if hasGrant {
@@ -115,11 +115,11 @@ struct GoogleGrantAccessCommand: BaseCommand {
 
 struct GoogleRevokeAccessCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
-        commandName: "revoke-access",
+        commandName: "revoke",
         abstract: "Removes a Play Console user's permissions for one app."
     )
 
-    var destructiveCommandDescription: String { "google revoke-access" }
+    var destructiveCommandDescription: String { "google users revoke" }
 
     @OptionGroup
     var account: GooglePlayAccountOptions

@@ -177,17 +177,17 @@ import ArgumentParser
         ["match", "android", "--store-password", "secret"],
         ["match", "android", "--add", "./release.keystore"],
         ["match", "ios", "--app-identifiers", "com.example.app"],
-        ["apple", "create-identifier", "--app-identifier", "com.example.app"],
-        ["apple", "delete-identifier", "--app-identifier", "com.example.app"],
+        ["apple", "identifiers", "create", "--app-identifier", "com.example.app"],
+        ["apple", "identifiers", "delete", "--app-identifier", "com.example.app"],
         ["match", "ios", "-A"],
         ["notes", "-p", "v"],
-        ["apple", "prune-profiles", "-d"],
+        ["apple", "profiles", "prune", "-d"],
         ["apple", "assets", "upload", "--no-wait"],
         // Shorthands removed by the global short-flag scheme.
-        ["apple", "list-identifiers", "-i", "com.example.app"],
-        ["apple", "list-identifiers", "--identifier", "com.example.app"],
-        ["apple", "delete-user", "-u", "a@b.com"],
-        ["apple", "update-user", "-v", "com.example.app"],
+        ["apple", "identifiers", "list", "-i", "com.example.app"],
+        ["apple", "identifiers", "list", "--identifier", "com.example.app"],
+        ["apple", "users", "delete", "-u", "a@b.com"],
+        ["apple", "users", "update", "-v", "com.example.app"],
         ["apple", "assets", "list", "-l", "en-US"],
         ["apple", "assets", "list", "-v", "1.0.0"],
         ["apple", "assets", "upload", "-r"],
@@ -228,7 +228,7 @@ import ArgumentParser
     #expect(matchIOS.identifiers == "com.example.app,com.example.app.widget")
 
     let deleteIdentifier = try #require(
-        try appitool.parseAsRoot(["apple", "delete-identifier", "-b", "com.example.app"]) as? AppleDeleteIdentifierCommand
+        try appitool.parseAsRoot(["apple", "identifiers", "delete", "-b", "com.example.app"]) as? AppleDeleteIdentifierCommand
     )
     #expect(deleteIdentifier.bundleId == "com.example.app")
 
@@ -239,7 +239,7 @@ import ArgumentParser
     #expect(kokono.e2e == "KEY")
 
     let listIdentifiers = try #require(
-        try appitool.parseAsRoot(["apple", "list-identifiers", "-b", "com.example.app", "-l", "5"]) as? AppleListIdentifiersCommand
+        try appitool.parseAsRoot(["apple", "identifiers", "list", "-b", "com.example.app", "-l", "5"]) as? AppleListIdentifiersCommand
     )
     #expect(listIdentifiers.bundleId == "com.example.app")
     #expect(listIdentifiers.limit == 5)
