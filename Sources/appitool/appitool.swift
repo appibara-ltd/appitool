@@ -6,7 +6,7 @@ struct appitool: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "appitool",
         abstract: "A unified CLI utility for Apple App Store Connect and Google Play operations.",
-        version: "0.10.3",
+        version: "0.10.4",
         subcommands: [
             StatusCommand.self,
             BuildCommand.self,
