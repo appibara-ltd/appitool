@@ -110,15 +110,38 @@ package enum AppitoolPaths {
             .appendingPathComponent("\(packageName).keystore")
     }
 
-    /// Resolves the centralized screenshots root directory (`~/.appitool/screenshots/`).
-    package static var screenshotsRootDirectory: URL {
+    /// Resolves the centralized store assets root directory (`~/.appitool/assets/`).
+    package static var assetsRootDirectory: URL {
+        rootDirectory.appendingPathComponent("assets")
+    }
+
+    /// Pre-`assets` location of downloaded store assets (`~/.appitool/screenshots/`); only `clean --assets` uses it.
+    package static var legacyScreenshotsRootDirectory: URL {
         rootDirectory.appendingPathComponent("screenshots")
     }
 
-    /// Resolves the centralized per-project store screenshots directory:
-    /// `~/.appitool/screenshots/<project>/<store>/`
-    package static func screenshotsDirectory(project: String, store: String) -> URL {
-        screenshotsRootDirectory
+    /// Environment variable overriding where store assets are downloaded to and uploaded from.
+    package static let storeAssetsPathKey = "STORE_ASSETS_PATH"
+
+    /// Custom store assets root from `STORE_ASSETS_PATH` (absolute, `~`-prefixed, or relative to the current
+    /// directory), or `nil` when the variable is unset or empty.
+    package static func customStoreAssetsRoot(environmentValue: String? = EnvLoader.value(for: storeAssetsPathKey)) -> URL? {
+        guard let raw = CLIValues.trimmedNonEmpty(environmentValue) else { return nil }
+        return ScreenshotFileResolver.expandPath(raw)
+    }
+
+    /// Resolves the per-project store assets directory:
+    /// - `STORE_ASSETS_PATH` set: `<STORE_ASSETS_PATH>/<store>/` (the path is project-specific, so no project folder)
+    /// - otherwise: `~/.appitool/assets/<project>/<store>/`
+    package static func assetsDirectory(
+        project: String,
+        store: String,
+        customRoot: URL? = customStoreAssetsRoot()
+    ) -> URL {
+        if let customRoot {
+            return customRoot.appendingPathComponent(sanitizeSegment(store))
+        }
+        return assetsRootDirectory
             .appendingPathComponent(sanitizeSegment(project))
             .appendingPathComponent(sanitizeSegment(store))
     }

@@ -109,8 +109,8 @@ struct CIGuardTests {
             (["apple", "disable-device", "--udid", "00008020-000000000000002E"], "apple disable-device"),
             (["apple", "delete-user", "--username", "a@b.com"], "apple delete-user"),
             (["apple", "cancel-invitation", "--id", "inv-1"], "apple cancel-invitation"),
-            (["apple", "screenshots", "delete", "--id", "ss-1"], "apple screenshots delete"),
-            (["google", "screenshots", "delete", "--locale", "en-US", "-t", "phone", "--all"], "google screenshots delete"),
+            (["apple", "assets", "delete", "--id", "ss-1"], "apple assets delete"),
+            (["google", "assets", "delete", "--locale", "en-US", "-t", "phone", "--all"], "google assets delete"),
             (["firebase", "delete-user", "--uid", "uid-1"], "firebase delete-user"),
             (["firebase", "firestore", "delete", "users/alice"], "firebase firestore delete"),
         ]
@@ -220,8 +220,8 @@ struct CIGuardTests {
         let commands: [[String]] = [
             ["--ci", "apple", "delete-user", "--username", "a@b.com"],
             ["--ci", "apple", "delete-identifier", "--bundle-id", "com.example.app"],
-            ["--ci", "apple", "screenshots", "delete", "--id", "ss-1"],
-            ["--ci", "google", "screenshots", "delete", "--locale", "en-US", "-t", "phone", "--all"],
+            ["--ci", "apple", "assets", "delete", "--id", "ss-1"],
+            ["--ci", "google", "assets", "delete", "--locale", "en-US", "-t", "phone", "--all"],
             ["--ci", "match", "ios", "nuke"],
             ["--ci", "match", "ios", "prune", "--all"],
             ["--ci", "firebase", "delete-user", "--uid", "uid-1"],

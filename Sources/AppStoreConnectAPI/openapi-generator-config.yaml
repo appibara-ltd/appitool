@@ -29,8 +29,14 @@ filter:
     - /v1/userInvitations/{id}
     - /v1/apps/{id}/appStoreVersions
     - /v1/appStoreVersions/{id}/appStoreVersionLocalizations
-    - /v1/appStoreVersionLocalizations/{id}/appScreenshotSets
-    - /v1/appScreenshotSets
-    - /v1/appScreenshotSets/{id}/appScreenshots
-    - /v1/appScreenshots
-    - /v1/appScreenshots/{id}
+    - /v1/apps/{id}/assetLibrary
+    - /v1/appAssetLibraryImages
+    - /v1/appAssetLibraryImages/{id}
+    - /v1/appAssetLibraryPlacements
+    - /v1/appAssetLibraryPlacements/{id}
+    - /v1/appAssetLibraryPlacementOrderingRequests
+    - /v1/appStoreVersionLocalizations/{id}/placements
+    - /v1/appAssetLibraryRefData
+  # Not referenced by any generated path; kept for screenshot display type parsing (AppleTypeMapper).
+  schemas:
+    - ScreenshotDisplayType

@@ -28,7 +28,7 @@ struct AppleCommand: AsyncParsableCommand {
             AppleDeleteUserCommand.self,
             AppleListInvitationsCommand.self,
             AppleCancelInvitationCommand.self,
-            AppleScreenshotsCommand.self,
+            AppleAssetsCommand.self,
         ]
     )
 }

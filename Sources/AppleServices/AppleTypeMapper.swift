@@ -525,7 +525,7 @@ package struct AppleTypeMapper: Sendable {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             throw AppStoreServiceError.invalidResponse(
-                "Screenshot display type cannot be empty. Run 'appitool apple screenshots types' to see supported values."
+                "Screenshot display type cannot be empty. Run 'appitool apple assets types' to see supported values."
             )
         }
 
@@ -552,7 +552,7 @@ package struct AppleTypeMapper: Sendable {
         }
 
         throw AppStoreServiceError.invalidResponse(
-            "Unsupported screenshot display type '\(raw)'. Run 'appitool apple screenshots types' to see supported values."
+            "Unsupported type '\(raw)'. Run 'appitool apple assets types' to see supported values (screenshot display types, header, search)."
         )
     }
 

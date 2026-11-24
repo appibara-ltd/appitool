@@ -67,6 +67,12 @@ App identifiers are resolved the same way by every command: **CLI option → `.e
 | `GOOGLE_KEY` | Path to Service Account JSON, raw JSON string, or Base64 JSON | `./service-account.json` |
 | `GOOGLE_PACKAGE_NAME` | Target Android application package name | `com.example.app` |
 
+### Store Assets (`apple assets` & `google assets`)
+
+| Variable | Description | Default / Behavior |
+|:---|:---|:---|
+| `STORE_ASSETS_PATH` | Folder that `download` writes to and `upload` reads from by default. Absolute, `~`-prefixed, or relative to the current directory. Store folders go directly inside it: `<path>/apple/<locale>/<type>/` and `<path>/google/<locale>/<type>/` (no project folder, since the path is project-specific). `-o, --output` and explicit upload paths still take precedence. | Unset or empty: `~/.appitool/assets/<project>/<store>/` |
+
 ### Android Gradle & Keystore Signing
 
 | Variable | Description | Default / Behavior |
@@ -119,7 +125,7 @@ App identifiers are resolved the same way by every command: **CLI option → `.e
 
 ### CI Mode & Destructive Command Guard
 
-`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `apple screenshots delete`, `google screenshots delete`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, `match ios prune`) are skipped as a no-op with a warning and exit code `0`.
+`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `apple assets delete`, `google assets delete`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, `match ios prune`) are skipped as a no-op with a warning and exit code `0`.
 
 | Variable | Description | Notes |
 |:---|:---|:---|
@@ -153,12 +159,12 @@ App identifiers are resolved the same way by every command: **CLI option → `.e
 │   └── tmp/
 ├── certs/
 │   └── <type>/
-├── screenshots/
+├── assets/                     # default store assets root; STORE_ASSETS_PATH replaces assets/<project>/ (older versions used ~/.appitool/screenshots/)
 │   └── <project>/
-│       ├── apple/<locale>/<type>/    # Used by both download and default bulk upload (01_<name>.png)
-│       └── google/<locale>/<type>/   # Used by both download and default bulk upload (01.png)
+│       ├── apple/<locale>/<type>/    # apple assets download / upload: screenshot types (01_<name>.png) and header|search (one image), .appitool-manifest.json for upload --sync
+│       └── google/<locale>/<type>/   # Used by both download and default bulk upload (01.png, .appitool-manifest.json for upload --sync)
 └── match/
     └── <UUID>/                  # Temporary Git clone working directory (auto-cleaned)
 ```
 
-Use [`appitool clean`](/commands/clean) to inspect sizes and prune old build artifacts and iOS `derivedData` directories safely (`~/.appitool/screenshots` and `certs/` are preserved).
+Use [`appitool clean`](/commands/clean) to inspect sizes and prune old build artifacts and iOS `derivedData` directories safely (`certs/` is always preserved; `~/.appitool/assets` and the legacy `~/.appitool/screenshots` are only cleaned with `--assets`).

@@ -22,7 +22,7 @@ A unified CLI utility and release orchestration engine for Apple App Store Conne
 - **Release Notes:** Categorized Markdown release notes generated from Git conventional commits.
 - **Built-in Self-Update:** Upgrade the CLI in-place on demand via `appitool self-update` with SHA256 checksum verification.
 - **Dry-Run Mode:** Validate configurations, credentials, and stage workflows without triggering builds or mutating remote state.
-- **CI Mode Guard (`--ci` / `--no-ci`):** Automatically detects CI environments (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, etc.) and skips destructive commands (`delete-*`, `prune-*`, `disable-device`, `cancel-invitation`, `screenshots delete`, `match ios nuke/prune`) as a safe no-op (exit code `0`).
+- **CI Mode Guard (`--ci` / `--no-ci`):** Automatically detects CI environments (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, etc.) and skips destructive commands (`delete-*`, `prune-*`, `disable-device`, `cancel-invitation`, `assets delete`, `match ios nuke/prune`) as a safe no-op (exit code `0`).
 
 ---
 
@@ -124,11 +124,11 @@ Run `appitool --help` or `appitool <command> --help` to inspect live options. Fu
 | `build` | `ios`, `android` | Compiles and packages iOS (`.xcarchive`/`.ipa`) and Android (`.aab`/`.apk`) artifacts. |
 | `check` | `ios`, `android` | Queries remote store/distribution metadata and latest build numbers. |
 | `match` | `ios` *(default)*, `android` | Syncs, prunes, nukes, or adds Git-encrypted certificates, profiles, and keystores. |
-| `apple` | 23 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, devices, team users, invitations, and store screenshots. |
-| `google` | `screenshots` (5 subcommands) | Manages Google Play Console store visuals and screenshots (`list`, `upload`, `download`, `delete`, `types`). |
+| `apple` | 23 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, devices, team users, invitations, and store assets (screenshots, product page header, search results). |
+| `google` | `assets` (5 subcommands) | Manages Google Play Console store visuals and screenshots (`list`, `upload`, `download`, `delete`, `types`). |
 | `firebase` | 9 subcommands | Manages Firebase App Distribution releases/groups, Firebase Auth users, and Cloud Firestore. |
 | `inspect` | — | Inspects local iOS and Android identifiers, versions, build numbers, and flavors (supports `--json`). |
-| `clean` | — | Cleans cached build outputs and Xcode DerivedData under `~/.appitool`. |
+| `clean` | — | Cleans cached build outputs, Xcode DerivedData, and (with `--assets`) downloaded store assets under `~/.appitool`. |
 | `notes` | — | Generates categorized Markdown release notes from Git conventional commits. |
 | `kokono` | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |
 | `self-update` | — | Checks GitHub Releases and updates the binary with SHA256 verification. |
@@ -196,8 +196,8 @@ See [Code Signing (Match)](docs/guide/code-signing-match.md).
 ```bash
 appitool apple list-apps -b com.example.app
 appitool apple delete-identifier -b com.example.app
-appitool apple screenshots upload -b com.example.app --locale en-US -t iphone-67 ./screenshots/ios/en-US/
-appitool google screenshots upload --package-name com.example.app --locale en-US -t phone ./screenshots/android/en-US/
+appitool apple assets upload -b com.example.app --locale en-US -t iphone-67 ./screenshots/ios/en-US/
+appitool google assets upload --package-name com.example.app --locale en-US -t phone ./screenshots/android/en-US/
 appitool firebase list-releases --platform ios -l 10
 appitool firebase create-group --alias qa-team -n "QA Team"
 ```

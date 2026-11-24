@@ -3,13 +3,13 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-struct GoogleScreenshotsDeleteCommand: DestructiveCommand {
+struct GoogleAssetsDeleteCommand: DestructiveCommand {
     static let configuration = CommandConfiguration(
         commandName: "delete",
         abstract: "Deletes store screenshots or graphics from Google Play Console."
     )
 
-    var destructiveCommandDescription: String { "google screenshots delete" }
+    var destructiveCommandDescription: String { "google assets delete" }
 
     @OptionGroup
     var app: GooglePlayAppOptions

@@ -5,7 +5,7 @@ Direct management of Apple App Store Connect and Apple Developer Portal resource
 All `apple` subcommands accept [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`), falling back to `APPLE_KEY_ID`, `APPLE_ISSUER_ID`, and `APPLE_KEY` in `.env` / environment variables.
 
 > [!NOTE]
-> **CI Guard:** Destructive subcommands (`delete-identifier`, `delete-profile`, `prune-profiles`, `delete-certificate`, `prune-certificates`, `disable-device`, `delete-user`, `cancel-invitation`, and `screenshots delete`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
+> **CI Guard:** Destructive subcommands (`delete-identifier`, `delete-profile`, `prune-profiles`, `delete-certificate`, `prune-certificates`, `disable-device`, `delete-user`, `cancel-invitation`, and `assets delete`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
 
 ## Synopsis
 
@@ -23,7 +23,7 @@ appitool apple <subcommand> [options]
 | **Certificates** | `list-certificates`, `create-certificate`, `delete-certificate`, `prune-certificates` |
 | **Devices** | `list-devices`, `add-device`, `disable-device` |
 | **Users & Invitations** | `list-users`, `invite-user`, `update-user`, `delete-user`, `list-invitations`, `cancel-invitation` |
-| **Screenshots** | `screenshots list`, `screenshots upload`, `screenshots download`, `screenshots delete`, `screenshots types` |
+| **Assets** (screenshots, product page header, search results) | `assets list`, `assets upload`, `assets download`, `assets delete`, `assets types`, `assets specs` |
 
 ---
 
@@ -391,11 +391,21 @@ appitool apple cancel-invitation -e dev@example.com
 
 ---
 
-## Screenshots (`appitool apple screenshots`)
+## Assets (`appitool apple assets`)
 
-Manages App Store Connect screenshot sets and localized screenshot assets using the 3-step reserve → chunked upload → MD5 commit workflow.
+Manages the App Store product page images of a version, per localization:
 
-All `screenshots` subcommands (except `types`) accept shared app-resolution options:
+| Kind | `-t, --type` values | API |
+|:---|:---|:---|
+| Screenshots | screenshot device slots (`iphone-67`, `ipad-pro-129`, `iphone-duo`, … — see `assets types`) | `APP_SCREENSHOT` / `IMESSAGE_APP_SCREENSHOT` placements with the slot's placement group (e.g. `IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE`) |
+| Product page header (iOS 27+) | `header` | `PRODUCT_PAGE_HEADER_ASSET` placement |
+| Search results (iOS 27+) | `search` | `APP_STORE_SEARCH_RESULTS_ASSET` placement |
+
+All types use the App Store Connect **Asset Library** (API 4.6.1): an image is uploaded into the app's Asset Library (reserve → chunked upload → commit, then processing) and then *placed* on a version localization. Removing a placement keeps the image in the Asset Library. Screenshot slots hold up to 10 images in display order (reordered with placement ordering requests); `header` / `search` hold exactly one image, and placing a new one replaces the current one. Screenshots need an editable version; header/search can also be changed on a live version. Videos are not supported yet.
+
+Everything lives in one local tree: `~/.appitool/assets/<project>/apple/<locale>/<type>/`, where `<type>` is a screenshot slot key (up to 10 images) or `header` / `search` (exactly one image). When [`STORE_ASSETS_PATH`](/guide/configuration#store-assets-apple-assets-google-assets) is set, the tree is `<STORE_ASSETS_PATH>/apple/<locale>/<type>/` instead (default paths below then refer to that folder).
+
+All `assets` subcommands (except `types` and `specs`) accept shared app-resolution options:
 
 | Option | Default / `.env` Fallback | Description |
 |:---|:---|:---|
@@ -404,89 +414,149 @@ All `screenshots` subcommands (except `types`) accept shared app-resolution opti
 | `-p, --platform <platform>` | `ios` | Target platform (`ios`, `macos`, `tvos`, `visionos`) |
 | `--app-version <ver>` | Auto-selects editable version (or latest for `list`) | Explicit App Store version string (e.g. `1.2.0`) |
 
-### `appitool apple screenshots list`
+### `appitool apple assets list`
 
-Lists screenshot sets and individual screenshots registered on the resolved App Store version.
+Lists screenshots per device slot (in display order) and header / search results placements on the resolved App Store version, with placement IDs, dimensions, and states. Screenshots in device slots appitool does not know yet are reported with their placement group.
 
 | Option | Description |
 |:---|:---|
 | `--locale <locale>` | Filter by App Store locale (e.g. `en-US`, `tr`). Omit to list all localizations. |
-| `-t, --type <display-type>` | Filter by screenshot display type (e.g. `iphone-67`, `ipad-pro-129`). |
+| `-t, --type <type>` | Filter by screenshot slot (e.g. `iphone-67`, `ipad-pro-129`, `iphone-duo`), `header`, or `search`. |
+| `--asset-library` | Instead of the regular view, list every Asset Library placement on each localization (all placement types, including screenshot placements, with their placement group). |
 
 ```bash
-appitool apple screenshots list -b com.example.app
-appitool apple screenshots list -b com.example.app --app-version 1.2.0 --locale en-US -t iphone-67
+appitool apple assets list -b com.example.app
+appitool apple assets list -b com.example.app --app-version 1.2.0 --locale en-US -t iphone-67
 ```
 
-### `appitool apple screenshots upload`
+### `appitool apple assets upload`
 
-Uploads screenshots to an editable App Store version (e.g. `PREPARE_FOR_SUBMISSION`) either from explicit flat image paths (`--locale` and `-t` required) or symmetrically from a `<locale>/<type>/` directory tree defaulting to `~/.appitool/screenshots/<project>/apple/` (`--locale` and `-t` optional filters).
+Uploads screenshots (to an editable App Store version, e.g. `PREPARE_FOR_SUBMISSION`; new screenshots are added at the end of their slot, and slots that would exceed 10 images are rejected before any change) and header / search results images either from explicit flat image paths (`--locale` and `-t` required) or symmetrically from a `<locale>/<type>/` directory tree defaulting to `~/.appitool/assets/<project>/apple/` (`--locale` and `-t` optional filters). Each `header` / `search` folder must contain exactly one image; it replaces that localization's current placement (a new placement is created first and the old one removed; if App Store Connect rejects a second placement, the old one is removed first). A file used for several localizations is uploaded to the Asset Library once.
 
 | Option / Flag / Argument | Default | Description |
 |:---|:---|:---|
 | `--locale <locale>` | — | App Store localization locale (e.g. `en-US`, `tr`). Required for flat files; optional filter for `<locale>/<type>/` trees. |
-| `-t, --type <display-type>` | — | Screenshot display type (e.g. `iphone-67`, `ipad-pro-129`, `APP_IPHONE_67`). Required for flat files; optional filter for directory trees. |
-| `--replace` | `false` | Delete existing screenshots in each target set before uploading. |
-| `--wait-processing` / `--no-wait-processing` | `true` (`--wait-processing`) | Wait for App Store Connect to process each uploaded screenshot (`COMPLETE` / `FAILED`). |
-| `--dry-run` | `false` | Validate files and preview upload targets without contacting App Store Connect. |
-| `<paths...>` | `~/.appitool/screenshots/<project>/apple/` | Optional PNG/JPEG file(s), flat directory, or `<locale>/<type>/` directory tree. |
+| `-t, --type <type>` | — | Screenshot slot (e.g. `iphone-67`, `ipad-pro-129`, `APP_IPHONE_67`, `iphone-duo`), `header`, or `search`. Required for flat files; optional filter for directory trees. |
+| `--replace` | `false` | Remove the existing screenshots of each target slot before uploading. For `<locale>/<type>/` trees, also writes each folder's sync manifest. Header/search slots are always replaced. |
+| `--sync` | `false` | Mirror `<locale>/<type>/` folders using `.appitool-manifest.json` (see [Asset sync](#asset-sync)). Cannot be combined with `--replace`; requires a directory tree, not explicit files or a flat folder. |
+| `--all-locales` | `false` | Place one explicit `header` or `search` file on every localization of the version (requires a file and `-t header` / `-t search`; cannot be combined with `--locale` or `--sync`). |
+| `--wait-processing` / `--no-wait-processing` | `true` (`--wait-processing`) | Wait for App Store Connect to process each uploaded image. |
+| `--dry-run` | `false` | Validate files and preview upload targets without contacting App Store Connect. With `--sync`, reads App Store Connect (no changes) and prints the sync plan. |
+| `<paths...>` | `~/.appitool/assets/<project>/apple/` | Optional PNG/JPEG file(s), flat directory, or `<locale>/<type>/` directory tree. |
 
 ```bash
-# Bulk-upload all locales and display types from ~/.appitool/screenshots/<bundle-id>/apple/
-appitool apple screenshots upload --replace
+# Bulk-upload all locales and types from ~/.appitool/assets/<bundle-id>/apple/
+appitool apple assets upload --replace
 
-# Bulk-upload only en-US sets from the default per-project directory
-appitool apple screenshots upload --locale en-US --replace
+# Bulk-upload only en-US slots from the default per-project directory
+appitool apple assets upload --locale en-US --replace
 
 # Upload flat directory images for a single locale and display type
-appitool apple screenshots upload \
+appitool apple assets upload \
   -b com.example.app \
   --locale en-US \
   -t iphone-67 \
   --replace \
   ./screenshots/ios/en-US/iphone-67/
+
+# Preview, then apply, only the local changes since the last download/sync
+appitool apple assets upload --sync --dry-run
+appitool apple assets upload --sync
+
+# Use one header image for every localization
+appitool apple assets upload --all-locales -t header ./header.png
+
+# Set the en-US search results image
+appitool apple assets upload --locale en-US -t search ./search.png
 ```
 
-### `appitool apple screenshots download`
+#### Asset sync
 
-Downloads screenshots from App Store Connect (`imageAsset.templateUrl` at full resolution) into `<output>/<locale>/<type>/01_<name>.<ext>`. By default, files are stored per project under `~/.appitool/screenshots/<bundle-or-app-id>/apple/`. Existing leading order prefixes (`01_...`) are stripped before applying the current store order prefix so round-tripping download → upload → download does not double-prefix filenames.
+`download`, `upload --replace` (directory trees), and `upload --sync` write a `.appitool-manifest.json` into each `<locale>/<type>/` folder. For screenshot folders it records the slot identity (`<version-id>/<locale>/<placement-group>`) and, for every file, the matching placement ID and the SHA-256 of the local file. For `header` / `search` folders it records the placed Asset Library image ID and the file's SHA-256.
+
+`header` / `search` folders under `--sync`: unchanged file whose image is still placed → nothing is sent; changed file (or a different image placed) → upload and place; no manifest and nothing placed → upload and place; no manifest but an image is placed → error (run `download` first, or upload without `--sync` to replace it). Header/search slots are planned before any screenshot change.
+
+Screenshot folders:
+
+`upload --sync` plans every slot before changing anything; any planning error aborts the run without remote changes. Per slot:
+
+| Local state | Action |
+|:---|:---|
+| File in manifest, checksum unchanged | Keep (no upload). |
+| File in manifest, checksum changed | Replace: upload and place the new file, then remove the old placement (removes first when the slot already has 10 screenshots). |
+| File renamed but content unchanged | Keep (matched by checksum). |
+| File not in manifest | Add. |
+| Manifest entry whose file was removed | Remove the placement from App Store Connect. |
+| Screenshot on App Store Connect not in the manifest | Left untouched (warning) and placed after the managed screenshots. |
+
+After uploads, the slot order is set to the local file-name order (`01_…`, `02_…`) with a placement ordering request, and the manifest is rewritten.
+
+| Manifest | Remote slot | Result |
+|:---|:---|:---|
+| Missing | Empty | Bootstrap: upload all files in file-name order, write the manifest. |
+| Missing | Has screenshots | Error: run `download` first or use `--replace`. |
+| For a different slot or version | — | Error: run `download` again or delete the manifest and use `--replace`. |
+
+Slots that would exceed App Store Connect's limit of 10 screenshots → error before any change. A `<locale>/<type>/` folder with no images is skipped, so emptying a folder does not clear its slot; use `apple assets delete` for that.
+
+### `appitool apple assets download`
+
+Downloads screenshots from App Store Connect (`imageAsset.templateUrl` at full resolution) into `<output>/<locale>/<type>/01_<name>.<ext>`, and placed header / search results images into `<output>/<locale>/<header|search>/<name>.<ext>`. By default, files are stored per project under `~/.appitool/assets/<bundle-or-app-id>/apple/`. Existing leading order prefixes (`01_...`) are stripped before applying the current store order prefix so round-tripping download → upload → download does not double-prefix filenames.
+
+Downloaded files are the images served by Apple's CDN, which can be smaller than the originally uploaded files (same dimensions, different encoding). Each slot folder also gets a `.appitool-manifest.json` for [`upload --sync`](#asset-sync). Screenshots in device slots appitool does not know yet are skipped with a warning. Images written by a previous download whose screenshots no longer exist on App Store Connect are removed; other local images are kept and reported (`upload --sync` would add them).
 
 | Option / Flag | Default | Description |
 |:---|:---|:---|
 | `--locale <locale>` | — | Filter by App Store locale (e.g. `en-US`, `tr`). Omit to download all locales. |
-| `-t, --type <display-type>` | — | Filter by screenshot display type (e.g. `iphone-67`, `ipad-pro-129`). |
-| `-o, --output <dir>` | `~/.appitool/screenshots/<project>/apple/` | Custom destination root directory. |
+| `-t, --type <type>` | — | Filter by screenshot slot (e.g. `iphone-67`, `ipad-pro-129`, `iphone-duo`), `header`, or `search`. |
+| `-o, --output <dir>` | `~/.appitool/assets/<project>/apple/` | Custom destination root directory. |
 | `--dry-run` | `false` | Preview target local paths and CDN URLs without downloading files. |
 
 ```bash
-# Download all locales and display types for the project to ~/.appitool/screenshots/<bundle-id>/apple/
-appitool apple screenshots download
+# Download all locales and display types for the project to ~/.appitool/assets/<bundle-id>/apple/
+appitool apple assets download
 
 # Download only en-US iPhone 6.7" screenshots into a custom folder
-appitool apple screenshots download -b com.example.app --locale en-US -t iphone-67 -o ./downloads/ios
+appitool apple assets download -b com.example.app --locale en-US -t iphone-67 -o ./downloads/ios
 ```
 
-### `appitool apple screenshots delete`
+### `appitool apple assets delete`
 
-Deletes an individual screenshot by resource ID or all screenshots for `--locale` (and optional `--type`) on an editable App Store version (guarded in CI mode).
+Removes one placement by ID, or all assets for `--locale` (and optional `--type`). Removing a placement takes the image off the localization; the image stays in the Asset Library. Screenshots require an editable version; with `-t header` / `-t search` a live version can be used. Guarded in CI mode.
 
 | Option / Flag | Default | Description |
 |:---|:---|:---|
-| `--id <screenshot-id>` | — | Specific App Store screenshot resource ID to delete (mutually exclusive with `--all`). |
+| `--id <placement-id>` | — | Placement ID to remove, as shown by `assets list` (mutually exclusive with `--all`). |
 | `--locale <locale>` | — | App Store localization locale when deleting with `--all`. |
-| `-t, --type <display-type>` | — | Optional screenshot display type filter when deleting with `--all`. |
-| `--all` | `false` | Delete all screenshots matching `--locale` (and optional `--type`). |
-| `--dry-run` | `false` | Preview matching screenshot(s) without deleting them. |
+| `-t, --type <type>` | — | Optional filter when deleting with `--all`: a screenshot slot (e.g. `iphone-67`, `iphone-duo`), `header`, or `search`. Omit to remove all types (screenshots, header, and search). |
+| `--all` | `false` | Remove all assets matching `--locale` (and optional `--type`). |
+| `--dry-run` | `false` | Preview matching assets without removing them. |
 
 ```bash
-appitool apple screenshots delete --id "<screenshot-id>"
-appitool apple screenshots delete -b com.example.app --locale en-US -t iphone-67 --all --dry-run
+appitool apple assets delete --id "<placement-id>"
+appitool apple assets delete -b com.example.app --locale en-US -t iphone-67 --all --dry-run
 ```
 
-### `appitool apple screenshots types`
+### `appitool apple assets types`
 
-Lists all 33 supported App Store Connect screenshot display types and their CLI aliases (no credentials required).
+Lists all supported screenshot slots (the 33 App Store Connect screenshot display types plus `iphone-duo` and `imessage-iphone-duo`) with their CLI aliases and Asset Library placement groups, plus `header` and `search` (no credentials required).
 
 ```bash
-appitool apple screenshots types
+appitool apple assets types
+```
+
+### `appitool apple assets specs`
+
+Shows Apple's current image specs live from `appAssetLibraryRefData` (needs only Apple credentials):
+
+- **header / search:** size or size range, aspect ratio, formats, maximum file size, alpha, universal assets.
+- **screenshot:** one entry per device slot with its `-t` key, display class (e.g. `IPHONE_DYNAMIC_ISLAND_LARGE_DISPLAY`), platform, screen dimensions, placement group, maximum count per version, and the accepted sizes and formats.
+
+| Option | Description |
+|:---|:---|
+| `-t, --type <kind>` | `screenshot`, `header`, `search`, or one screenshot slot (e.g. `iphone-67`, `iphone-duo`). Omit to show all. |
+
+```bash
+appitool apple assets specs
+appitool apple assets specs -t header
 ```

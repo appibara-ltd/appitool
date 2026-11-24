@@ -7,7 +7,7 @@ struct GoogleCommand: AsyncParsableCommand {
         commandName: "google",
         abstract: "Manage Google Play Console store visuals and resources.",
         subcommands: [
-            GoogleScreenshotsCommand.self,
+            GoogleAssetsCommand.self,
         ]
     )
 }

@@ -9,6 +9,14 @@
 - To maintain minimal binary size and fast build times, OpenAPI targets must generate ONLY the endpoints actively used in the codebase.
 - Whenever code introduces or calls a new API endpoint, immediately add its exact path to `filter.paths` in the corresponding target's `openapi-generator-config.yaml`.
 - Whenever an existing API endpoint is removed or no longer referenced, immediately remove its path from `filter.paths` in the corresponding target's `openapi-generator-config.yaml`.
+- `Sources/AppStoreConnectAPI/openapi.json` is Apple's spec (currently 4.6.1) with local patches that must be re-applied whenever the spec is replaced:
+  - `BundleIdPlatform` enum includes `SERVICES` (returned by the API for Services IDs).
+  - `fields[appKeywords]` query parameters have no empty `"enum": []` (the generator emits uncompilable empty enums).
+  - `AppAssetLibraryPlacement.relationships` is `allOf` [image, video] relationships instead of a `oneOf` discriminated by `mediaType` (that property only exists in `attributes`, so decoding would fail).
+  - `AppAssetLibraryPlacementCreateRequest.data.anyOf` and `AppAssetLibraryPlacementOrderingRequestCreateRequest.data.anyOf` are renamed to `x-appitool-removed-anyOf` (validation-only constraints that generate empty wrapper payloads).
+- `ScreenshotDisplayType` is generated through `filter.schemas` (no generated path references it since screenshots moved to the Asset Library); `AppleScreenshotSlot` maps each display type to its verified placement group.
+  - `AppAssetLibraryPlacementState` and `AppAssetLibraryAssetState` have their `enum` renamed to `x-appitool-known-values` (plain strings; the live API returns undocumented values such as `ACTIVE`).
+  - `AppAssetLibraryImage.attributes` is `$ref` `AppAssetLibraryImageAwaitingUploadAttributes` (common attributes + `uploadOperations`, a superset of every state variant) instead of a `oneOf` discriminated by `state`, so unknown states still decode.
 
 # Environment Variables & Configuration Architecture
 - Reading environment variables (`ProcessInfo.processInfo.environment`, `getenv`, etc.) is strictly permitted ONLY within `Commands/` (and `Core/` as an exception).

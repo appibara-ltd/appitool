@@ -388,7 +388,7 @@ struct StoreScreenshotsTests {
         }
     }
 
-    @Test("uploadScreenshot performs reserve, chunked upload, MD5 commit, and polls until COMPLETE")
+    @Test("uploadAssetLibraryImage performs reserve, chunked upload, commit, and polls until processed")
     func appleUploadScreenshotPipeline() async throws {
         let tempFile = FileManager.default.temporaryDirectory
             .appendingPathComponent("appitool-apple-ss-\(UUID().uuidString).png")
@@ -396,14 +396,14 @@ struct StoreScreenshotsTests {
         try payloadBytes.write(to: tempFile)
         defer { try? FileManager.default.removeItem(at: tempFile) }
 
-        let expectedMD5 = Insecure.MD5.hash(data: payloadBytes).map { String(format: "%02x", $0) }.joined()
-
         let createResponse = """
         {
             "data": {
-                "type": "appScreenshots",
-                "id": "ss-100",
+                "type": "appAssetLibraryImages",
+                "id": "img-100",
                 "attributes": {
+                    "state": "AWAITING_UPLOAD",
+                    "category": "APP_SCREENSHOTS_AND_PREVIEWS",
                     "fileSize": 9,
                     "fileName": "\(tempFile.lastPathComponent)",
                     "uploadOperations": [
@@ -427,48 +427,45 @@ struct StoreScreenshotsTests {
                                 { "name": "X-Chunk", "value": "2" }
                             ]
                         }
-                    ],
-                    "assetDeliveryState": { "state": "AWAITING_UPLOAD" }
+                    ]
                 }
             },
-            "links": { "self": "https://api.appstoreconnect.apple.com/v1/appScreenshots/ss-100" }
+            "links": { "self": "https://api.appstoreconnect.apple.com/v1/appAssetLibraryImages/img-100" }
         }
         """.data(using: .utf8)!
 
         let patchResponse = """
         {
             "data": {
-                "type": "appScreenshots",
-                "id": "ss-100",
+                "type": "appAssetLibraryImages",
+                "id": "img-100",
                 "attributes": {
+                    "state": "UPLOAD_COMPLETE",
                     "fileSize": 9,
-                    "fileName": "\(tempFile.lastPathComponent)",
-                    "sourceFileChecksum": "\(expectedMD5)",
-                    "assetDeliveryState": { "state": "UPLOAD_COMPLETE" }
+                    "fileName": "\(tempFile.lastPathComponent)"
                 }
             },
-            "links": { "self": "https://api.appstoreconnect.apple.com/v1/appScreenshots/ss-100" }
+            "links": { "self": "https://api.appstoreconnect.apple.com/v1/appAssetLibraryImages/img-100" }
         }
         """.data(using: .utf8)!
 
         let getCompleteResponse = """
         {
             "data": {
-                "type": "appScreenshots",
-                "id": "ss-100",
+                "type": "appAssetLibraryImages",
+                "id": "img-100",
                 "attributes": {
+                    "state": "COMPLETE",
                     "fileSize": 9,
                     "fileName": "\(tempFile.lastPathComponent)",
-                    "sourceFileChecksum": "\(expectedMD5)",
                     "imageAsset": {
                         "templateUrl": "https://is1-ssl.mzstatic.com/{w}x{h}bb.png",
                         "width": 1290,
                         "height": 2796
-                    },
-                    "assetDeliveryState": { "state": "COMPLETE" }
+                    }
                 }
             },
-            "links": { "self": "https://api.appstoreconnect.apple.com/v1/appScreenshots/ss-100" }
+            "links": { "self": "https://api.appstoreconnect.apple.com/v1/appAssetLibraryImages/img-100" }
         }
         """.data(using: .utf8)!
 
@@ -481,35 +478,38 @@ struct StoreScreenshotsTests {
         defer { _ = MockURLProtocol.takeRecordedRequests() }
 
         let service = try makeAppleService(transport: transport, urlSession: session)
-        let uploaded = try await service.uploadScreenshot(
-            screenshotSetId: "set-1",
+        let uploaded = try await service.uploadAssetLibraryImage(
+            assetLibraryId: "lib-1",
             fileUrl: tempFile,
+            category: .APP_SCREENSHOTS_AND_PREVIEWS,
             waitForProcessing: true,
             pollInterval: 0.01,
             processingTimeout: 5
         )
 
-        #expect(uploaded.id == "ss-100")
-        #expect(uploaded.attributes?.assetDeliveryState?.state == .COMPLETE)
-        #expect(uploaded.attributes?.imageAsset?.width == 1290)
-        #expect(uploaded.attributes?.imageAsset?.height == 2796)
+        #expect(uploaded.id == "img-100")
+        #expect(uploaded.state == "COMPLETE")
+        #expect(uploaded.width == 1290)
+        #expect(uploaded.height == 2796)
 
         #expect(transport.capturedRequests.count == 3)
-        #expect(transport.capturedRequests[0].operationID == "appScreenshots_createInstance")
+        #expect(transport.capturedRequests[0].operationID == "appAssetLibraryImages_createInstance")
         let createBody = try decodeJSON(transport.capturedRequests[0].bodyData)
         let createData = try #require(createBody["data"] as? [String: Any])
         let createAttrs = try #require(createData["attributes"] as? [String: Any])
         #expect(createAttrs["fileSize"] as? Int == 9)
         #expect(createAttrs["fileName"] as? String == tempFile.lastPathComponent)
+        #expect(createAttrs["category"] as? String == "APP_SCREENSHOTS_AND_PREVIEWS")
+        let library = ((createData["relationships"] as? [String: Any])?["assetLibrary"] as? [String: Any])?["data"] as? [String: Any]
+        #expect(library?["id"] as? String == "lib-1")
 
-        #expect(transport.capturedRequests[1].operationID == "appScreenshots_updateInstance")
+        #expect(transport.capturedRequests[1].operationID == "appAssetLibraryImages_updateInstance")
         let patchBody = try decodeJSON(transport.capturedRequests[1].bodyData)
         let patchData = try #require(patchBody["data"] as? [String: Any])
         let patchAttrs = try #require(patchData["attributes"] as? [String: Any])
-        #expect(patchAttrs["sourceFileChecksum"] as? String == expectedMD5)
         #expect(patchAttrs["uploaded"] as? Bool == true)
 
-        #expect(transport.capturedRequests[2].operationID == "appScreenshots_getInstance")
+        #expect(transport.capturedRequests[2].operationID == "appAssetLibraryImages_getInstance")
 
         let chunkRequests = MockURLProtocol.takeRecordedRequests()
         #expect(chunkRequests.count == 2)
@@ -524,13 +524,13 @@ struct StoreScreenshotsTests {
         #expect(String(data: chunkRequests[1].body ?? Data(), encoding: .utf8) == "6789")
     }
 
-    @Test("deleteScreenshot returns true on 204 and false on 404")
+    @Test("deletePlacement returns true on 204 and false on 404")
     func appleDeleteScreenshot() async throws {
         let transport204 = CapturingTransport(statusCode: .noContent)
         let service204 = try makeAppleService(transport: transport204)
-        #expect(try await service204.deleteScreenshot(id: "ss-9") == true)
-        #expect(transport204.capturedRequests.first?.operationID == "appScreenshots_deleteInstance")
-        #expect(transport204.capturedRequests.first?.request.path == "/v1/appScreenshots/ss-9")
+        #expect(try await service204.deletePlacement(id: "pl-9") == true)
+        #expect(transport204.capturedRequests.first?.operationID == "appAssetLibraryPlacements_deleteInstance")
+        #expect(transport204.capturedRequests.first?.request.path == "/v1/appAssetLibraryPlacements/pl-9")
 
         // App Store Connect always returns a JSON error document on 404; the generated client requires it.
         let notFoundJSON = """
@@ -541,14 +541,46 @@ struct StoreScreenshotsTests {
                     "status": "404",
                     "code": "NOT_FOUND",
                     "title": "The specified resource does not exist",
-                    "detail": "There is no resource of type 'appScreenshots' with id 'ss-missing'"
+                    "detail": "There is no resource of type 'appAssetLibraryPlacements' with id 'pl-missing'"
                 }
             ]
         }
         """.data(using: .utf8)!
         let transport404 = CapturingTransport(statusCode: .notFound, responseBody: notFoundJSON)
         let service404 = try makeAppleService(transport: transport404)
-        #expect(try await service404.deleteScreenshot(id: "ss-missing") == false)
+        #expect(try await service404.deletePlacement(id: "pl-missing") == false)
+    }
+
+    @Test("Placements are listed in display order per group and reordered with an ordering request")
+    func applePlacementOrdering() async throws {
+        let listJSON = """
+        { "data": [], "links": { "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/loc-1/placements" } }
+        """.data(using: .utf8)!
+        let orderJSON = """
+        { "data": { "type": "appAssetLibraryPlacementOrderingRequests", "id": "ord-1" }, "links": { "self": "https://api.appstoreconnect.apple.com/v1/appAssetLibraryPlacementOrderingRequests/ord-1" } }
+        """.data(using: .utf8)!
+        let transport = CapturingTransport(responses: [(.ok, listJSON), (.created, orderJSON)])
+        let service = try makeAppleService(transport: transport)
+
+        _ = try await service.fetchPlacements(
+            localizationId: "loc-1",
+            placementTypes: [.APP_SCREENSHOT],
+            placementGroup: "IPHONE_DUO_PROFILE"
+        )
+        let query = transport.capturedRequests[0].request.path ?? ""
+        #expect(query.contains("sort=placementGroupPosition"))
+        #expect(query.contains("filter%5BplacementGroup%5D=IPHONE_DUO_PROFILE") || query.contains("filter[placementGroup]=IPHONE_DUO_PROFILE"))
+
+        try await service.orderPlacements(localizationId: "loc-1", placementGroup: "IPHONE_DUO_PROFILE", placementIds: ["b", "a"])
+        #expect(transport.capturedRequests[1].operationID == "appAssetLibraryPlacementOrderingRequests_createInstance")
+        let body = try decodeJSON(transport.capturedRequests[1].bodyData)
+        let data = try #require(body["data"] as? [String: Any])
+        #expect((data["attributes"] as? [String: Any])?["placementGroup"] as? String == "IPHONE_DUO_PROFILE")
+        let relationships = try #require(data["relationships"] as? [String: Any])
+        let ordered = ((relationships["orderedPlacements"] as? [String: Any])?["data"] as? [[String: Any]])?.compactMap { $0["id"] as? String }
+        #expect(ordered == ["b", "a"])
+        let loc = ((relationships["appStoreVersionLocalization"] as? [String: Any])?["data"] as? [String: Any])?["id"] as? String
+        #expect(loc == "loc-1")
     }
 
     // MARK: - GooglePlayImageType & GooglePlayService+Images Tests
@@ -646,10 +678,10 @@ struct StoreScreenshotsTests {
     @Test("GoogleCommand and AppleCommand parse all screenshots subcommands without option collisions")
     func cliScreenshotCommandParsing() throws {
         // Google subcommands
-        _ = try appitool.parseAsRoot(["google", "screenshots", "types"])
+        _ = try appitool.parseAsRoot(["google", "assets","types"])
 
         let gList = try #require(
-            try appitool.parseAsRoot(["google", "screenshots", "list", "--package-name", "com.example.app", "--locale", "en-US", "-t", "phone"]) as? GoogleScreenshotsListCommand
+            try appitool.parseAsRoot(["google", "assets","list", "--package-name", "com.example.app", "--locale", "en-US", "-t", "phone"]) as? GoogleAssetsListCommand
         )
         #expect(gList.app.packageName == "com.example.app")
         #expect(gList.locale == "en-US")
@@ -657,7 +689,7 @@ struct StoreScreenshotsTests {
 
         let gUpload = try #require(
             try appitool.parseAsRoot([
-                "google", "screenshots", "upload",
+                "google", "assets","upload",
                 "--package-name", "com.example.app",
                 "--locale", "tr-TR",
                 "-t", "feature-graphic",
@@ -666,7 +698,7 @@ struct StoreScreenshotsTests {
                 "--changes-not-sent-for-review",
                 "--dry-run",
                 "./banner.png",
-            ]) as? GoogleScreenshotsUploadCommand
+            ]) as? GoogleAssetsUploadCommand
         )
         #expect(gUpload.locale == "tr-TR")
         #expect(gUpload.type == "feature-graphic")
@@ -678,27 +710,27 @@ struct StoreScreenshotsTests {
 
         let gDelete = try #require(
             try appitool.parseAsRoot([
-                "--ci", "google", "screenshots", "delete",
+                "--ci", "google", "assets","delete",
                 "--locale", "en-US", "-t", "phone", "--all",
-            ]) as? GoogleScreenshotsDeleteCommand
+            ]) as? GoogleAssetsDeleteCommand
         )
         #expect(gDelete.isDestructive == true)
-        #expect(gDelete.destructiveCommandDescription == "google screenshots delete")
+        #expect(gDelete.destructiveCommandDescription == "google assets delete")
         #expect(gDelete.ciFlagOverride == true)
         #expect(gDelete.all == true)
 
         // Apple subcommands
-        _ = try appitool.parseAsRoot(["apple", "screenshots", "types"])
+        _ = try appitool.parseAsRoot(["apple", "assets","types"])
 
         let aList = try #require(
             try appitool.parseAsRoot([
-                "apple", "screenshots", "list",
+                "apple", "assets","list",
                 "-b", "com.example.app",
                 "--app-version", "1.2.0",
                 "-p", "ios",
                 "--locale", "en-US",
                 "-t", "iphone-67",
-            ]) as? AppleScreenshotsListCommand
+            ]) as? AppleAssetsListCommand
         )
         #expect(aList.app.bundleId == "com.example.app")
         #expect(aList.app.appVersion == "1.2.0")
@@ -708,7 +740,7 @@ struct StoreScreenshotsTests {
 
         let aUpload = try #require(
             try appitool.parseAsRoot([
-                "apple", "screenshots", "upload",
+                "apple", "assets","upload",
                 "--app-id", "673000111",
                 "--app-version", "2.0.0",
                 "--locale", "en-US",
@@ -717,7 +749,7 @@ struct StoreScreenshotsTests {
                 "--no-wait-processing",
                 "--dry-run",
                 "./shots/",
-            ]) as? AppleScreenshotsUploadCommand
+            ]) as? AppleAssetsUploadCommand
         )
         #expect(aUpload.app.appId == "673000111")
         #expect(aUpload.app.appVersion == "2.0.0")
@@ -730,25 +762,25 @@ struct StoreScreenshotsTests {
 
         let aDelete = try #require(
             try appitool.parseAsRoot([
-                "apple", "screenshots", "delete",
+                "apple", "assets","delete",
                 "--id", "ss-1",
                 "--ci",
-            ]) as? AppleScreenshotsDeleteCommand
+            ]) as? AppleAssetsDeleteCommand
         )
         #expect(aDelete.isDestructive == true)
-        #expect(aDelete.destructiveCommandDescription == "apple screenshots delete")
+        #expect(aDelete.destructiveCommandDescription == "apple assets delete")
         #expect(aDelete.id == "ss-1")
         #expect(aDelete.ciFlagOverride == true)
 
         let gDownload = try #require(
             try appitool.parseAsRoot([
-                "google", "screenshots", "download",
+                "google", "assets","download",
                 "--package-name", "com.example.app",
                 "--locale", "en-US",
                 "-t", "phone",
                 "-o", "/tmp/shots",
                 "--dry-run",
-            ]) as? GoogleScreenshotsDownloadCommand
+            ]) as? GoogleAssetsDownloadCommand
         )
         #expect(gDownload.app.packageName == "com.example.app")
         #expect(gDownload.locale == "en-US")
@@ -758,7 +790,7 @@ struct StoreScreenshotsTests {
 
         let aDownload = try #require(
             try appitool.parseAsRoot([
-                "apple", "screenshots", "download",
+                "apple", "assets","download",
                 "-b", "com.example.app",
                 "--app-version", "1.2.0",
                 "--platform", "ios",
@@ -766,7 +798,7 @@ struct StoreScreenshotsTests {
                 "-t", "iphone-67",
                 "-o", "/tmp/apple-shots",
                 "--dry-run",
-            ]) as? AppleScreenshotsDownloadCommand
+            ]) as? AppleAssetsDownloadCommand
         )
         #expect(aDownload.app.bundleId == "com.example.app")
         #expect(aDownload.app.appVersion == "1.2.0")
@@ -779,22 +811,46 @@ struct StoreScreenshotsTests {
 
     // MARK: - Screenshot Download Helpers & Path Tests
 
-    @Test("AppitoolPaths resolves per-project screenshot directories and sanitizes unsafe characters")
+    @Test("AppitoolPaths resolves per-project asset directories under ~/.appitool/assets and sanitizes unsafe characters")
     func appitoolPathsScreenshotsLayout() {
-        let appleDir = AppitoolPaths.screenshotsDirectory(project: "com.example.app", store: "apple")
+        let appleDir = AppitoolPaths.assetsDirectory(project: "com.example.app", store: "apple", customRoot: nil)
         #expect(appleDir.path == AppitoolPaths.rootDirectory
-            .appendingPathComponent("screenshots")
+            .appendingPathComponent("assets")
             .appendingPathComponent("com.example.app")
             .appendingPathComponent("apple").path)
 
-        let googleDir = AppitoolPaths.screenshotsDirectory(project: "com.example.app", store: "google")
+        let googleDir = AppitoolPaths.assetsDirectory(project: "com.example.app", store: "google", customRoot: nil)
         #expect(googleDir.path == AppitoolPaths.rootDirectory
-            .appendingPathComponent("screenshots")
+            .appendingPathComponent("assets")
             .appendingPathComponent("com.example.app")
             .appendingPathComponent("google").path)
 
-        let sanitized = AppitoolPaths.screenshotsDirectory(project: "../evil/app", store: "apple")
+        #expect(AppitoolPaths.legacyScreenshotsRootDirectory.path == AppitoolPaths.rootDirectory.appendingPathComponent("screenshots").path)
+
+        let sanitized = AppitoolPaths.assetsDirectory(project: "../evil/app", store: "apple", customRoot: nil)
         #expect(sanitized.deletingLastPathComponent().lastPathComponent == "__evil_app")
+    }
+
+    @Test("STORE_ASSETS_PATH overrides the assets root (absolute, ~, relative) and falls back when empty")
+    func storeAssetsPathOverride() {
+        #expect(AppitoolPaths.customStoreAssetsRoot(environmentValue: nil) == nil)
+        #expect(AppitoolPaths.customStoreAssetsRoot(environmentValue: "   ") == nil)
+
+        let absolute = AppitoolPaths.customStoreAssetsRoot(environmentValue: "/tmp/store-assets")
+        #expect(absolute?.path == "/tmp/store-assets")
+
+        let home = AppitoolPaths.customStoreAssetsRoot(environmentValue: "~/store-assets")
+        #expect(home?.path == FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("store-assets").standardizedFileURL.path)
+
+        let relative = AppitoolPaths.customStoreAssetsRoot(environmentValue: "./store-assets")
+        let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        #expect(relative?.path == cwd.appendingPathComponent("store-assets").standardizedFileURL.path)
+
+        // Custom root: <root>/<store>/ without a project folder; default: ~/.appitool/assets/<project>/<store>/.
+        let custom = AppitoolPaths.assetsDirectory(project: "com.example.app", store: "google", customRoot: absolute)
+        #expect(custom.path == "/tmp/store-assets/google")
+        let fallback = AppitoolPaths.assetsDirectory(project: "com.example.app", store: "google", customRoot: nil)
+        #expect(fallback.path == AppitoolPaths.assetsRootDirectory.appendingPathComponent("com.example.app").appendingPathComponent("google").path)
     }
 
     @Test("ScreenshotFileResolver formats order-prefixed filenames without double prefixing and detects formats")
@@ -947,7 +1003,7 @@ struct StoreScreenshotsTests {
             typeFilter: nil,
             defaultFlatType: nil,
             storeDisplayName: "App Store Connect",
-            downloadHintCommand: "appitool apple screenshots download",
+            downloadHintCommand: "appitool apple assets download",
             parseType: AppleTypeMapper.parseScreenshotDisplayType
         )
         #expect(sourceRoot?.path == appleRoot.standardizedFileURL.path)
@@ -969,7 +1025,7 @@ struct StoreScreenshotsTests {
             typeFilter: "APP_IPHONE_67",
             defaultFlatType: nil,
             storeDisplayName: "App Store Connect",
-            downloadHintCommand: "appitool apple screenshots download",
+            downloadHintCommand: "appitool apple assets download",
             parseType: AppleTypeMapper.parseScreenshotDisplayType
         )
         #expect(filteredBatches.count == 1)
@@ -986,7 +1042,7 @@ struct StoreScreenshotsTests {
             typeFilter: nil,
             defaultFlatType: nil,
             storeDisplayName: "App Store Connect",
-            downloadHintCommand: "appitool apple screenshots download",
+            downloadHintCommand: "appitool apple assets download",
             parseType: AppleTypeMapper.parseScreenshotDisplayType
         )
         #expect(singleRoot?.path == enLocaleDir.standardizedFileURL.path)
@@ -1004,7 +1060,7 @@ struct StoreScreenshotsTests {
             typeFilter: nil,
             defaultFlatType: GooglePlayImageType.phoneScreenshots,
             storeDisplayName: "Google Play",
-            downloadHintCommand: "appitool google screenshots download",
+            downloadHintCommand: "appitool google assets download",
             parseType: GooglePlayImageType.parse
         )
         #expect(flatRoot == nil)
@@ -1022,7 +1078,7 @@ struct StoreScreenshotsTests {
             typeFilter: "feature-graphic",
             defaultFlatType: GooglePlayImageType.phoneScreenshots,
             storeDisplayName: "Google Play",
-            downloadHintCommand: "appitool google screenshots download",
+            downloadHintCommand: "appitool google assets download",
             parseType: GooglePlayImageType.parse
         )
         #expect(fileBatches.count == 1)
@@ -1047,7 +1103,7 @@ struct StoreScreenshotsTests {
                 typeFilter: nil,
                 defaultFlatType: nil,
                 storeDisplayName: "App Store Connect",
-                downloadHintCommand: "appitool apple screenshots download",
+                downloadHintCommand: "appitool apple assets download",
                 parseType: AppleTypeMapper.parseScreenshotDisplayType
             )
         }
@@ -1064,7 +1120,7 @@ struct StoreScreenshotsTests {
                 typeFilter: "iphone-67",
                 defaultFlatType: nil,
                 storeDisplayName: "App Store Connect",
-                downloadHintCommand: "appitool apple screenshots download",
+                downloadHintCommand: "appitool apple assets download",
                 parseType: AppleTypeMapper.parseScreenshotDisplayType
             )
         }
@@ -1078,7 +1134,7 @@ struct StoreScreenshotsTests {
                 typeFilter: nil,
                 defaultFlatType: nil,
                 storeDisplayName: "App Store Connect",
-                downloadHintCommand: "appitool apple screenshots download",
+                downloadHintCommand: "appitool apple assets download",
                 parseType: AppleTypeMapper.parseScreenshotDisplayType
             )
         }
@@ -1095,7 +1151,7 @@ struct StoreScreenshotsTests {
                 typeFilter: nil,
                 defaultFlatType: nil,
                 storeDisplayName: "App Store Connect",
-                downloadHintCommand: "appitool apple screenshots download",
+                downloadHintCommand: "appitool apple assets download",
                 parseType: AppleTypeMapper.parseScreenshotDisplayType
             )
         }
@@ -1112,7 +1168,7 @@ struct StoreScreenshotsTests {
                 typeFilter: nil,
                 defaultFlatType: nil,
                 storeDisplayName: "App Store Connect",
-                downloadHintCommand: "appitool apple screenshots download",
+                downloadHintCommand: "appitool apple assets download",
                 parseType: AppleTypeMapper.parseScreenshotDisplayType
             )
         }
@@ -1121,7 +1177,7 @@ struct StoreScreenshotsTests {
     @Test("Upload commands accept zero positional paths and optional locale/type filters")
     func uploadCommandsSymmetricalCLIParsing() throws {
         let appleZero = try #require(
-            try appitool.parseAsRoot(["apple", "screenshots", "upload"]) as? AppleScreenshotsUploadCommand
+            try appitool.parseAsRoot(["apple", "assets","upload"]) as? AppleAssetsUploadCommand
         )
         #expect(appleZero.locale == nil)
         #expect(appleZero.type == nil)
@@ -1130,7 +1186,7 @@ struct StoreScreenshotsTests {
         #expect(appleZero.waitProcessing == true)
 
         let appleFiltered = try #require(
-            try appitool.parseAsRoot(["apple", "screenshots", "upload", "--locale", "en-US", "--replace", "--dry-run"]) as? AppleScreenshotsUploadCommand
+            try appitool.parseAsRoot(["apple", "assets","upload", "--locale", "en-US", "--replace", "--dry-run"]) as? AppleAssetsUploadCommand
         )
         #expect(appleFiltered.locale == "en-US")
         #expect(appleFiltered.type == nil)
@@ -1139,7 +1195,7 @@ struct StoreScreenshotsTests {
         #expect(appleFiltered.dryRun == true)
 
         let googleZero = try #require(
-            try appitool.parseAsRoot(["google", "screenshots", "upload"]) as? GoogleScreenshotsUploadCommand
+            try appitool.parseAsRoot(["google", "assets","upload"]) as? GoogleAssetsUploadCommand
         )
         #expect(googleZero.locale == nil)
         #expect(googleZero.type == nil)
@@ -1147,7 +1203,7 @@ struct StoreScreenshotsTests {
         #expect(googleZero.replace == false)
 
         let googleFiltered = try #require(
-            try appitool.parseAsRoot(["google", "screenshots", "upload", "-t", "tablet7", "--replace", "--validate-only", "./shots"]) as? GoogleScreenshotsUploadCommand
+            try appitool.parseAsRoot(["google", "assets","upload", "-t", "tablet7", "--replace", "--validate-only", "./shots"]) as? GoogleAssetsUploadCommand
         )
         #expect(googleFiltered.locale == nil)
         #expect(googleFiltered.type == "tablet7")

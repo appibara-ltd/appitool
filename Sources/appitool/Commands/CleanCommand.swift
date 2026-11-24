@@ -5,7 +5,7 @@ import Rainbow
 struct CleanCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "clean",
-        abstract: "Cleans previously built archives/IPAs/AABs under ~/.appitool (iOS & Android) and optional derived data."
+        abstract: "Cleans previously built archives/IPAs/AABs under ~/.appitool (iOS & Android), and optionally derived data and downloaded store assets."
     )
 
     @Option(name: .shortAndLong, help: "Platform to clean (ios, android, or all). Defaults to all.")
@@ -17,12 +17,16 @@ struct CleanCommand: AsyncParsableCommand {
     @Flag(name: [.customLong("ddo"), .long], help: "Only clean Xcode derived data directories without deleting build archives.")
     var derivedDataOnly: Bool = false
 
+    @Flag(name: .long, help: "Also clean downloaded store assets under ~/.appitool/assets and the legacy ~/.appitool/screenshots (apple for ios, google for android).")
+    var assets: Bool = false
+
     @Flag(name: .long, help: "Preview items to be cleaned without deleting them.")
     var dryRun: Bool = false
 
     private enum ItemType: String {
         case build = "Build"
         case derivedData = "DerivedData"
+        case assets = "Assets"
     }
 
     private struct CleanItem {
@@ -42,17 +46,31 @@ struct CleanCommand: AsyncParsableCommand {
         let shouldCleanIos = platform.lowercased() == "all" || platform.lowercased() == "ios"
         let shouldCleanAndroid = !derivedDataOnly && (platform.lowercased() == "all" || platform.lowercased() == "android")
 
+        // Current and legacy roots of downloaded store assets.
+        let assetRoots = [AppitoolPaths.assetsRootDirectory, AppitoolPaths.legacyScreenshotsRootDirectory]
+            .filter { fm.fileExists(atPath: $0.path) }
+        // Store folders under <root>/<project>/ cleaned for the selected platform.
+        let assetStores: Set<String> = {
+            switch platform.lowercased() {
+            case "ios": return ["apple"]
+            case "android": return ["google"]
+            default: return []  // empty = every store folder
+            }
+        }()
+
         let hasIos = fm.fileExists(atPath: iosDir.path)
         let hasAndroid = fm.fileExists(atPath: androidDir.path)
+        let hasAssets = assets && !assetRoots.isEmpty
 
-        guard (shouldCleanIos && hasIos) || (shouldCleanAndroid && hasAndroid) else {
-            let target = derivedDataOnly ? "Xcode derived data" : "build directories"
+        guard (shouldCleanIos && hasIos) || (shouldCleanAndroid && hasAndroid) || hasAssets else {
+            let target = derivedDataOnly ? "Xcode derived data" : (assets ? "build directories or downloaded assets" : "build directories")
             Log("🟢 No \(target) found under ~/.appitool for platform '\(platform)'. Nothing to clean.".green)
             return
         }
 
         let prefix = dryRun ? "[Dry Run] ".yellow.bold : ""
-        let targetDesc = derivedDataOnly ? "Xcode derived data" : "build artifacts"
+        let baseDesc = derivedDataOnly ? "Xcode derived data" : "build artifacts"
+        let targetDesc = assets ? "\(baseDesc) and downloaded assets" : baseDesc
         Log("🧹 \(prefix)Scanning ~/.appitool for \(targetDesc)...".bold)
 
         var itemsToDelete: [CleanItem] = []
@@ -129,10 +147,33 @@ struct CleanCommand: AsyncParsableCommand {
             }
         }
 
+        // 3. Scan downloaded store assets: ~/.appitool/assets/{{PROJECT}}/{{STORE}}/ (and legacy ~/.appitool/screenshots/)
+        for assetsDir in hasAssets ? assetRoots : [] {
+            let projectDirs = (try? fm.contentsOfDirectory(at: assetsDir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+            for projUrl in projectDirs {
+                var isDir: ObjCBool = false
+                guard fm.fileExists(atPath: projUrl.path, isDirectory: &isDir), isDir.boolValue else { continue }
+                let storeDirs = (try? fm.contentsOfDirectory(at: projUrl, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+                for storeUrl in storeDirs {
+                    var isStoreDir: ObjCBool = false
+                    guard fm.fileExists(atPath: storeUrl.path, isDirectory: &isStoreDir), isStoreDir.boolValue else { continue }
+                    let store = storeUrl.lastPathComponent
+                    guard assetStores.isEmpty || assetStores.contains(store) else { continue }
+                    itemsToDelete.append(CleanItem(
+                        platform: store == "google" ? "Android" : (store == "apple" ? "iOS" : store),
+                        url: storeUrl,
+                        project: projUrl.lastPathComponent,
+                        type: .assets,
+                        size: calculateSize(of: storeUrl, fm: fm)
+                    ))
+                }
+            }
+        }
+
         if itemsToDelete.isEmpty {
             let emptyMsg = derivedDataOnly
-                ? "🟢 No Xcode derived data found to clean. ~/.appitool is clean!".green.bold
-                : "🟢 No build artifacts found to clean. ~/.appitool is clean!".green.bold
+                ? "🟢 No Xcode derived data\(assets ? " or downloaded assets" : "") found to clean. ~/.appitool is clean!".green.bold
+                : "🟢 No build artifacts\(assets ? " or downloaded assets" : "") found to clean. ~/.appitool is clean!".green.bold
             Log(emptyMsg)
             return
         }
@@ -148,6 +189,8 @@ struct CleanCommand: AsyncParsableCommand {
                 badge = "[\(item.platform)][Build] ".magenta.bold
             case .derivedData:
                 badge = "[\(item.platform)][Derived]".yellow.bold
+            case .assets:
+                badge = "[\(item.platform)][Assets] ".cyan.bold
             }
             let baseAppitool = homeDir.appendingPathComponent(".appitool").path + "/"
             let relativePath = item.url.path.replacingOccurrences(of: baseAppitool, with: "")
@@ -182,6 +225,13 @@ struct CleanCommand: AsyncParsableCommand {
         }
         if shouldCleanAndroid && hasAndroid {
             pruneEmptyDirectories(at: androidDir, fm: fm)
+        }
+        for assetsDir in hasAssets ? assetRoots : [] {
+            pruneEmptyDirectories(at: assetsDir, fm: fm)
+            // Drop the root itself once empty (mainly retires the legacy ~/.appitool/screenshots folder).
+            if let remaining = try? fm.contentsOfDirectory(atPath: assetsDir.path), remaining.isEmpty {
+                try? fm.removeItem(at: assetsDir)
+            }
         }
 
         let freedSizeStr = formatBytes(freedBytes)

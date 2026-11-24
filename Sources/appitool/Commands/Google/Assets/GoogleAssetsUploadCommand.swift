@@ -3,10 +3,10 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-struct GoogleScreenshotsUploadCommand: BaseCommand {
+struct GoogleAssetsUploadCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "upload",
-        abstract: "Uploads store screenshots or graphics to Google Play Console from files, directories, or ~/.appitool/screenshots/<package>/google/."
+        abstract: "Uploads store screenshots or graphics to Google Play Console from files, directories, or ~/.appitool/assets/<package>/google/."
     )
 
     @OptionGroup
@@ -18,8 +18,11 @@ struct GoogleScreenshotsUploadCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Image type (e.g. phone, tablet7, tablet10, tv, wear, icon, feature-graphic, tv-banner). Defaults to phone for flat files; optional filter for directory trees.")
     var type: String?
 
-    @Flag(name: .long, help: "Delete existing images in each target slot before uploading.")
+    @Flag(name: .long, help: "Delete existing images in each target slot before uploading (writes a sync manifest for directory trees).")
     var replace: Bool = false
+
+    @Flag(name: .long, help: "Mirror <locale>/<type>/ folders using their .appitool-manifest.json in a single edit: upload new and edited files, delete images of removed files, and apply file-name order.")
+    var sync: Bool = false
 
     @Flag(name: .long, help: "Validate the edit session without committing changes.")
     var validateOnly: Bool = false
@@ -30,24 +33,56 @@ struct GoogleScreenshotsUploadCommand: BaseCommand {
     @Flag(name: .long, help: "Validate files and preview upload without contacting Google Play.")
     var dryRun: Bool = false
 
-    @Argument(help: "Optional image file(s), directory, or <locale>/<type>/ tree (defaults to ~/.appitool/screenshots/<package>/google/).")
+    @Argument(help: "Optional image file(s), directory, or <locale>/<type>/ tree (defaults to $STORE_ASSETS_PATH/google/, or ~/.appitool/assets/<package>/google/ when unset).")
     var paths: [String] = []
+
+    func validate() throws {
+        if sync && replace {
+            throw ValidationError("Cannot combine --sync with --replace.")
+        }
+    }
 
     func execute() async throws {
         let packageName = try app.requirePackageName()
 
         let (sourceRoot, batches) = try ScreenshotFileResolver.resolveUploadBatches(
             paths: paths,
-            defaultDirectory: { AppitoolPaths.screenshotsDirectory(project: packageName, store: "google") },
+            defaultDirectory: { AppitoolPaths.assetsDirectory(project: packageName, store: "google") },
             localeFilter: locale,
             typeFilter: type,
             defaultFlatType: .phoneScreenshots,
             storeDisplayName: "Google Play",
-            downloadHintCommand: "appitool google screenshots download",
+            downloadHintCommand: "appitool google assets download",
             parseType: GooglePlayImageType.parse
         )
 
         let totalFiles = batches.reduce(0) { $0 + $1.files.count }
+
+        if sync {
+            guard let sourceRoot else {
+                throw CommandError(
+                    "--sync requires a <locale>/<type>/ directory tree (the default ~/.appitool/assets/<package>/google/ or a tree path), not explicit files or a flat folder."
+                )
+            }
+            Log("   Source root: \(sourceRoot.path)".dim)
+            let summary = try await GooglePlayImageSyncTask(
+                service: try app.requireService(),
+                packageName: packageName,
+                batches: batches,
+                dryRun: dryRun,
+                validateOnly: validateOnly,
+                changesNotSentForReview: changesNotSentForReview
+            ).run()
+            if !dryRun && (summary.uploaded > 0 || summary.deleted > 0) {
+                Log(validateOnly
+                    ? "\n🟢 Google Play image sync validated successfully (edit discarded without commit).".green.bold
+                    : "\n🟢 Google Play image sync committed successfully!".green.bold)
+                Log("  • Slots Changed: ".cyan + "\(summary.slotsChanged) of \(batches.count)")
+                Log("  • Uploaded:      ".cyan + "\(summary.uploaded)")
+                Log("  • Deleted:       ".cyan + "\(summary.deleted)\n")
+            }
+            return
+        }
 
         if dryRun {
             Log("\n🟡 [Dry Run] Google Play Visual Upload Preview".yellow.bold)
@@ -111,6 +146,28 @@ struct GoogleScreenshotsUploadCommand: BaseCommand {
                 }
             }
             return (removed, results)
+        }
+
+        // After a committed --replace, each tree folder mirrors its slot exactly; record manifests for `--sync`.
+        if replace && sourceRoot != nil && !validateOnly {
+            for batch in batches {
+                guard let directory = batch.files.first?.deletingLastPathComponent() else { continue }
+                let slotItems = uploaded.filter { $0.locale == batch.locale && $0.imageType == batch.type }
+                try ScreenshotManifest(
+                    store: "google",
+                    locale: batch.locale,
+                    type: batch.type.cliKey,
+                    remoteSetId: GooglePlayImageSyncTask.slotKey(language: batch.locale, imageType: batch.type),
+                    entries: try slotItems.map {
+                        .init(
+                            file: $0.url.lastPathComponent,
+                            remoteId: $0.image.id,
+                            sha256: try ScreenshotManifest.sha256(of: $0.url),
+                            remoteSha256: $0.image.sha256
+                        )
+                    }
+                ).write(to: directory)
+            }
         }
 
         if validateOnly {

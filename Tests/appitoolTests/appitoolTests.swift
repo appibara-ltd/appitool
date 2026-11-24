@@ -146,6 +146,17 @@ import ArgumentParser
     }
 }
 
+@Test func testCleanCommandAssetsFlag() throws {
+    #expect(try CleanCommand.parse([]).assets == false)
+    let cmd = try CleanCommand.parse(["--assets", "-p", "ios", "--dry-run"])
+    #expect(cmd.assets == true)
+    #expect(cmd.platform == "ios")
+    #expect(cmd.dryRun == true)
+    #expect(throws: (any Error).self) {
+        _ = try CleanCommand.parse(["-a"])
+    }
+}
+
 @Test func testUnifiedSilentFlagDefaults() throws {
     #expect(try BuildIOSCommand.parse([]).silent == true)
     #expect(try BuildIOSCommand.parse(["--no-silent"]).silent == false)
@@ -171,15 +182,15 @@ import ArgumentParser
         ["match", "ios", "-A"],
         ["notes", "-p", "v"],
         ["apple", "prune-profiles", "-d"],
-        ["apple", "screenshots", "upload", "--no-wait"],
+        ["apple", "assets", "upload", "--no-wait"],
         // Shorthands removed by the global short-flag scheme.
         ["apple", "list-identifiers", "-i", "com.example.app"],
         ["apple", "list-identifiers", "--identifier", "com.example.app"],
         ["apple", "delete-user", "-u", "a@b.com"],
         ["apple", "update-user", "-v", "com.example.app"],
-        ["apple", "screenshots", "list", "-l", "en-US"],
-        ["apple", "screenshots", "list", "-v", "1.0.0"],
-        ["apple", "screenshots", "upload", "-r"],
+        ["apple", "assets", "list", "-l", "en-US"],
+        ["apple", "assets", "list", "-v", "1.0.0"],
+        ["apple", "assets", "upload", "-r"],
         ["notes", "-f", "v1.0.0"],
         ["notes", "-t", "v2.0.0"],
         ["self-update", "-f"],

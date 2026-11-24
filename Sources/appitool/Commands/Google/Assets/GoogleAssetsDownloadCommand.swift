@@ -3,7 +3,7 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-struct GoogleScreenshotsDownloadCommand: BaseCommand {
+struct GoogleAssetsDownloadCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "download",
         abstract: "Downloads Google Play Console store screenshots and graphics locally."
@@ -18,7 +18,7 @@ struct GoogleScreenshotsDownloadCommand: BaseCommand {
     @Option(name: .shortAndLong, help: "Filter by image type (e.g. phone, tablet7, tablet10, feature-graphic, icon). Omit to download all types.")
     var type: String?
 
-    @Option(name: .shortAndLong, help: "Output directory (defaults to ~/.appitool/screenshots/<package-name>/google/).")
+    @Option(name: .shortAndLong, help: "Output directory (defaults to $STORE_ASSETS_PATH/google/, or ~/.appitool/assets/<package-name>/google/ when unset).")
     var output: String?
 
     @Flag(name: .long, help: "Preview images that would be downloaded without writing files.")
@@ -39,7 +39,7 @@ struct GoogleScreenshotsDownloadCommand: BaseCommand {
         if let explicitOutput = output?.trimmingCharacters(in: .whitespacesAndNewlines), !explicitOutput.isEmpty {
             baseDir = ScreenshotFileResolver.expandPath(explicitOutput)
         } else {
-            baseDir = AppitoolPaths.screenshotsDirectory(project: packageName, store: "google")
+            baseDir = AppitoolPaths.assetsDirectory(project: packageName, store: "google")
         }
 
         Log("🔍 Fetching Google Play store visuals for '\(packageName)'...".dim)
@@ -111,6 +111,7 @@ struct GoogleScreenshotsDownloadCommand: BaseCommand {
                 .appendingPathComponent(entry.language)
                 .appendingPathComponent(entry.imageType.cliKey)
             var createdDir = false
+            var manifestEntries: [ScreenshotManifest.Entry] = []
 
             for (offset, image) in entry.images.enumerated() {
                 guard let rawUrl = image.url,
@@ -143,7 +144,31 @@ struct GoogleScreenshotsDownloadCommand: BaseCommand {
                 downloadedCount += 1
                 let sizeStr = ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file)
                 Log("  ✔ \(entry.language)/\(entry.imageType.cliKey)/\(filename) ".green + "(\(sizeStr))".dim)
+                manifestEntries.append(.init(
+                    file: filename,
+                    remoteId: image.id,
+                    sha256: try ScreenshotManifest.sha256(of: destination),
+                    remoteSha256: image.sha256
+                ))
             }
+
+            // Record the slot state for `upload --sync`.
+            try fm.createDirectory(at: targetDir, withIntermediateDirectories: true)
+            let remoteShas = Set(entry.images.compactMap(\.sha256))
+            try ScreenshotManifest.cleanUpAfterDownload(
+                directory: targetDir,
+                newEntries: manifestEntries,
+                label: "\(entry.language)/\(entry.imageType.cliKey)",
+                storeName: "Google Play",
+                isStillRemote: { $0.remoteSha256.map(remoteShas.contains) ?? false }
+            )
+            try ScreenshotManifest(
+                store: "google",
+                locale: entry.language,
+                type: entry.imageType.cliKey,
+                remoteSetId: GooglePlayImageSyncTask.slotKey(language: entry.language, imageType: entry.imageType),
+                entries: manifestEntries
+            ).write(to: targetDir)
         }
 
         Log("\n🟢 Downloaded \(downloadedCount) image(s) to \(baseDir.path)".green.bold + (skippedCount > 0 ? " (\(skippedCount) skipped)".yellow : "") + "\n")

@@ -3,7 +3,7 @@ import Foundation
 import GoogleServices
 import Rainbow
 
-struct GoogleScreenshotsListCommand: BaseCommand {
+struct GoogleAssetsListCommand: BaseCommand {
     static let configuration = CommandConfiguration(
         commandName: "list",
         abstract: "Lists store screenshots and graphics registered in Google Play Console."

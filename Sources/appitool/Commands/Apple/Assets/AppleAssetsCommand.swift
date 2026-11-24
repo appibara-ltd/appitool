@@ -3,22 +3,24 @@ import Foundation
 import AppStoreConnectAPI
 import AppleServices
 
-struct AppleScreenshotsCommand: AsyncParsableCommand {
+/// App Store product page assets: screenshots plus the product page header and search results images.
+struct AppleAssetsCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "screenshots",
-        abstract: "List, upload, and delete App Store Connect app screenshots.",
+        commandName: "assets",
+        abstract: "List, upload, download, and delete App Store screenshots, product page header, and search results images.",
         subcommands: [
-            AppleScreenshotsListCommand.self,
-            AppleScreenshotsUploadCommand.self,
-            AppleScreenshotsDownloadCommand.self,
-            AppleScreenshotsDeleteCommand.self,
-            AppleScreenshotsTypesCommand.self,
+            AppleAssetsListCommand.self,
+            AppleAssetsUploadCommand.self,
+            AppleAssetsDownloadCommand.self,
+            AppleAssetsDeleteCommand.self,
+            AppleAssetsTypesCommand.self,
+            AppleAssetsSpecsCommand.self,
         ]
     )
 }
 
-/// Shared CLI options and resolution helpers for App Store Connect screenshot commands.
-struct AppleScreenshotAppOptions: ParsableArguments, Sendable {
+/// Shared CLI options and resolution helpers for `apple assets` commands.
+struct AppleAssetAppOptions: ParsableArguments, Sendable {
     @OptionGroup
     var appleCredentials: AppleCredentialsOptions
 
