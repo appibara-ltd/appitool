@@ -72,7 +72,7 @@ App identifiers are resolved the same way by every command: **CLI option → `.e
 
 | Variable | Description | Default / Behavior |
 |:---|:---|:---|
-| `STORE_ASSETS_PATH` | Folder that `assets` and `metadata` `download` write to and `upload` read from by default. Absolute, `~`-prefixed, or relative to the current directory. Store folders go directly inside it: `<path>/apple/<locale>/<type|metadata>/` and `<path>/google/<locale>/<type|metadata>/` (no project folder, since the path is project-specific). `-o, --output` and explicit upload paths still take precedence. | Unset or empty: `~/.appitool/assets/<project>/<store>/` |
+| `STORE_ASSETS_PATH` | Folder that `assets` and `metadata` `download` write to and `upload` read from by default. Absolute, `~`-prefixed, or relative to the current directory. Store folders go directly inside it: `<path>/apple/<locale>/<type\|metadata>/` and `<path>/google/<locale>/<type\|metadata>/` (no project folder, since the path is project-specific). `-o, --output` and explicit upload paths still take precedence. | Unset or empty: `~/.appitool/assets/<project>/<store>/` |
 | `APPLE_REVIEW_DEMO_PASSWORD` | App Review demo account password sent by `apple metadata upload` when it differs from the current value. Never written to or read from metadata files; masked in output. | Unset: password is not changed |
 
 ### Android Gradle & Keystore Signing
