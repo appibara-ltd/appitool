@@ -404,13 +404,13 @@ extension GooglePlayService {
 
     // MARK: - Private Helpers
 
-    private static func encodePathSegment(_ raw: String) -> String {
+    static func encodePathSegment(_ raw: String) -> String {
         var allowed = CharacterSet.urlPathAllowed
         allowed.remove(charactersIn: "/")
         return raw.addingPercentEncoding(withAllowedCharacters: allowed) ?? raw
     }
 
-    private static func readGoogleError(from body: HTTPBody?) async -> String? {
+    static func readGoogleError(from body: HTTPBody?) async -> String? {
         guard let body else { return nil }
         guard let data = try? await Data(collecting: body, upTo: 256 * 1024), !data.isEmpty else {
             return nil
@@ -418,7 +418,7 @@ extension GooglePlayService {
         return parseGoogleErrorMessage(from: data)
     }
 
-    private static func parseGoogleErrorMessage(from data: Data) -> String? {
+    static func parseGoogleErrorMessage(from data: Data) -> String? {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             let text = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
             return text?.isEmpty == false ? text : nil

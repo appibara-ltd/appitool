@@ -5,7 +5,7 @@ Direct management of Apple App Store Connect and Apple Developer Portal resource
 All `apple` subcommands accept [`AppleCredentialsOptions`](/commands/overview#applecredentialsoptions) (`--apple-key-id`, `--apple-issuer-id`, `--apple-key`), falling back to `APPLE_KEY_ID`, `APPLE_ISSUER_ID`, and `APPLE_KEY` in `.env` / environment variables.
 
 > [!NOTE]
-> **CI Guard:** Destructive subcommands (`delete-identifier`, `delete-profile`, `prune-profiles`, `delete-certificate`, `prune-certificates`, `disable-device`, `delete-user`, `cancel-invitation`, and `assets delete`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
+> **CI Guard:** Destructive subcommands (`delete-identifier`, `delete-profile`, `prune-profiles`, `delete-certificate`, `prune-certificates`, `disable-device`, `delete-user`, `cancel-invitation`, `delete-version`, and `assets delete`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
 
 ## Synopsis
 
@@ -17,13 +17,14 @@ appitool apple <subcommand> [options]
 
 | Category | Subcommands |
 |:---|:---|
-| **Apps** | `list-apps` |
+| **Apps** | `list-apps`, `create-version`, `delete-version` |
 | **App / Bundle Identifiers** | `list-identifiers`, `create-identifier`, `delete-identifier`, `list-capabilities` |
 | **Provisioning Profiles** | `list-profiles`, `create-profile`, `delete-profile`, `prune-profiles` |
 | **Certificates** | `list-certificates`, `create-certificate`, `delete-certificate`, `prune-certificates` |
 | **Devices** | `list-devices`, `add-device`, `disable-device` |
 | **Users & Invitations** | `list-users`, `invite-user`, `update-user`, `delete-user`, `list-invitations`, `cancel-invitation` |
 | **Assets** (screenshots, product page header, search results) | `assets list`, `assets upload`, `assets download`, `assets delete`, `assets types`, `assets specs` |
+| **Metadata** (name, subtitle, description, keywords, promotional text, what's new, URLs) | `metadata list`, `metadata download`, `metadata upload` |
 
 ---
 
@@ -42,6 +43,59 @@ Lists applications registered in App Store Connect (name, bundle ID, App ID, SKU
 ```bash
 appitool apple list-apps
 appitool apple list-apps -b com.example.app
+```
+
+### `appitool apple create-version`
+
+Creates a new App Store version (`POST /v1/appStoreVersions`). App Store Connect copies the previous version's texts and screenshots into it, and an editable app info becomes available, so [`apple metadata`](#metadata-appitool-apple-metadata) and [`apple assets`](#assets-appitool-apple-assets) can edit it right away.
+
+**Version string:**
+
+- **`--app-version` given:** that version is created as-is. App Store Connect validates it; if it rejects the request, the command exits with Apple's error message plus a likely cause (e.g. HTTP 409: another version is still editable or the version already exists; 400/422: invalid or not higher than the latest version; 401/403: API key role). The Xcode project is not changed.
+- **`--app-version` omitted:**
+  1. If a version is already editable for the platform (App Store Connect allows only one), the command stops and names it — nothing is changed.
+  2. The Xcode project's `MARKETING_VERSION` is used when it is higher than every existing App Store version (or when the app has no versions yet).
+  3. Otherwise (project version lower or equal, or no project found), the latest App Store version's patch number is bumped (`1.0.8` → `1.0.9`). When a project was found, its `MARKETING_VERSION` is set to the new version **after** App Store Connect accepted it (all distributable targets; literal `CFBundleShortVersionString` values in `Info.plist` are pointed at `$(MARKETING_VERSION)`; `.xcconfig` files are not changed).
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `--app-version <x.y.z>` | Xcode project / bumped latest (see above) | Version string to create. |
+| `-b, --bundle-id <id>` / `--app-id <id>` | `APPLE_BUNDLE_ID` / Xcode project | Target app. |
+| `-p, --platform <platform>` | `ios` | `ios`, `macos`, `tvos`, `visionos`. |
+| `--release-type <type>` | App Store Connect default | `manual`, `after-approval`, or `scheduled`. |
+| `--release-date <iso8601>` | — | Earliest release date; required for and only allowed with `--release-type scheduled`. |
+| `--copyright <text>` | — | Copyright text. |
+| `--project <path>` / `--workspace-path <path>` | `XCODE_PROJECT` / `XCODE_WORKSPACE` / auto-detected | Xcode project used for the default version and the `MARKETING_VERSION` update. |
+| `--dry-run` | `false` | Show the version that would be created (and whether the project would be updated) without changing anything. |
+
+```bash
+# Use the Xcode project version, or bump the latest App Store version
+appitool apple create-version --dry-run
+appitool apple create-version
+
+# Create an explicit version that is released automatically after approval
+appitool apple create-version --app-version 2.0.0 --release-type after-approval
+```
+
+### `appitool apple delete-version`
+
+Deletes an App Store version that is still being prepared (`DELETE /v1/appStoreVersions/{id}`), including its localized texts, screenshots, and App Review details. Asset Library images stay in the library, and a `MARKETING_VERSION` bumped by `create-version` is not reverted. Destructive: skipped in CI mode unless `--no-ci` is passed.
+
+- Without `--app-version`, the platform's editable version is deleted; if there is none, nothing happens.
+- With `--app-version`, that version must exist and be editable; live, in-review, or released versions are refused before calling App Store Connect.
+- App Store Connect makes the final decision (it generally only removes versions that were never submitted for review); its error is shown with a likely cause.
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `--app-version <x.y.z>` | Current editable version | Version to delete. |
+| `-b, --bundle-id <id>` / `--app-id <id>` | `APPLE_BUNDLE_ID` / Xcode project | Target app. |
+| `-p, --platform <platform>` | `ios` | `ios`, `macos`, `tvos`, `visionos`. |
+| `--dry-run` | `false` | Show which version would be deleted. |
+| `--ci` / `--no-ci` | auto | CI guard (see [`GlobalCIOptions`](/commands/overview#globalcioptions)). |
+
+```bash
+appitool apple delete-version --dry-run
+appitool apple delete-version --app-version 1.0.9
 ```
 
 ---
@@ -559,4 +613,77 @@ Shows Apple's current image specs live from `appAssetLibraryRefData` (needs only
 ```bash
 appitool apple assets specs
 appitool apple assets specs -t header
+```
+
+---
+
+## Metadata (`appitool apple metadata`)
+
+Manages App Store listing text as one plain-text file per field: `<root>/<locale>/metadata/<field>.txt`, where `<root>` is `$STORE_ASSETS_PATH/apple/` or `~/.appitool/assets/<project>/apple/` (the same folder as `apple assets`; image commands ignore `metadata/` folders). There is one current set of files per locale (no per-version folders); git history keeps earlier texts.
+
+| File | Field | Limit | Lives on |
+|:---|:---|:---|:---|
+| `name.txt` | Name | 30 | App info localization |
+| `subtitle.txt` | Subtitle | 30 | App info localization |
+| `privacy_policy_url.txt` | Privacy Policy URL | — | App info localization |
+| `privacy_choices_url.txt` | Privacy Choices URL | — | App info localization |
+| `description.txt` | Description | 4000 | Version localization |
+| `keywords.txt` | Keywords (comma-separated) | 100 | Version localization |
+| `promotional_text.txt` | Promotional Text | 170 | Version localization |
+| `whats_new.txt` | What's New | 4000 | Version localization |
+| `marketing_url.txt` | Marketing URL | — | Version localization |
+| `support_url.txt` | Support URL | — | Version localization |
+
+**App-level fields** (one value for all languages) live in `<root>/metadata/<field>.txt`:
+
+| File | Field | Lives on | Editable when |
+|:---|:---|:---|:---|
+| `copyright.txt` | Copyright | Version | Version editable |
+| `primary_category.txt`, `primary_subcategory_one.txt`, `primary_subcategory_two.txt`, `secondary_category.txt`, `secondary_subcategory_one.txt`, `secondary_subcategory_two.txt` | Categories (App Store category IDs such as `PRODUCTIVITY`, `GAMES_ACTION`; validated against `appCategories` for the platform) | App info | App info editable |
+| `review_contact_first_name.txt`, `review_contact_last_name.txt`, `review_contact_phone.txt`, `review_contact_email.txt` | App Review contact | Version (App Review details) | Version editable |
+| `review_notes.txt` | App Review notes (max 4000) | Version (App Review details) | Version editable |
+| `review_demo_account_required.txt` | `true` / `false` | Version (App Review details) | Version editable |
+| `review_demo_account_name.txt` | Demo account user name | Version (App Review details) | Version editable |
+| `content_rights_declaration.txt` | `DOES_NOT_USE_THIRD_PARTY_CONTENT` or `USES_THIRD_PARTY_CONTENT` | App | Any time |
+| `accessibility_url.txt` | Accessibility URL | App | Any time |
+
+The demo account password is a secret: it is never written to or read from files. Set `APPLE_REVIEW_DEMO_PASSWORD` (e.g. in `.env`) to upload it; it is sent only when it differs from the current value and is masked in all output. App Review details are created when the version has none yet.
+
+**Which version and app info:** the version is resolved like `assets` (editable version preferred, `--app-version` to pick one, otherwise the latest). The app info is the editable one while a new version is being prepared, otherwise the live one. Every command prints the version and app info state it reads from or writes to. Name, subtitle, and privacy changes need an editable app info and go live with the next version; version fields need an editable version, except `promotional_text`, which can also change on a live version.
+
+All subcommands accept the shared app options (`-b, --bundle-id`, `--app-id`, `-p, --platform`, `--app-version`).
+
+### `appitool apple metadata list`
+
+Shows the app-level fields (`[app]`, password masked) and every field per localization with its character count and limit (long texts are shortened).
+
+| Option | Description |
+|:---|:---|
+| `--locale <locale>` | Show only this locale (app-level fields are skipped). |
+
+### `appitool apple metadata download`
+
+Writes each non-empty field to `<locale>/metadata/<field>.txt` and app-level fields to `metadata/<field>.txt` (with a trailing newline; the demo account password is never written). Existing files are overwritten.
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `--locale <locale>` | — | Download only this locale (app-level fields are skipped). |
+| `-o, --output <dir>` | `$STORE_ASSETS_PATH/apple/` or `~/.appitool/assets/<project>/apple/` | Metadata root directory. |
+| `--dry-run` | `false` | Preview files without writing them. |
+
+### `appitool apple metadata upload`
+
+Reads `<locale>/metadata/*.txt` and `metadata/*.txt`, compares each file with the store value (surrounding whitespace ignored, `\r\n` treated as `\n`), and sends only fields that differ. Missing and empty files are ignored, so a blank file never clears a store field. Everything is planned first: length limits, value checks (categories, content rights, `true`/`false`), and editability are checked before any change, and any error aborts the run. Local locales that are not localizations of the app/version are skipped with a warning (add the language in App Store Connect first).
+
+| Option / Flag / Argument | Default | Description |
+|:---|:---|:---|
+| `--locale <locale>` | — | Upload only this locale (app-level fields are skipped). |
+| `--dry-run` | `false` | Print the per-field changes without sending them. |
+| `<path>` | `$STORE_ASSETS_PATH/apple/` or `~/.appitool/assets/<project>/apple/` | Metadata root containing `<locale>/metadata/` folders. |
+
+```bash
+appitool apple metadata download
+# edit ~/.appitool/assets/<bundle-id>/apple/en-US/metadata/whats_new.txt
+appitool apple metadata upload --dry-run
+appitool apple metadata upload
 ```

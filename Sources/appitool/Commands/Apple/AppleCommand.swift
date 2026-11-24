@@ -7,6 +7,8 @@ struct AppleCommand: AsyncParsableCommand {
         abstract: "Manage and query Apple App Store Connect and Developer Portal resources.",
         subcommands: [
             AppleListAppsCommand.self,
+            AppleCreateVersionCommand.self,
+            AppleDeleteVersionCommand.self,
             AppleListIdentifiersCommand.self,
             AppleCreateIdentifierCommand.self,
             AppleDeleteIdentifierCommand.self,
@@ -29,6 +31,7 @@ struct AppleCommand: AsyncParsableCommand {
             AppleListInvitationsCommand.self,
             AppleCancelInvitationCommand.self,
             AppleAssetsCommand.self,
+            AppleMetadataCommand.self,
         ]
     )
 }

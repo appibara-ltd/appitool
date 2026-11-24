@@ -15,7 +15,7 @@ appitool clean [options]
 | `-p, --platform <platform>` | `all` | Platform to clean: `ios`, `android`, or `all`. |
 | `--dd, --derived-data` | `false` | Also clean Xcode `derivedData` directories under `~/.appitool/ios/<project>/derivedData`. |
 | `--ddo, --derived-data-only` | `false` | Only clean Xcode `derivedData` directories without deleting build archives. |
-| `--assets` | `false` | Also clean downloaded store assets (screenshots, header/search images, Google Play graphics, and their sync manifests) under `~/.appitool/assets/<project>/<store>/` and the legacy `~/.appitool/screenshots/<project>/<store>/` (removed once empty). A custom `STORE_ASSETS_PATH` folder is never cleaned (it usually lives in your project). `-p ios` limits it to `apple`, `-p android` to `google`, `all` cleans every store folder. Combined with `--ddo`, cleans derived data and assets but no build archives. |
+| `--assets` | `false` | Also clean downloaded store assets (screenshots, header/search images, Google Play graphics, their sync manifests, and downloaded `metadata/` text files) under `~/.appitool/assets/<project>/<store>/` and the legacy `~/.appitool/screenshots/<project>/<store>/` (removed once empty). A custom `STORE_ASSETS_PATH` folder is never cleaned (it usually lives in your project). `-p ios` limits it to `apple`, `-p android` to `google`, `all` cleans every store folder. Combined with `--ddo`, cleans derived data and assets but no build archives. |
 | `--dry-run` | `false` | Scan and display items with disk sizes without deleting anything. |
 
 ## Examples

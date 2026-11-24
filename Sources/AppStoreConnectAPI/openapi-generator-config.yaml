@@ -28,7 +28,19 @@ filter:
     - /v1/userInvitations
     - /v1/userInvitations/{id}
     - /v1/apps/{id}/appStoreVersions
+    - /v1/appStoreVersions
+    - /v1/appStoreVersions/{id}
+    - /v1/appStoreVersions/{id}/appStoreReviewDetail
+    - /v1/appStoreReviewDetails
+    - /v1/appStoreReviewDetails/{id}
+    - /v1/apps/{id}
+    - /v1/appInfos/{id}
+    - /v1/appCategories
     - /v1/appStoreVersions/{id}/appStoreVersionLocalizations
+    - /v1/appStoreVersionLocalizations/{id}
+    - /v1/apps/{id}/appInfos
+    - /v1/appInfos/{id}/appInfoLocalizations
+    - /v1/appInfoLocalizations/{id}
     - /v1/apps/{id}/assetLibrary
     - /v1/appAssetLibraryImages
     - /v1/appAssetLibraryImages/{id}

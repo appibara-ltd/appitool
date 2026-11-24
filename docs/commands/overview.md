@@ -10,8 +10,8 @@
 | [`build`](/commands/build) | `ios`, `android` | Compiles and packages iOS (`.xcarchive`/`.ipa`) and Android (`.aab`/`.apk`) artifacts directly. |
 | [`check`](/commands/check) | `ios`, `android` | Queries remote store/distribution metadata and latest build numbers. |
 | [`match`](/commands/match) | `ios` *(default)*, `android` | Syncs, prunes, nukes, or adds Git-encrypted certificates, profiles, and keystores. |
-| [`apple`](/commands/apple) | 23 subcommands | Manages App Store Connect & Developer Portal apps, identifiers, capabilities, profiles, certificates, devices, team users, invitations, and store assets (screenshots, product page header, search results). |
-| [`google`](/commands/google) | `assets` (5 subcommands) | Manages Google Play Console store visuals and screenshots (`list`, `upload`, `download`, `delete`, `types`). |
+| [`apple`](/commands/apple) | 26 subcommands | Manages App Store Connect & Developer Portal apps and versions, identifiers, capabilities, profiles, certificates, devices, team users, invitations, store assets (screenshots, product page header, search results), and listing metadata. |
+| [`google`](/commands/google) | `list-apps`, `signing-certs`, `assets` (5 subcommands), `metadata` (3 subcommands), 8 user commands | Lists accessible apps and signing certificate fingerprints, and manages Google Play Console store visuals and screenshots (`list`, `upload`, `download`, `delete`, `types`), store listing text (`list`, `download`, `upload`), and Play Console users, invitations, and per-app access. |
 | [`firebase`](/commands/firebase) | 9 subcommands | Manages Firebase App Distribution releases/groups, Firebase Auth users, and Cloud Firestore collections/documents. |
 | [`inspect`](/commands/inspect) | — | Inspects local iOS and Android identifiers, versions, build numbers, and flavors (supports `--json`). |
 | [`clean`](/commands/clean) | — | Cleans cached build outputs, Xcode DerivedData, and (with `--assets`) downloaded store assets under `~/.appitool`. |
@@ -123,7 +123,7 @@ Used by `flow ios` and `flow android`.
 
 ### `GlobalCIOptions`
 
-Available globally on `appitool` (can be placed before or after subcommands, as well as directly on guarded destructive subcommands and `match ios sync`). Auto-detects CI environment variables (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD`) when omitted. In CI mode, destructive commands (`apple delete-identifier`, `apple delete-profile`, `apple prune-profiles`, `apple delete-certificate`, `apple prune-certificates`, `apple disable-device`, `apple delete-user`, `apple cancel-invitation`, `apple assets delete`, `google assets delete`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, and `match ios prune`) are skipped as a no-op with a warning (exit code `0`).
+Available globally on `appitool` (can be placed before or after subcommands, as well as directly on guarded destructive subcommands and `match ios sync`). Auto-detects CI environment variables (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BITRISE_IO`, `CIRCLECI`, `BUILDKITE`, `JENKINS_URL`, `TF_BUILD`, `TEAMCITY_VERSION`, `TRAVIS`, `CODEMAGIC_BUILD_ID`, `CI_XCODE_CLOUD`) when omitted. In CI mode, destructive commands (`apple delete-identifier`, `apple delete-profile`, `apple prune-profiles`, `apple delete-certificate`, `apple prune-certificates`, `apple disable-device`, `apple delete-user`, `apple cancel-invitation`, `apple delete-version`, `apple assets delete`, `google assets delete`, `google delete-user`, `google cancel-invitation`, `google revoke-access`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, and `match ios prune`) are skipped as a no-op with a warning (exit code `0`).
 
 | Flag | Default / Env Fallback | Description |
 |:---|:---|:---|

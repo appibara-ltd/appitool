@@ -1823,6 +1823,66 @@ public enum XCodeTasks {
         )
     }
 
+    /// Sets `MARKETING_VERSION` (the App Store version string) on every build configuration of distributable targets,
+    /// and on project-level configurations that already define it. Literal `CFBundleShortVersionString` values in
+    /// referenced `Info.plist` files are pointed at `$(MARKETING_VERSION)` so the new value takes effect.
+    /// Returns the names of the updated targets. `.xcconfig` files are not modified.
+    @discardableResult
+    public static func updateMarketingVersion(
+        _ version: String,
+        projectPath: String? = nil,
+        workspacePath: String? = nil,
+        in directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) throws -> [String] {
+        let effectiveProjectPath = try resolveProjectPath(
+            projectPath: projectPath,
+            workspacePath: workspacePath,
+            in: directory
+        )
+        let path = Path(effectiveProjectPath)
+        let xcodeProj = try XcodeProj(path: path)
+        let pbxproj = xcodeProj.pbxproj
+        let projectDirectory = URL(fileURLWithPath: effectiveProjectPath).deletingLastPathComponent()
+
+        var updatedTargets: [String] = []
+        var syncedPlists = Set<URL>()
+        for target in pbxproj.nativeTargets where isDistributableTarget(target) {
+            guard let configList = target.buildConfigurationList else { continue }
+            for config in configList.buildConfigurations {
+                config.buildSettings["MARKETING_VERSION"] = version
+                if let plistUrl = resolveInfoPlistURL(config: config, projectDirectory: projectDirectory),
+                   syncedPlists.insert(plistUrl).inserted {
+                    syncShortVersionString(at: plistUrl)
+                }
+            }
+            updatedTargets.append(target.name)
+        }
+
+        if let projectConfigs = pbxproj.projects.first?.buildConfigurationList?.buildConfigurations {
+            for config in projectConfigs where config.buildSettings["MARKETING_VERSION"] != nil {
+                config.buildSettings["MARKETING_VERSION"] = version
+            }
+        }
+
+        try xcodeProj.writePBXProj(path: path, override: true, outputSettings: PBXOutputSettings())
+        return updatedTargets
+    }
+
+    /// Replaces a literal `CFBundleShortVersionString` value in `Info.plist` with `$(MARKETING_VERSION)`.
+    /// Values already referencing build settings and binary plists are left untouched.
+    private static func syncShortVersionString(at plistUrl: URL) {
+        guard let data = try? Data(contentsOf: plistUrl),
+              var content = String(data: data, encoding: .utf8) else { return }
+        let pattern = "(<key>CFBundleShortVersionString</key>\\s*<string>)([^<]*)(</string>)"
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
+              let valueRange = Range(match.range(at: 2), in: content) else { return }
+        let current = content[valueRange]
+        guard !current.contains("$(") && !current.contains("${") else { return }
+        content.replaceSubrange(valueRange, with: "$(MARKETING_VERSION)")
+        try? content.write(to: plistUrl, atomically: true, encoding: .utf8)
+    }
+
     private static func stringSettingValue(_ value: Any?) -> String? {
         if let str = value as? String {
             let trimmed = str.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -66,12 +66,14 @@ App identifiers are resolved the same way by every command: **CLI option → `.e
 |:---|:---|:---|
 | `GOOGLE_KEY` | Path to Service Account JSON, raw JSON string, or Base64 JSON | `./service-account.json` |
 | `GOOGLE_PACKAGE_NAME` | Target Android application package name | `com.example.app` |
+| `GOOGLE_PLAY_ACCOUNT_ID` | Play Console account ID for `google` user commands: the number in `play.google.com/console/developers/<id>` (not the Google Cloud project, service account, or package name). `--account-id` overrides it. | `1234567890123456789` |
 
 ### Store Assets (`apple assets` & `google assets`)
 
 | Variable | Description | Default / Behavior |
 |:---|:---|:---|
-| `STORE_ASSETS_PATH` | Folder that `download` writes to and `upload` reads from by default. Absolute, `~`-prefixed, or relative to the current directory. Store folders go directly inside it: `<path>/apple/<locale>/<type>/` and `<path>/google/<locale>/<type>/` (no project folder, since the path is project-specific). `-o, --output` and explicit upload paths still take precedence. | Unset or empty: `~/.appitool/assets/<project>/<store>/` |
+| `STORE_ASSETS_PATH` | Folder that `assets` and `metadata` `download` write to and `upload` read from by default. Absolute, `~`-prefixed, or relative to the current directory. Store folders go directly inside it: `<path>/apple/<locale>/<type|metadata>/` and `<path>/google/<locale>/<type|metadata>/` (no project folder, since the path is project-specific). `-o, --output` and explicit upload paths still take precedence. | Unset or empty: `~/.appitool/assets/<project>/<store>/` |
+| `APPLE_REVIEW_DEMO_PASSWORD` | App Review demo account password sent by `apple metadata upload` when it differs from the current value. Never written to or read from metadata files; masked in output. | Unset: password is not changed |
 
 ### Android Gradle & Keystore Signing
 
@@ -125,7 +127,7 @@ App identifiers are resolved the same way by every command: **CLI option → `.e
 
 ### CI Mode & Destructive Command Guard
 
-`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `apple assets delete`, `google assets delete`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, `match ios prune`) are skipped as a no-op with a warning and exit code `0`.
+`appitool` resolves CI mode in precedence order: explicit CLI flag (`--ci` / `--no-ci`) → `CI` → CI provider variables. When CI mode is active, destructive commands (`apple delete-*`, `apple prune-*`, `apple disable-device`, `apple cancel-invitation`, `apple delete-version`, `apple assets delete`, `google assets delete`, `google delete-user`, `google cancel-invitation`, `google revoke-access`, `firebase delete-user`, `firebase firestore delete`, `match ios nuke`, `match ios prune`) are skipped as a no-op with a warning and exit code `0`.
 
 | Variable | Description | Notes |
 |:---|:---|:---|
@@ -162,7 +164,11 @@ App identifiers are resolved the same way by every command: **CLI option → `.e
 ├── assets/                     # default store assets root; STORE_ASSETS_PATH replaces assets/<project>/ (older versions used ~/.appitool/screenshots/)
 │   └── <project>/
 │       ├── apple/<locale>/<type>/    # apple assets download / upload: screenshot types (01_<name>.png) and header|search (one image), .appitool-manifest.json for upload --sync
-│       └── google/<locale>/<type>/   # Used by both download and default bulk upload (01.png, .appitool-manifest.json for upload --sync)
+│       ├── apple/<locale>/metadata/  # apple metadata download / upload: <field>.txt (name, subtitle, description, keywords, …)
+│       ├── apple/metadata/           # app-level: copyright, categories, App Review details, content rights, accessibility URL
+│       ├── google/<locale>/<type>/   # Used by both download and default bulk upload (01.png, .appitool-manifest.json for upload --sync)
+│       ├── google/<locale>/metadata/ # google metadata download / upload: title, short_description, full_description, video
+│       └── google/metadata/          # app-level: contact_email, contact_phone, contact_website, default_language
 └── match/
     └── <UUID>/                  # Temporary Git clone working directory (auto-cleaned)
 ```

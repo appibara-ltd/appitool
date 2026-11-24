@@ -226,6 +226,24 @@ struct XCodeBuildVersionTests {
         #expect(!context.fileRestorer.hasPendingBackups)
     }
 
+    @Test("XCodeTasks.updateMarketingVersion sets MARKETING_VERSION on app targets and is read back")
+    func updateMarketingVersionWritesProject() throws {
+        let root = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let (projectDir, _, _) = try createMinimalXcodeProject(
+            in: root,
+            infoPlistBundleVersion: "1",
+            targetBuildVersions: (debug: "1", release: "1")
+        )
+
+        let targets = try XCodeTasks.updateMarketingVersion("1.0.9", projectPath: projectDir.path, in: root)
+        #expect(targets == ["TestApp"])
+        let version = try XCodeTasks.getProjectVersion(projectPath: projectDir.path, in: root)
+        #expect(version.version == "1.0.9")
+        #expect(version.buildNumber == "1")
+    }
+
     @Test("XCodeTasks.updateBuildNumber keeps Info.plist normalized permanently when CURRENT_PROJECT_VERSION exists")
     func updateBuildNumberKeepsNormalizationWhenProjectDefinesCurrentProjectVersion() throws {
         let root = try makeTempDir()

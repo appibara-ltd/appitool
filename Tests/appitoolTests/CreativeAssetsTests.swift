@@ -160,6 +160,18 @@ struct CreativeAssetsTests {
         #expect(info.height == 1646)
     }
 
+    @Test("A null App Review detail response is recognized as 'no review details yet'")
+    func nullReviewDetailResponse() {
+        let json = #"{"data":null,"links":{"self":"https://api.appstoreconnect.apple.com/v1/appStoreVersions/v1/appStoreReviewDetail"}}"#
+        do {
+            _ = try JSONDecoder().decode(Components.Schemas.AppStoreReviewDetailResponse.self, from: Data(json.utf8))
+            Issue.record("Expected the spec-shaped response to reject null data")
+        } catch {
+            #expect(AppStoreService.isNullDataResponse(error))
+        }
+        #expect(!AppStoreService.isNullDataResponse(DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "x"))))
+    }
+
     @Test("Placement create request encodes a flat body (no anyOf wrappers)")
     func placementCreateEncoding() throws {
         let payload = Components.Schemas.AppAssetLibraryPlacementCreateRequest(
