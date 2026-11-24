@@ -35,67 +35,33 @@ struct GoogleSigningCertsCommand: BaseCommand {
             resolvedVersionCode = versionCode
         } else {
             Log("🔍 Finding the latest version code on your tracks...".dim)
-            let latest = try await GetLatestBuildNumberTask().run(.init(target: .android(packageName: packageName, service: service), distribution: .appstore))
-            guard let code = Int(latest.buildNumber) else {
-                throw CommandError("Could not determine the latest version code (got '\(latest.buildNumber)').", hint: "Pass --version-code.")
-            }
-            guard code > 0 else {
-                throw CommandError(
-                    "\(packageName) has no releases on any track yet, so Play has no generated APKs to read certificates from.",
-                    hint: "Upload an app bundle (AAB) first, e.g. to the internal track. Play App Signing certificates exist only after the first upload. If the bundle is uploaded but not in a release, pass its --version-code."
-                )
-            }
-            resolvedVersionCode = code
+            resolvedVersionCode = try await PlaySigningCertificates.latestVersionCode(packageName: packageName, service: service)
         }
 
         Log("🔍 Reading Play-generated APKs for \(packageName) version code \(resolvedVersionCode)...".dim)
-        let groups: [GooglePlaySigningKeyApks]
-        do {
-            groups = try await service.listGeneratedApks(packageName: packageName, versionCode: resolvedVersionCode)
-        } catch let error as GooglePlayImageError {
-            throw CommandError("Failed to read generated APKs: \(error.localizedDescription)", hint: Self.hint(for: error))
-        }
-        guard !groups.isEmpty else {
-            throw CommandError(
-                "Play has no generated APKs for version code \(resolvedVersionCode).",
-                hint: "Generated APKs exist for app bundles (AAB) uploaded with Play App Signing; check the version code."
-            )
-        }
+        let keys = try await PlaySigningCertificates.fetch(
+            packageName: packageName, versionCode: resolvedVersionCode, service: service, downloadApks: !sha256Only
+        )
 
         Log("\n🔐 Play App Signing certificates for \(packageName) (version code \(resolvedVersionCode)):".bold)
-        for (index, group) in groups.enumerated() {
-            let apiSha256 = APKSigningCertificates.normalizeHex(group.certificateSha256Hash)
+        for (index, key) in keys.enumerated() {
             Log("\n  Signing key \(index + 1)".cyan.bold)
-            Log("    SHA-256 (API): ".dim + Self.colonHex(apiSha256))
-
-            guard !sha256Only else { continue }
-            guard let downloadId = group.downloadIds.first else {
-                Log("    🟡 No downloadable APK for this key; SHA-1 unavailable.".yellow)
-                continue
+            Log("    SHA-256 (API): ".dim + Self.colonHex(key.apiSha256))
+            if let failure = key.failure {
+                Log("    🟡 \(failure)".yellow)
             }
-            do {
-                let apk = try await service.downloadGeneratedApk(packageName: packageName, versionCode: resolvedVersionCode, downloadId: downloadId)
-                Log("    (read from a \(ByteCountFormatter.string(fromByteCount: Int64(apk.count), countStyle: .file)) Play-generated APK, kept in memory)".dim)
-                let certificates = try APKSigningCertificates.certificates(in: apk)
-                for certificate in certificates {
-                    let matches = APKSigningCertificates.normalizeHex(certificate.sha256) == apiSha256
-                    let note: String
-                    if matches {
-                        note = " ✔ matches API".green
-                    } else if certificate.schemes.contains("hybrid") {
-                        note = " (hybrid signing)".cyan
-                    } else {
-                        note = " (additional / rotated)".yellow
-                    }
-                    Log("    Certificate [\(certificate.schemes.joined(separator: ", "))] \(certificate.algorithm)".dim + note)
-                    Log("      SHA-1:   " + certificate.sha1)
-                    Log("      SHA-256: " + certificate.sha256)
+            for certificate in key.certificates {
+                let note: String
+                if APKSigningCertificates.normalizeHex(certificate.sha256) == key.apiSha256 {
+                    note = " ✔ matches API".green
+                } else if certificate.schemes.contains("hybrid") {
+                    note = " (hybrid signing)".cyan
+                } else {
+                    note = " (additional / rotated)".yellow
                 }
-            } catch let error as GooglePlayImageError {
-                Log("    🟡 APK download failed: \(error.localizedDescription)".yellow)
-                if let hint = Self.hint(for: error) { Log("       \(hint)".dim) }
-            } catch {
-                Log("    🟡 Could not read the APK signature: \(error.localizedDescription)".yellow)
+                Log("    Certificate [\(certificate.schemes.joined(separator: ", "))] \(certificate.algorithm)".dim + note)
+                Log("      SHA-1:   " + certificate.sha1)
+                Log("      SHA-256: " + certificate.sha256)
             }
         }
         Log("\n   Upload key certificate: not available through the API; it is your own keystore's certificate (see 'appitool match android').".dim + "\n")
@@ -149,17 +115,5 @@ struct GoogleSigningCertsCommand: BaseCommand {
             index = next
         }
         return pairs.joined(separator: ":")
-    }
-
-    static func hint(for error: GooglePlayImageError) -> String? {
-        guard case .apiError(let status, _) = error else { return nil }
-        switch status {
-        case 403:
-            return "The service account needs release access to the app in Play Console (generated APKs are a release-management feature)."
-        case 404:
-            return "Check --package-name and --version-code."
-        default:
-            return nil
-        }
     }
 }

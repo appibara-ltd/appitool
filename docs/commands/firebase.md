@@ -1,9 +1,9 @@
 # `appitool firebase`
 
-Manages Firebase App Distribution releases and tester groups, Firebase Authentication user accounts, and Cloud Firestore collections and documents.
+Manages Firebase apps (iOS, Android, web), App Distribution releases and tester groups, Firebase Authentication user accounts, and Cloud Firestore collections and documents.
 
 > [!NOTE]
-> **CI Guard:** Destructive subcommands (`delete-user` and `firestore delete`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
+> **CI Guard:** Destructive subcommands (`delete-app`, `delete-user`, and `firestore delete`) accept [`GlobalCIOptions`](/commands/overview#globalcioptions) (`--ci` / `--no-ci`) and are skipped as a no-op (exit code `0`) when running in CI mode. Pass `--no-ci` to force execution in CI.
 
 ## Synopsis
 
@@ -15,6 +15,10 @@ appitool firebase <subcommand> [options]
 
 | Domain | Subcommand | Description |
 |:---|:---|:---|
+| **Apps** | `list-apps` | Lists the iOS, Android, and web apps registered in a Firebase project. |
+| | `add-app` | Registers an iOS, Android, or web app (reports the existing app if already registered). |
+| | `delete-app` | Removes an app (restorable for 30 days unless `--immediate`). |
+| | `sync-fingerprints` | Adds the Play App Signing SHA-1/SHA-256 fingerprints to a Firebase Android app. |
 | **App Distribution** | `list-releases` | Lists uploaded releases for a Firebase App ID. |
 | | `create-release` | Uploads an `.apk`, `.aab`, or `.ipa` binary, attaches notes, and distributes to groups/testers. |
 | | `update-release` | Updates release notes or distributes an existing release to tester groups/emails. |
@@ -29,6 +33,103 @@ appitool firebase <subcommand> [options]
 | | `firestore set` | Creates or updates a Firestore document (supports `--merge` and auto-ID creation). |
 | | `firestore delete` | Deletes a Firestore document by path (supports `--dry-run`). |
 | | `firestore query` | Runs structured queries with `--where`, `--order-by`, `--limit`, and `--all-descendants`. |
+
+---
+
+## Firebase Apps Commands
+
+Uses the Firebase Management API (`projects.searchApps`, `projects.{iosApps|androidApps|webApps}.create` / `.remove`, and `projects.androidApps.sha`). The service account needs a role that can manage Firebase apps in the project (e.g. Firebase Admin).
+
+### `appitool firebase list-apps`
+
+Uses [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions) (`-g, --google-key`, `--project`).
+
+Lists every app of the project grouped by platform, with display name, bundle ID / package name, and Firebase App ID (all pages).
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `-p, --platform <platform>` | all | Only list `ios`, `android`, or `web` apps. |
+| `--show-deleted` | `false` | Also list apps deleted within the last 30 days. |
+
+```bash
+appitool firebase list-apps -p ios
+```
+
+### `appitool firebase add-app`
+
+Uses [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions).
+
+Registers an app in the project and waits for Firebase to finish creating it, then prints its Firebase App ID and the `.env` variable to set (`FIREBASE_IOS_APP_ID` / `FIREBASE_ANDROID_APP_ID`). If an app with the same platform and bundle ID / package name is already registered, it is reported instead of created.
+
+| Option | Default | Description |
+|:---|:---|:---|
+| `-p, --platform <platform>` | **Required** | `ios`, `android`, or `web`. |
+| `-b, --bundle-id <id>` | `APPLE_BUNDLE_ID` / Xcode project | iOS bundle identifier (`-p ios` only). |
+| `--package-name <name>` | `GOOGLE_PACKAGE_NAME` / Android project | Android package name (`-p android` only). |
+| `-n, --name <display>` | — | Display name in Firebase (required for `-p web`). |
+| `--app-store-id <id>` | — | Apple ID of the app in the App Store (`-p ios` only). |
+| `--team-id <id>` | — | Apple Developer Team ID (`-p ios` only). |
+| `--sha1 <hex>` | — | SHA-1 certificate fingerprint to register, colons optional (`-p android` only; repeatable). |
+| `--sha256 <hex>` | — | SHA-256 certificate fingerprint to register, colons optional (`-p android` only; repeatable). |
+
+```bash
+appitool firebase add-app -p ios -n "My App"
+appitool firebase add-app -p android --package-name com.example.app --sha1 16:00:71:...
+appitool firebase add-app -p web -n "My Web App"
+```
+
+### `appitool firebase delete-app`
+
+Uses [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions) and [`GlobalCIOptions`](/commands/overview#globalcioptions) (skipped in CI unless `--no-ci`).
+
+Removes an app from the project. By default the removal can be undone in the Firebase console for 30 days; `--immediate` deletes it permanently. The app is chosen explicitly (the `FIREBASE_*_APP_ID` variables are not used as defaults).
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `--firebase-app-id <id>` | — | Firebase App ID of the app to remove. |
+| `-p, --platform <platform>` | — | `ios`, `android`, or `web`; used instead of `--firebase-app-id` with one of the next three options. |
+| `-b, --bundle-id <id>` | — | iOS bundle identifier (`-p ios`). |
+| `--package-name <name>` | — | Android package name (`-p android`). |
+| `-n, --name <display>` | — | Display name of the web app (`-p web`). |
+| `--immediate` | `false` | Delete permanently right away instead of the 30-day restorable removal. |
+| `--dry-run` | `false` | Validate the removal with Firebase without removing the app. |
+
+```bash
+appitool firebase delete-app -p android --package-name com.example.app --dry-run
+appitool firebase delete-app --firebase-app-id 1:123456789:ios:abc123
+```
+
+### `appitool firebase sync-fingerprints`
+
+Uses [`FirebaseProjectOptions`](/commands/overview#firebaseprojectoptions). The same service account key (`-g, --google-key` / `GOOGLE_KEY`) is used for Google Play and Firebase, so it needs release access to the app in Play Console and a Firebase role that can manage apps.
+
+Registers certificate fingerprints on a Firebase Android app (needed for Google Sign-In, Phone Auth, Dynamic/App Links, etc.):
+
+1. Reads the Play App Signing certificates exactly like [`google signing-certs`](/commands/google#appitool-google-signing-certs) — the deployment certificate and the hybrid classical + post-quantum certificates — and takes the SHA-1 and SHA-256 of each. If an APK cannot be read, only the API's SHA-256 is used for that key.
+2. Adds certificates from `-f, --file` (e.g. your upload or debug certificate) and fingerprints from `--sha1` / `--sha256`.
+3. Compares with the app's registered fingerprints and adds the missing ones. Existing fingerprints are kept unless `--replace` is passed.
+
+The Firebase app is `--firebase-app-id`, else `FIREBASE_ANDROID_APP_ID`, else the Android app registered for the package name. Download a fresh `google-services.json` afterwards if your build embeds it.
+
+| Option / Flag | Default | Description |
+|:---|:---|:---|
+| `--firebase-app-id <id>` | `FIREBASE_ANDROID_APP_ID` / app for the package name | Firebase Android App ID. |
+| `--package-name <name>` | `GOOGLE_PACKAGE_NAME` / Android project | Android package name (Play lookup and app lookup). |
+| `--version-code <code>` | Highest version code on your tracks | Version code whose Play-generated APKs are read. |
+| `--play` / `--no-play` | `--play` | Read the Play App Signing certificates from Google Play. `--no-play` needs `-f`, `--sha1`, or `--sha256`. |
+| `-f, --file <path>` | — | Additional certificate file or folder to register (`.der`/`.cer`/`.crt`/`.pem`; repeatable). |
+| `--sha1 <hex>` | — | Additional SHA-1 fingerprint (repeatable; colons optional). |
+| `--sha256 <hex>` | — | Additional SHA-256 fingerprint (repeatable; colons optional). |
+| `--replace` | `false` | Also remove registered fingerprints that are not in the synced set. |
+| `--dry-run` | `false` | Show the changes without applying them. |
+
+```bash
+# Add the Play App Signing fingerprints (deployment + hybrid)
+appitool firebase sync-fingerprints
+
+# Also register the upload certificate, preview first
+appitool firebase sync-fingerprints -f upload_cert.der --dry-run
+```
 
 ---
 

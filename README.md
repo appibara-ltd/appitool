@@ -126,7 +126,7 @@ Run `appitool --help` or `appitool <command> --help` to inspect live options. Fu
 | `match` | `ios` *(default)*, `android` | Syncs, prunes, nukes, or adds Git-encrypted certificates, profiles, and keystores. |
 | `apple` | 26 subcommands | Manages App Store Connect & Developer Portal apps and versions, identifiers, capabilities, profiles, certificates, devices, team users, invitations, store assets (screenshots, product page header, search results), and listing metadata. |
 | `google` | `list-apps`, `signing-certs`, `assets` (5 subcommands), `metadata` (3 subcommands), 8 user commands | Lists accessible apps and signing certificate fingerprints, and manages Google Play Console store visuals and screenshots (`list`, `upload`, `download`, `delete`, `types`), store listing text (`list`, `download`, `upload`), and Play Console users, invitations, and per-app access. |
-| `firebase` | 9 subcommands | Manages Firebase App Distribution releases/groups, Firebase Auth users, and Cloud Firestore. |
+| `firebase` | 13 subcommands | Manages Firebase apps (list, add, delete, sync signing fingerprints), App Distribution releases/groups, Firebase Auth users, and Cloud Firestore. |
 | `inspect` | — | Inspects local iOS and Android identifiers, versions, build numbers, and flavors (supports `--json`). |
 | `clean` | — | Cleans cached build outputs, Xcode DerivedData, and (with `--assets`) downloaded store assets under `~/.appitool`. |
 | `notes` | — | Generates categorized Markdown release notes from Git conventional commits. |
