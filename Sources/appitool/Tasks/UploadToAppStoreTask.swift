@@ -157,7 +157,7 @@ struct UploadToAppStoreTask: Task {
         Log(
             "📤 Uploading \(ipaUrl.lastPathComponent) (\(Self.formatBytes(fileSize))) in \(reservation.operations.count) part(s)..."
                 .dim)
-        try await uploadAll(operations: reservation.operations, from: ipaUrl)
+        try await uploadAll(operations: reservation.operations, from: ipaUrl, urlSession: input.service.urlSession)
 
         // 4. Commit
         try await commitWithRetry(
@@ -282,6 +282,7 @@ struct UploadToAppStoreTask: Task {
     private func uploadAll(
         operations: [BuildUploadOperation],
         from fileUrl: URL,
+        urlSession: URLSession,
         maxConcurrent: Int = 6
     ) async throws {
         let total = operations.count
@@ -294,7 +295,7 @@ struct UploadToAppStoreTask: Task {
             for _ in 0..<min(max(1, maxConcurrent), total) {
                 guard let (index, operation) = iterator.next() else { break }
                 group.addTask {
-                    try await self.upload(operation: operation, index: index, from: fileUrl)
+                    try await self.upload(operation: operation, index: index, from: fileUrl, urlSession: urlSession)
                     return index
                 }
             }
@@ -308,7 +309,7 @@ struct UploadToAppStoreTask: Task {
 
                 if let (index, operation) = iterator.next() {
                     group.addTask {
-                        try await self.upload(operation: operation, index: index, from: fileUrl)
+                        try await self.upload(operation: operation, index: index, from: fileUrl, urlSession: urlSession)
                         return index
                     }
                 }
@@ -316,7 +317,7 @@ struct UploadToAppStoreTask: Task {
         }
     }
 
-    private func upload(operation: BuildUploadOperation, index: Int, from fileUrl: URL) async throws
+    private func upload(operation: BuildUploadOperation, index: Int, from fileUrl: URL, urlSession: URLSession) async throws
     {
         guard let url = URL(string: operation.url) else {
             throw UploadToAppStoreError.chunkUploadFailed(
@@ -344,7 +345,7 @@ struct UploadToAppStoreTask: Task {
         var lastError: UploadToAppStoreError?
         for attempt in 1...maxAttempts {
             do {
-                let (_, response) = try await URLSession.shared.upload(for: request, from: chunk)
+                let (_, response) = try await urlSession.upload(for: request, from: chunk)
                 let status = (response as? HTTPURLResponse)?.statusCode
                 if let status, (200...299).contains(status) { return }
                 lastError = .chunkUploadFailed(

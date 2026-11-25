@@ -8,6 +8,7 @@ A unified CLI utility and release orchestration engine for Apple App Store Conne
 [![Platform](https://img.shields.io/badge/Platform-macOS%2013%2B%20%7C%20Linux-blue.svg?style=flat)](https://apple.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat)](LICENSE)
 [![Docs](https://img.shields.io/badge/Docs-appitool.appibara.com-0891b2.svg?style=flat)](https://appitool.appibara.com/)
+[![codecov](https://codecov.io/gh/appibara-ltd/appitool/graph/badge.svg?token=Y70RV2TEC9)](https://codecov.io/gh/appibara-ltd/appitool)
 
 ---
 
@@ -222,6 +223,34 @@ appitool kokono -m "Confidential deployment completed." --e2e "your_public_key"
 ```bash
 appitool status
 ```
+
+---
+
+## Testing & Coverage
+
+The test suite (548 tests, Swift Testing) runs fully offline: App Store Connect, Google Play, and Firebase calls are answered by in-process HTTP stubs (`Tests/appitoolTests/Support/HTTPStubs.swift`), and filesystem work happens in temporary directories.
+
+```bash
+swift test --enable-code-coverage
+node scripts/coverage.mjs "$(swift test --show-codecov-path)" --markdown
+```
+
+CI (`.github/workflows/tests.yml`) runs the suite on every push to `main` and every pull request, and uploads an LCOV report to [Codecov](https://codecov.io/gh/appibara-ltd/appitool) (per-module components in `codecov.yml`).
+
+Line coverage of hand-written sources (generated OpenAPI clients excluded):
+
+| Module | Lines | Covered | Coverage |
+|:---|---:|---:|---:|
+| `AppleServices` | 4097 | 3511 | 85.7% |
+| `GoogleServices` | 2919 | 2700 | 92.5% |
+| `appitool/Commands` | 7564 | 5934 | 78.5% |
+| `appitool/Core` | 2074 | 2011 | 97.0% |
+| `appitool/Flow` | 1622 | 1120 | 69.1% |
+| `appitool/Match` | 1888 | 859 | 45.5% |
+| `appitool/Tasks` | 5947 | 5272 | 88.6% |
+| **Total** | **26111** | **21407** | **82.0%** |
+
+The remaining gaps are code paths that drive real system tools or user state and are intentionally not exercised by unit tests: the macOS keychain (`security`), `openssl` PKCS#12 export, `xcodebuild` / Gradle builds, Match Git clones under `~/.appitool`, provisioning-profile installation into `~/Library`, and `self-update` binary replacement.
 
 ---
 

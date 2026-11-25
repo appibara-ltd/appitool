@@ -30,7 +30,10 @@ package enum AppStoreServiceError: LocalizedError, Sendable {
 
 /// Service providing access to the Apple App Store Connect API.
 package struct AppStoreService: Sendable {
-    package static let sharedTransport = URLSessionTransport()
+    /// Transport and session used when none is passed to `init`. Production never changes them;
+    /// tests replace them to route traffic to in-process stubs.
+    nonisolated(unsafe) package static var defaultTransport: any ClientTransport = URLSessionTransport()
+    nonisolated(unsafe) package static var defaultURLSession: URLSession = .shared
 
     /// The underlying OpenAPI client for the App Store Connect API.
     package let client: Client
@@ -46,8 +49,8 @@ package struct AppStoreService: Sendable {
         keyId: String,
         issuerId: String,
         key: String,
-        transport: any ClientTransport = Self.sharedTransport,
-        urlSession: URLSession = .shared
+        transport: any ClientTransport = Self.defaultTransport,
+        urlSession: URLSession = Self.defaultURLSession
     ) throws {
         let authMiddleware = try AppStoreConnectAuthMiddleware(
             keyId: keyId,

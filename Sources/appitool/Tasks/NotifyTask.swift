@@ -47,6 +47,7 @@ struct NotifyTask: Task {
         let slackUrl: String?
         let kokonoUrl: String?
         let kokonoPublicKey: String?
+        let urlSession: URLSession
 
         init(
             provider: Provider,
@@ -56,7 +57,8 @@ struct NotifyTask: Task {
             metadata: [String: String] = [:],
             slackUrl: String? = nil,
             kokonoUrl: String? = nil,
-            kokonoPublicKey: String? = nil
+            kokonoPublicKey: String? = nil,
+            urlSession: URLSession = HTTPDefaults.urlSession
         ) {
             self.provider = provider
             self.status = status
@@ -66,6 +68,7 @@ struct NotifyTask: Task {
             self.slackUrl = slackUrl
             self.kokonoUrl = kokonoUrl
             self.kokonoPublicKey = kokonoPublicKey
+            self.urlSession = urlSession
         }
     }
 
@@ -195,7 +198,7 @@ struct NotifyTask: Task {
         request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.httpBody = jsonData
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await input.urlSession.data(for: request)
         if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
             let respStr = String(data: data, encoding: .utf8) ?? ""
             throw NotifyError.requestFailed(statusCode: httpResponse.statusCode, response: respStr)
@@ -375,7 +378,7 @@ struct NotifyTask: Task {
         request.setValue("appitool/\(appitool.configuration.version)", forHTTPHeaderField: "User-Agent")
         request.httpBody = jsonData
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await input.urlSession.data(for: request)
         if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
             let respStr = String(data: data, encoding: .utf8) ?? ""
             throw NotifyError.requestFailed(statusCode: httpResponse.statusCode, response: respStr)

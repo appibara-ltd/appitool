@@ -203,16 +203,32 @@ struct GetLatestBuildNumberTask: Task {
             throw GetLatestBuildNumberError.apiError("Failed to create Google Play edit session for package: \(packageName)")
         }
 
-        // Defer deleting the edit session when done
-        defer {
-            _Concurrency.Task {
-                _ = try? await service.client.androidpublisher_period_edits_period_delete(.init(
-                    path: .init(packageName: packageName, editId: editId)
-                ))
-            }
+        // 2. Read the tracks, then always delete the read-only edit (and await it) before returning,
+        // so no edit session is left open on Google Play when the process exits.
+        let info: LatestBuildInfo
+        do {
+            info = try await latestTrackBuild(packageName: packageName, editId: editId, service: service, trackFilter: trackFilter)
+        } catch {
+            await deleteEdit(packageName: packageName, editId: editId, service: service)
+            throw error
         }
+        await deleteEdit(packageName: packageName, editId: editId, service: service)
+        return info
+    }
 
-        // 2. Fetch all tracks
+    private func deleteEdit(packageName: String, editId: String, service: GooglePlayService) async {
+        _ = try? await service.client.androidpublisher_period_edits_period_delete(.init(
+            path: .init(packageName: packageName, editId: editId)
+        ))
+    }
+
+    private func latestTrackBuild(
+        packageName: String,
+        editId: String,
+        service: GooglePlayService,
+        trackFilter: String?
+    ) async throws -> LatestBuildInfo {
+        // Fetch all tracks
         let tracksResponse = try await service.client.androidpublisher_period_edits_period_tracks_period_list(.init(
             path: .init(packageName: packageName, editId: editId)
         ))

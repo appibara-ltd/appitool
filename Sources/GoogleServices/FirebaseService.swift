@@ -74,7 +74,10 @@ package struct FirebaseAppDistributionGroup: Codable, Sendable {
 /// - `management`: Firebase Management API (listing iOS/Android apps, retrieving bundle IDs, package names, metadata)
 /// - App Distribution operations: binary upload, release listing/fetching, release notes, and distribution
 package struct FirebaseService: Sendable {
-    package static let sharedTransport = URLSessionTransport()
+    /// Transport and session used when none is passed to `init`. Production never changes them;
+    /// tests replace them to route traffic to in-process stubs.
+    nonisolated(unsafe) package static var defaultTransport: any ClientTransport = URLSessionTransport()
+    nonisolated(unsafe) package static var defaultURLSession: URLSession = .shared
 
     /// The OpenAPI client for the Firebase Management API (firebase v1beta1).
     package let management: FirebaseManagementAPI.Client
@@ -103,8 +106,8 @@ package struct FirebaseService: Sendable {
 
     package init(
         authMiddleware: any ClientMiddleware,
-        transport: any ClientTransport = Self.sharedTransport,
-        urlSession: URLSession = .shared
+        transport: any ClientTransport = Self.defaultTransport,
+        urlSession: URLSession = Self.defaultURLSession
     ) throws {
         self.authMiddleware = authMiddleware
         self.urlSession = urlSession
@@ -133,8 +136,8 @@ package struct FirebaseService: Sendable {
     /// Initializes `FirebaseService` using a Google Cloud Service Account key (file path, raw JSON, or Base64 string).
     package init(
         key: String,
-        transport: any ClientTransport = Self.sharedTransport,
-        urlSession: URLSession = .shared
+        transport: any ClientTransport = Self.defaultTransport,
+        urlSession: URLSession = Self.defaultURLSession
     ) throws {
         let authMiddleware = try GooglePlayAuthMiddleware(
             key: key,
@@ -186,7 +189,7 @@ package struct FirebaseService: Sendable {
         request.setValue(fileUrl.lastPathComponent, forHTTPHeaderField: "X-Goog-Upload-File-Name")
         request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
 
-        let (data, response) = try await URLSession.shared.upload(for: request, fromFile: fileUrl)
+        let (data, response) = try await urlSession.upload(for: request, fromFile: fileUrl)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
@@ -241,7 +244,7 @@ package struct FirebaseService: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         for attempt in 1...maxRetries {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await urlSession.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw NSError(
@@ -353,7 +356,7 @@ package struct FirebaseService: Sendable {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
                 domain: "FirebaseService",
@@ -401,7 +404,7 @@ package struct FirebaseService: Sendable {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
                 domain: "FirebaseService",
@@ -454,7 +457,7 @@ package struct FirebaseService: Sendable {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
                 domain: "FirebaseService",
@@ -510,7 +513,7 @@ package struct FirebaseService: Sendable {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
                 domain: "FirebaseService",
@@ -578,7 +581,7 @@ package struct FirebaseService: Sendable {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
                 domain: "FirebaseService",
@@ -631,7 +634,7 @@ package struct FirebaseService: Sendable {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
                 domain: "FirebaseService",
@@ -713,7 +716,7 @@ package struct FirebaseService: Sendable {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
                 domain: "FirebaseService",
@@ -788,7 +791,7 @@ package struct FirebaseService: Sendable {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
                 domain: "FirebaseService",
@@ -851,7 +854,7 @@ package struct FirebaseService: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
                 domain: "FirebaseService",
@@ -906,7 +909,7 @@ package struct FirebaseService: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
                 domain: "FirebaseService",
@@ -959,7 +962,7 @@ package struct FirebaseService: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
                 domain: "FirebaseService",

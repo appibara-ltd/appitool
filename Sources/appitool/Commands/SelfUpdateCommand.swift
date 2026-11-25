@@ -190,7 +190,7 @@ struct SelfUpdateCommand: BaseCommand {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await HTTPDefaults.urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
             let body = String(data: data, encoding: .utf8) ?? ""
@@ -218,7 +218,7 @@ struct SelfUpdateCommand: BaseCommand {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await HTTPDefaults.urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
             throw CommandError("Failed to download asset '\(asset.name)' from \(targetURL) (HTTP \(statusCode)).")

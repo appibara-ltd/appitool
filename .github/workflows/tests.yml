@@ -1,0 +1,62 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  # Called by release.yml as the release gate.
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  # github.workflow is the caller's name when called from release.yml, so a release run never cancels (or is cancelled by) a push run.
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  test:
+    name: Run tests and upload coverage
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Setup Swift 6.4.0
+        uses: swift-actions/setup-swift@v3
+        with:
+          swift-version: "6.4.0"
+
+      - name: Run Tests with Coverage
+        run: swift test --enable-code-coverage
+
+      - name: Export LCOV Report
+        run: |
+          CODECOV_DIR="$(dirname "$(swift test --enable-code-coverage --show-codecov-path)")"
+          TEST_BIN="$(find "$(dirname "$CODECOV_DIR")" -maxdepth 4 -path '*.xctest/Contents/MacOS/*' -type f | head -1)"
+          # Use the llvm-cov shipped with the active Swift toolchain so it matches the profile data format.
+          LLVM_COV="$(dirname "$(command -v swift)")/llvm-cov"
+          [ -x "$LLVM_COV" ] || LLVM_COV="$(xcrun --find llvm-cov)"
+          echo "Test binary: $TEST_BIN"
+          echo "llvm-cov:    $LLVM_COV"
+          "$LLVM_COV" export -format=lcov \
+            -instr-profile "$CODECOV_DIR/default.profdata" \
+            "$TEST_BIN" \
+            -ignore-filename-regex='(\.build|Tests)/' > coverage.lcov
+          node scripts/coverage.mjs "$CODECOV_DIR/appitool.json" --markdown >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: appibara-ltd/appitool
+          files: coverage.lcov
+          disable_search: true
+          fail_ci_if_error: true

@@ -88,7 +88,7 @@ extension GooglePlayService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
 
-        let (data, response) = try await URLSession.shared.upload(for: request, fromFile: fileUrl)
+        let (data, response) = try await urlSession.upload(for: request, fromFile: fileUrl)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
                 domain: "GooglePlayService",
@@ -157,7 +157,7 @@ extension GooglePlayService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/vnd.android.package-archive", forHTTPHeaderField: "Content-Type")
 
-        let (data, response) = try await URLSession.shared.upload(for: request, fromFile: fileUrl)
+        let (data, response) = try await urlSession.upload(for: request, fromFile: fileUrl)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
                 domain: "GooglePlayService",

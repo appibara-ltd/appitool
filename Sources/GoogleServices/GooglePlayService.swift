@@ -19,7 +19,10 @@ import GooglePlayGamesManagementAPI
 /// - `customApps`: Custom App Publishing API (publishing private enterprise apps)
 /// - `gamesManagement`: Games Services Management API (testing/resetting achievements and leaderboards)
 package struct GooglePlayService: Sendable {
-    package static let sharedTransport = URLSessionTransport()
+    /// Transport and session used when none is passed to `init`. Production never changes them;
+    /// tests replace them to route traffic to in-process stubs.
+    nonisolated(unsafe) package static var defaultTransport: any ClientTransport = URLSessionTransport()
+    nonisolated(unsafe) package static var defaultURLSession: URLSession = .shared
 
     /// The underlying authentication middleware.
     package let authMiddleware: GooglePlayAuthMiddleware
@@ -50,8 +53,8 @@ package struct GooglePlayService: Sendable {
     package init(
         key: String,
         scope: String = GooglePlayAuthMiddleware.allScopes,
-        transport: any ClientTransport = Self.sharedTransport,
-        urlSession: URLSession = .shared
+        transport: any ClientTransport = Self.defaultTransport,
+        urlSession: URLSession = Self.defaultURLSession
     ) throws {
         let authMiddleware = try GooglePlayAuthMiddleware(key: key, scope: scope, urlSession: urlSession)
         self.authMiddleware = authMiddleware

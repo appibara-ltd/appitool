@@ -166,14 +166,33 @@ struct UploadToGooglePlayConsoleTask: Task {
         }
         Log("   ✓ Edit session created: \(editId)".dim)
 
-        var isCommitted = false
-        defer {
-            if !isCommitted {
-                _Concurrency.Task {
-                    _ = try? await input.service.deleteEdit(packageName: packageName, editId: editId)
-                }
-            }
+        // 3–5. Upload, assign track, commit or validate. An uncommitted edit is always deleted (and awaited)
+        // before returning, so no edit session is left open on Google Play when the process exits.
+        let outcome: (result: UploadToGooglePlayConsoleResult, committed: Bool)
+        do {
+            outcome = try await publish(input, packageName: packageName, editId: editId, binaryUrl: binaryUrl, ext: ext)
+        } catch {
+            await discardEdit(input, packageName: packageName, editId: editId)
+            throw error
         }
+        if !outcome.committed {
+            await discardEdit(input, packageName: packageName, editId: editId)
+        }
+        return outcome.result
+    }
+
+    private func discardEdit(_ input: Input, packageName: String, editId: String) async {
+        _ = try? await input.service.deleteEdit(packageName: packageName, editId: editId)
+    }
+
+    private func publish(
+        _ input: Input,
+        packageName: String,
+        editId: String,
+        binaryUrl: URL,
+        ext: String
+    ) async throws -> (result: UploadToGooglePlayConsoleResult, committed: Bool) {
+        var isCommitted = false
 
         // 3. Upload binary
         Log("📤 Uploading \(binaryUrl.lastPathComponent) to Google Play Console...".dim)
@@ -261,7 +280,7 @@ struct UploadToGooglePlayConsoleTask: Task {
             throw UploadToGooglePlayConsoleError.commitFailed(error.localizedDescription)
         }
 
-        return UploadToGooglePlayConsoleResult(
+        let result = UploadToGooglePlayConsoleResult(
             packageName: packageName,
             editId: editId,
             versionCode: versionCode,
@@ -270,6 +289,7 @@ struct UploadToGooglePlayConsoleTask: Task {
             releaseName: releaseName,
             sha256: sha256
         )
+        return (result, isCommitted)
     }
 
     // MARK: - Private Helpers

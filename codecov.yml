@@ -1,0 +1,37 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        informational: true
+
+ignore:
+  - ".build/**"
+  - "Tests/**"
+
+component_management:
+  individual_components:
+    - component_id: apple_services
+      name: AppleServices
+      paths: ["Sources/AppleServices/**"]
+    - component_id: google_services
+      name: GoogleServices
+      paths: ["Sources/GoogleServices/**"]
+    - component_id: commands
+      name: Commands
+      paths: ["Sources/appitool/Commands/**"]
+    - component_id: core
+      name: Core
+      paths: ["Sources/appitool/Core/**"]
+    - component_id: flow
+      name: Flow
+      paths: ["Sources/appitool/Flow/**"]
+    - component_id: match
+      name: Match
+      paths: ["Sources/appitool/Match/**"]
+    - component_id: tasks
+      name: Tasks
+      paths: ["Sources/appitool/Tasks/**"]
