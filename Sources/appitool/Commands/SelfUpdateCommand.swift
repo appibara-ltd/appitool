@@ -22,6 +22,12 @@ struct SelfUpdateCommand: BaseCommand {
     @Flag(name: .long, help: "Force update even if the current version is already up to date.")
     var force: Bool = false
 
+    @Flag(name: .long, help: "Skip the GitHub build provenance (attestation) check that runs when the 'gh' CLI is installed.")
+    var skipAttestation: Bool = false
+
+    /// Resolves the `gh` executable used for provenance checks. Tests replace it to inject a fake `gh`.
+    nonisolated(unsafe) static var locateGH: @Sendable () -> String? = { ReleaseAttestationVerifier.locateGH() }
+
     private var currentPlatform: (os: String, arch: String) {
         let osName: String
         #if os(macOS)
@@ -132,6 +138,8 @@ struct SelfUpdateCommand: BaseCommand {
         }
         Log("   🟢 Checksum verified.")
 
+        try await verifyProvenance(artifact: tarballPath, sha256: calculatedHash, workDirectory: tempDir)
+
         Log("   🔄 Unpacking archive...")
         try await runProcess("tar", arguments: ["-xzf", tarballPath.path, "-C", tempDir.path])
         let extractedBinary = tempDir.appendingPathComponent("appitool")
@@ -174,6 +182,33 @@ struct SelfUpdateCommand: BaseCommand {
         }
 
         Log("\n" + "🎉 appitool successfully updated to \(latestTag)!".green.bold)
+    }
+
+    // MARK: - Build Provenance
+
+    /// Verifies the GitHub artifact attestation with `gh` when it is installed; aborts the update on failure.
+    private func verifyProvenance(artifact: URL, sha256: String, workDirectory: URL) async throws {
+        if skipAttestation {
+            Log("   🟡 Skipping build provenance check (--skip-attestation).".yellow)
+            return
+        }
+        let verifier = ReleaseAttestationVerifier(ghPath: Self.locateGH(), token: githubToken)
+        if verifier.ghPath != nil {
+            Log("   🔄 Verifying build provenance with gh...")
+        }
+        do {
+            switch try await verifier.verify(artifact: artifact, sha256: sha256, workDirectory: workDirectory) {
+            case .verified:
+                Log("   🟢 Build provenance verified (\(verifier.signerWorkflow)).")
+            case .skipped(let reason):
+                Log("   🟡 Skipping build provenance check (\(reason)).".yellow)
+            }
+        } catch {
+            throw CommandError(
+                error.localizedDescription,
+                hint: "   Re-run with --skip-attestation to update without this check."
+            )
+        }
     }
 
     // MARK: - Networking & Helpers

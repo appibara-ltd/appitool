@@ -232,9 +232,10 @@ jobs:
         run: |
           sha256sum appitool-darwin-arm64.tar.gz appitool-linux-x86_64.tar.gz appitool-linux-arm64.tar.gz > checksums.txt
 
+      # Required: install.sh and `self-update` verify this attestation with `gh` when it is installed,
+      # so a release must never be published without one.
       - name: Generate Artifact Attestation
         uses: actions/attest-build-provenance@v4
-        continue-on-error: true
         with:
           subject-path: 'appitool-*.tar.gz'
 

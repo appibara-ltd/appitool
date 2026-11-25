@@ -21,7 +21,7 @@ Store commands follow `appitool <store> <resource> <action>`: a plural resource 
 | [`clean`](/commands/clean) | — | Cleans cached build outputs, Xcode DerivedData, and (with `--assets`) downloaded store assets under `~/.appitool`. |
 | [`notes`](/commands/notes) | — | Generates categorized Markdown release notes from Git conventional commits. |
 | [`kokono`](/commands/kokono) | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |
-| [`self-update`](/commands/self-update) | — | Checks GitHub Releases and updates the `appitool` binary with SHA256 verification. |
+| [`self-update`](/commands/self-update) | — | Checks GitHub Releases and updates the `appitool` binary with SHA256 and (when `gh` is installed) build provenance verification. |
 | [`status`](/commands/status) | — | Displays the tool name, purpose, and active version. |
 
 ---

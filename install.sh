@@ -96,6 +96,26 @@ if [ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]; then
 fi
 echo "   🟢 Checksum verified."
 
+# 3b. Verify Build Provenance (GitHub artifact attestation) when the gh CLI is available and signed in.
+#     Proves the archive was built by this repository's release workflow, not just uploaded to the release.
+SIGNER_WORKFLOW="${REPO}/.github/workflows/release.yml"
+if [ "${APPITOOL_SKIP_ATTESTATION:-0}" = "1" ]; then
+    echo "   🟡 Skipping build provenance check (APPITOOL_SKIP_ATTESTATION=1)."
+elif ! command -v gh >/dev/null 2>&1; then
+    echo "   🟡 Skipping build provenance check (install the GitHub CLI 'gh' to enable it)."
+elif ! gh auth status >/dev/null 2>&1; then
+    echo "   🟡 Skipping build provenance check (run 'gh auth login' or set GITHUB_TOKEN to enable it)."
+else
+    echo "   🔄 Verifying build provenance with gh..."
+    if ! ATTEST_OUTPUT="$(gh attestation verify "$TMP_DIR/$ARTIFACT_NAME" --repo "$REPO" --signer-workflow "$SIGNER_WORKFLOW" 2>&1)"; then
+        echo "🔴 Error: Build provenance verification failed!" >&2
+        echo "$ATTEST_OUTPUT" | sed 's/^/   /' >&2
+        echo "   Set APPITOOL_SKIP_ATTESTATION=1 to install without this check." >&2
+        exit 1
+    fi
+    echo "   🟢 Build provenance verified (${SIGNER_WORKFLOW})."
+fi
+
 # 4. Determine Installation Directory
 INSTALL_DIR=""
 if [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then

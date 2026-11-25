@@ -21,7 +21,7 @@ A unified CLI utility and release orchestration engine for Apple App Store Conne
 - **Git-Backed Code Signing (`match`):** Encrypted sync of iOS certificates/profiles and Android keystores via a private Git repository.
 - **Store & Firebase Management:** Manage App Store Connect identifiers, capabilities, profiles, certificates, devices, team users, and screenshots; Google Play Console store screenshots and graphics; plus Firebase App Distribution releases/groups, Auth users, and Cloud Firestore.
 - **Release Notes:** Categorized Markdown release notes generated from Git conventional commits.
-- **Built-in Self-Update:** Upgrade the CLI in-place on demand via `appitool self-update` with SHA256 checksum verification.
+- **Built-in Self-Update:** Upgrade the CLI in-place on demand via `appitool self-update` with SHA256 checksum and (when `gh` is installed) GitHub build provenance verification.
 - **Dry-Run Mode:** Validate configurations, credentials, and stage workflows without triggering builds or mutating remote state.
 - **CI Mode Guard (`--ci` / `--no-ci`):** Automatically detects CI environments (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, etc.) and skips destructive commands (`* delete`, `* prune`, `devices disable`, `invitations cancel`, `users revoke`, `match ios nuke/prune`) as a safe no-op (exit code `0`).
 
@@ -132,7 +132,7 @@ Run `appitool --help` or `appitool <command> --help` to inspect live options. Fu
 | `clean` | — | Cleans cached build outputs, Xcode DerivedData, and (with `--assets`) downloaded store assets under `~/.appitool`. |
 | `notes` | — | Generates categorized Markdown release notes from Git conventional commits. |
 | `kokono` | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |
-| `self-update` | — | Checks GitHub Releases and updates the binary with SHA256 verification. |
+| `self-update` | — | Checks GitHub Releases and updates the binary with SHA256 and build provenance verification. |
 | `status` | — | Displays the tool name, purpose, and active version. |
 
 Distribution values for `-d, --distribution` (`flow`, `build`, `check`): `appstore`, `adhoc`, `development`.
@@ -228,7 +228,7 @@ appitool status
 
 ## Testing & Coverage
 
-The test suite (548 tests, Swift Testing) runs fully offline: App Store Connect, Google Play, and Firebase calls are answered by in-process HTTP stubs (`Tests/appitoolTests/Support/HTTPStubs.swift`), and filesystem work happens in temporary directories.
+The test suite (555 tests, Swift Testing) runs fully offline: App Store Connect, Google Play, and Firebase calls are answered by in-process HTTP stubs (`Tests/appitoolTests/Support/HTTPStubs.swift`), and filesystem work happens in temporary directories.
 
 ```bash
 swift test --enable-code-coverage
@@ -243,12 +243,12 @@ Line coverage of hand-written sources (generated OpenAPI clients excluded):
 |:---|---:|---:|---:|
 | `AppleServices` | 4097 | 3511 | 85.7% |
 | `GoogleServices` | 2919 | 2700 | 92.5% |
-| `appitool/Commands` | 7564 | 5934 | 78.5% |
-| `appitool/Core` | 2074 | 2011 | 97.0% |
+| `appitool/Commands` | 7592 | 5979 | 78.8% |
+| `appitool/Core` | 2165 | 2094 | 96.7% |
 | `appitool/Flow` | 1622 | 1120 | 69.1% |
 | `appitool/Match` | 1888 | 859 | 45.5% |
-| `appitool/Tasks` | 5947 | 5272 | 88.6% |
-| **Total** | **26111** | **21407** | **82.0%** |
+| `appitool/Tasks` | 5947 | 5270 | 88.6% |
+| **Total** | **26230** | **21533** | **82.1%** |
 
 The remaining gaps are code paths that drive real system tools or user state and are intentionally not exercised by unit tests: the macOS keychain (`security`), `openssl` PKCS#12 export, `xcodebuild` / Gradle builds, Match Git clones under `~/.appitool`, provisioning-profile installation into `~/Library`, and `self-update` binary replacement.
 

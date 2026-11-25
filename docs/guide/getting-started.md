@@ -28,6 +28,7 @@ The installer:
 1. Detects your OS and CPU architecture (`darwin-arm64`, `linux-x86_64`, or `linux-arm64`).
 2. Downloads the release tarball and `checksums.txt` from `appibara-ltd/appitool`.
 3. Verifies the SHA256 checksum.
+   - If the GitHub CLI (`gh`) is installed and signed in (`gh auth login`, or `GITHUB_TOKEN`/`GH_TOKEN` set), also verifies the GitHub build provenance attestation with `gh attestation verify --signer-workflow appibara-ltd/appitool/.github/workflows/release.yml`, and aborts if it fails. Otherwise this check is skipped with a notice. Set `APPITOOL_SKIP_ATTESTATION=1` to skip it explicitly.
 4. Installs the binary to `/usr/local/bin/appitool` (if writable) or `~/.local/bin/appitool` (automatically updating `~/.zshrc`, `~/.bash_profile`, `~/.bashrc`, or `~/.config/fish/config.fish`).
 
 ### Avoiding GitHub API Rate Limits (Optional)
@@ -62,7 +63,7 @@ swift run appitool -h
 
 ## Upgrading
 
-`appitool` includes a built-in self-updater with SHA256 verification:
+`appitool` includes a built-in self-updater with SHA256 verification and, when `gh` is installed, build provenance (attestation) verification:
 
 ```bash
 # Check if a newer release is available
