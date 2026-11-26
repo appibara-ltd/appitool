@@ -43,9 +43,12 @@ struct ReleaseAttestationVerifier: Sendable {
         case invalidResponse
         case sigstoreRejected(reasons: [String])
         case ghDisagreed(output: String)
+        case emptyBundleFile(path: String)
 
         var errorDescription: String? {
             switch self {
+            case .emptyBundleFile(let path):
+                return "No Sigstore bundle found in '\(path)'."
             case .noAttestations(let digest):
                 return "No build provenance attestation found for sha256:\(digest)."
             case .lookupFailed(let statusCode):
@@ -64,10 +67,16 @@ struct ReleaseAttestationVerifier: Sendable {
     static let slsaProvenanceV1 = "https://slsa.dev/provenance/v1"
     static let githubActionsIssuer = "https://token.actions.githubusercontent.com"
 
-    /// The workflow that must have signed the attestation.
-    var signerWorkflow: String { "\(repo)/.github/workflows/release.yml" }
+    /// The release workflow of `repo`, the default signer.
+    static func defaultSignerWorkflow(repo: String) -> String { "\(repo)/.github/workflows/release.yml" }
 
+    /// The repository (`owner/name`) the attestation's source repository must be. Attestations are
+    /// fetched from this repository's attestations API.
     let repo: String
+    /// The workflow (`owner/repo/path/to/workflow.yml`) that must have signed the attestation.
+    let signerWorkflow: String
+    /// The in-toto predicate type the attestation's statement must have.
+    let predicateType: String
     /// Absolute path to `gh`, or `nil` when it is not installed.
     let ghPath: String?
     let token: String?
@@ -76,23 +85,67 @@ struct ReleaseAttestationVerifier: Sendable {
 
     init(
         repo: String = Self.defaultRepo,
+        signerWorkflow: String? = nil,
+        predicateType: String = Self.slsaProvenanceV1,
         ghPath: String?,
         token: String? = nil,
         urlSession: URLSession = HTTPDefaults.urlSession,
         loadTrustedRoot: TrustedRootLoader? = nil
     ) {
         self.repo = repo
+        self.signerWorkflow = signerWorkflow ?? Self.defaultSignerWorkflow(repo: repo)
+        self.predicateType = predicateType
         self.ghPath = ghPath
         self.token = token
         self.urlSession = urlSession
         self.loadTrustedRoot = loadTrustedRoot ?? Self.defaultTrustedRootLoader
     }
 
+    /// Whether `repo` is an `owner/name` repository (GitHub's allowed characters), safe to put in an
+    /// API URL path.
+    static func isValidRepo(_ repo: String) -> Bool {
+        let parts = repo.split(separator: "/", omittingEmptySubsequences: false)
+        return parts.count == 2 && parts.allSatisfy { part in
+            !part.isEmpty && part != "." && part != ".." && part.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || "-_.".contains($0)) }
+        }
+    }
+
+    /// Normalizes a signer workflow given as `owner/repo/path`, `github.com/owner/repo/path`, or
+    /// `https://github.com/owner/repo/path` (optionally with `@ref`) to `owner/repo/path`. Returns
+    /// `nil` unless it names a workflow file in `.github/workflows/` (GitHub does not run workflows
+    /// from subdirectories) of a valid repository.
+    static func normalizeSignerWorkflow(_ value: String) -> String? {
+        var workflow = value
+        for prefix in ["https://", "github.com/"] where workflow.hasPrefix(prefix) {
+            workflow.removeFirst(prefix.count)
+        }
+        if let at = workflow.firstIndex(of: "@") {
+            workflow = String(workflow[..<at])
+        }
+        let parts = workflow.split(separator: "/", omittingEmptySubsequences: false)
+        guard parts.count == 5,
+              isValidRepo("\(parts[0])/\(parts[1])"),
+              parts[2] == ".github", parts[3] == "workflows",
+              parts[4].hasSuffix(".yml") || parts[4].hasSuffix(".yaml"),
+              parts[4] != ".yml", parts[4] != ".yaml" else {
+            return nil
+        }
+        return workflow
+    }
+
     /// Verifies `artifact` (whose SHA256 is `sha256`). Throws when no attestation verifies with
     /// sigstore-swift, or when `gh` (if installed) disagrees.
-    func verify(artifact: URL, sha256: String, workDirectory: URL) async throws -> Outcome {
+    ///
+    /// `bundles` (Sigstore bundle JSON documents) are verified instead of fetching the artifact's
+    /// attestations from the GitHub API when given.
+    func verify(artifact: URL, sha256: String, workDirectory: URL, bundles localBundles: [Data]? = nil) async throws -> Outcome {
         let digest = sha256.lowercased()
-        let bundles = try await fetchBundles(digest: digest)
+        let bundles: [Data]
+        if let localBundles {
+            bundles = localBundles
+        } else {
+            bundles = try await fetchBundles(digest: digest)
+        }
 
         try await verifyWithSigstore(bundles: bundles, digest: digest)
 
@@ -108,6 +161,7 @@ struct ReleaseAttestationVerifier: Sendable {
                 "--bundle", bundlePath.path,
                 "--repo", repo,
                 "--signer-workflow", signerWorkflow,
+                "--predicate-type", predicateType,
             ],
             combineOutput: true
         )
@@ -170,10 +224,10 @@ struct ReleaseAttestationVerifier: Sendable {
             for bundle in parsed {
                 do {
                     let result = try await verifier.verify(bundle, policy: policy)
-                    if result.statement?.predicateType == Self.slsaProvenanceV1 {
+                    if result.statement?.predicateType == predicateType {
                         return
                     }
-                    reasons.append("\(instance.rawValue): predicate type \(result.statement?.predicateType ?? "none") is not SLSA provenance v1")
+                    reasons.append("\(instance.rawValue): predicate type \(result.statement?.predicateType ?? "none") is not \(predicateType)")
                 } catch {
                     reasons.append("\(instance.rawValue): \(error)")
                 }
@@ -225,6 +279,22 @@ struct ReleaseAttestationVerifier: Sendable {
             throw VerificationError.noAttestations(digest: digest)
         }
         return bundles
+    }
+
+    /// Reads a bundle file in either format `gh attestation verify --bundle` accepts: one Sigstore
+    /// bundle JSON document, or JSON Lines (one bundle per line).
+    static func bundles(fromFile url: URL) throws -> [Data] {
+        let data = try Data(contentsOf: url)
+        if (try? JSONSerialization.jsonObject(with: data)) is [String: Any] {
+            return [data]
+        }
+        let lines = data.split(separator: UInt8(ascii: "\n"))
+            .map { Data($0) }
+            .filter { !String(decoding: $0, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard !lines.isEmpty else {
+            throw VerificationError.emptyBundleFile(path: url.path)
+        }
+        return lines
     }
 
     /// JSON Lines (one bundle per line) for `gh attestation verify --bundle`.

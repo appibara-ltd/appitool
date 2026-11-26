@@ -1,7 +1,7 @@
 # appitool — Complete CLI Documentation
 
 > Unified CLI utility for Apple App Store Connect and Google Play operations.
-> Version: 0.11.0
+> Version: 0.11.5
 > Generated automatically from VitePress Markdown documentation.
 
 ---
@@ -17,7 +17,7 @@
 ## Requirements
 
 - **Prebuilt binary (`install.sh` / `self-update`)**:
-  - **macOS**: Apple Silicon (`arm64`), macOS 13+
+  - **macOS**: Apple Silicon (`arm64`), macOS 26+
   - **Linux**: `x86_64` (`amd64`) or `arm64` (`aarch64`)
 - **Platform build tooling** (only required when compiling mobile apps via `build` or `flow`):
   - **iOS**: macOS with Xcode command-line tools (`xcodebuild`, `xcrun`) and optionally `xcbeautify` (default formatter)
@@ -38,6 +38,7 @@ The installer:
 1. Detects your OS and CPU architecture (`darwin-arm64`, `linux-x86_64`, or `linux-arm64`).
 2. Downloads the release tarball and `checksums.txt` from `appibara-ltd/appitool`.
 3. Verifies the SHA256 checksum.
+   - If the GitHub CLI (`gh`) is installed and signed in (`gh auth login`, or `GITHUB_TOKEN`/`GH_TOKEN` set), also verifies the GitHub build provenance attestation with `gh attestation verify --signer-workflow appibara-ltd/appitool/.github/workflows/release.yml`, and aborts if it fails. Otherwise this check is skipped with a notice. Set `APPITOOL_SKIP_ATTESTATION=1` to skip it explicitly.
 4. Installs the binary to `/usr/local/bin/appitool` (if writable) or `~/.local/bin/appitool` (automatically updating `~/.zshrc`, `~/.bash_profile`, `~/.bashrc`, or `~/.config/fish/config.fish`).
 
 ### Avoiding GitHub API Rate Limits (Optional)
@@ -72,7 +73,7 @@ swift run appitool -h
 
 ## Upgrading
 
-`appitool` includes a built-in self-updater with SHA256 verification:
+`appitool` includes a built-in self-updater with SHA256 verification and build provenance (attestation) verification with sigstore-swift, cross-checked with `gh` when it is installed:
 
 ```bash
 # Check if a newer release is available
@@ -210,7 +211,7 @@ App identifiers are resolved the same way by every command: **CLI option → `.e
 
 | Variable | Description | Default / Behavior |
 |:---|:---|:---|
-| `STORE_ASSETS_PATH` | Folder that `assets` and `metadata` `download` write to and `upload` read from by default. Absolute, `~`-prefixed, or relative to the current directory. Store folders go directly inside it: `<path>/apple/<locale>/<type|metadata>/` and `<path>/google/<locale>/<type|metadata>/` (no project folder, since the path is project-specific). `-o, --output` and explicit upload paths still take precedence. | Unset or empty: `~/.appitool/assets/<project>/<store>/` |
+| `STORE_ASSETS_PATH` | Folder that `assets` and `metadata` `download` write to and `upload` read from by default. Absolute, `~`-prefixed, or relative to the current directory. Store folders go directly inside it: `<path>/apple/<locale>/<type\|metadata>/` and `<path>/google/<locale>/<type\|metadata>/` (no project folder, since the path is project-specific). `-o, --output` and explicit upload paths still take precedence. | Unset or empty: `~/.appitool/assets/<project>/<store>/` |
 | `APPLE_REVIEW_DEMO_PASSWORD` | App Review demo account password sent by `apple metadata upload` when it differs from the current value. Never written to or read from metadata files; masked in output. | Unset: password is not changed |
 
 ### Android Gradle & Keystore Signing
@@ -570,7 +571,8 @@ Store commands follow `appitool <store> <resource> <action>`: a plural resource 
 | [`clean`](https://appitool.appibara.com/commands/clean) | — | Cleans cached build outputs, Xcode DerivedData, and (with `--assets`) downloaded store assets under `~/.appitool`. |
 | [`notes`](https://appitool.appibara.com/commands/notes) | — | Generates categorized Markdown release notes from Git conventional commits. |
 | [`kokono`](https://appitool.appibara.com/commands/kokono) | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |
-| [`self-update`](https://appitool.appibara.com/commands/self-update) | — | Checks GitHub Releases and updates the `appitool` binary with SHA256 verification. |
+| [`self-update`](https://appitool.appibara.com/commands/self-update) | — | Checks GitHub Releases and updates the `appitool` binary with SHA256 and build provenance verification (sigstore-swift, cross-checked with `gh` when installed). |
+| [`verify`](https://appitool.appibara.com/commands/verify) | — | Verifies a file's GitHub artifact attestation (sigstore-swift, cross-checked with `gh` when installed); defaults to appitool release archives, other repositories and workflows via `--repo` / `--signer-workflow`. |
 | [`status`](https://appitool.appibara.com/commands/status) | — | Displays the tool name, purpose, and active version. |
 
 ---
@@ -2705,7 +2707,7 @@ appitool kokono --title "CI Alert" -m "Build #128 succeeded." --e2e "<base64_x25
 
 # `appitool self-update`
 
-Checks GitHub Releases (`appibara-ltd/appitool`) for a newer semantic version and upgrades the currently running `appitool` binary in place after verifying its SHA256 checksum against `checksums.txt`.
+Checks GitHub Releases (`appibara-ltd/appitool`) for a newer semantic version and upgrades the currently running `appitool` binary in place after verifying its SHA256 checksum against `checksums.txt` and its GitHub build provenance attestation (with [sigstore-swift](https://github.com/appibara-ltd/sigstore-swift), cross-checked with the GitHub CLI `gh` when it is installed).
 
 ## How It Works
 
@@ -2714,7 +2716,13 @@ Checks GitHub Releases (`appibara-ltd/appitool`) for a newer semantic version an
 3. Selects the matching archive for the current OS & CPU architecture:
    - `appitool-darwin-arm64.tar.gz` (or `universal`)
    - `appitool-linux-x86_64.tar.gz` / `appitool-linux-arm64.tar.gz`
-4. Downloads the archive and `checksums.txt`, verifies the SHA256 digest, extracts `appitool`, and atomically swaps the executable (with rollback on failure).
+4. Downloads the archive and `checksums.txt` and verifies the SHA256 digest.
+5. **Build provenance:** fetches the archive's Sigstore attestation bundles from the public attestations API (`/repos/appibara-ltd/appitool/attestations/sha256:<digest>`; no `gh auth login` required). This proves the archive was built by the release workflow, not just uploaded to the release.
+   - **sigstore-swift (always):** at least one bundle must verify against Sigstore's trusted root, fetched over TUF (public-good from `tuf-repo-cdn.sigstore.dev`, or GitHub's instance from `tuf-repo.github.com` with the TUF root embedded in appitool, the same one `gh` ships). TUF metadata is cached in `~/.sigstore/root` for one day. The bundle must be an SLSA v1 provenance statement for the archive's SHA256 digest, signed by `https://github.com/appibara-ltd/appitool/.github/workflows/release.yml@…` (issuer `https://token.actions.githubusercontent.com`, source repository `https://github.com/appibara-ltd/appitool`). A missing or invalid attestation, or an unreachable TUF repository, aborts the update.
+   - **`gh` cross-check (when installed):** if `gh` is found on `PATH` (or in `/opt/homebrew/bin`, `/usr/local/bin`, `/usr/bin`, `/bin`), also runs `gh attestation verify --bundle … --repo appibara-ltd/appitool --signer-workflow appibara-ltd/appitool/.github/workflows/release.yml`. If `gh` rejects what sigstore-swift accepted, the update is aborted as a disagreement. Without `gh` the cross-check is skipped with a notice.
+6. Extracts `appitool` and atomically swaps the executable (with rollback on failure).
+
+To run the build provenance check on an archive you downloaded yourself, use [`appitool verify`](https://appitool.appibara.com/commands/verify).
 
 > [!TIP]
 > If you hit GitHub API rate limits (e.g., in CI or shared networks), export `GITHUB_TOKEN` (or `GH_TOKEN`) or configure `GITHUB_TOKEN` in `.env`.
@@ -2731,6 +2739,7 @@ appitool self-update [options]
 |:---|:---|:---|
 | `--check` | `false` | Check whether an update is available without downloading or installing. |
 | `--force` | `false` | Force download and re-installation even if already on the latest version. |
+| `--skip-attestation` | `false` | Skip the GitHub build provenance check (sigstore-swift and the `gh` cross-check); the SHA256 checksum is still verified. |
 
 ## Examples
 
@@ -2743,6 +2752,68 @@ appitool self-update
 
 # Force reinstall (use sudo if installed into a root-owned /usr/local/bin)
 sudo appitool self-update --force
+
+# Update without the build provenance check
+appitool self-update --skip-attestation
+```
+
+---
+
+<!-- source: commands/verify.md -->
+
+# `appitool verify`
+
+Verifies a file's GitHub artifact attestation with [sigstore-swift](https://github.com/appibara-ltd/sigstore-swift), cross-checked with the GitHub CLI `gh` when it is installed. By default the file must be an `appitool` release archive (e.g. `appitool-darwin-arm64.tar.gz`), checked exactly as [`self-update`](https://appitool.appibara.com/commands/self-update) checks it before installing. Use `--repo`, `--signer-workflow`, and `--predicate-type` to verify files attested by another GitHub repository, workflow, or predicate type.
+
+## How It Works
+
+1. Computes the file's SHA256 digest.
+2. Fetches the attestation bundles for that digest from the repository's public attestations API (`/repos/<repo>/attestations/sha256:<digest>`; no `gh auth login` required for public repositories), or reads them from `--bundle`.
+3. **sigstore-swift:** at least one bundle must verify against Sigstore's trusted root, fetched over TUF (public-good, or GitHub's instance with the TUF root embedded in appitool). TUF metadata is cached in `~/.sigstore/root` for one day. The bundle must:
+   - be an in-toto statement for the file's digest with the `--predicate-type` predicate (default SLSA provenance v1, `https://slsa.dev/provenance/v1`);
+   - be signed in GitHub Actions (issuer `https://token.actions.githubusercontent.com`) by the `--signer-workflow` workflow (certificate SAN `https://github.com/<signer-workflow>@…`; default `<repo>/.github/workflows/release.yml`);
+   - come from `--repo` (certificate source repository `https://github.com/<repo>` and owner `https://github.com/<owner>`).
+4. **`gh` cross-check (when installed, unless `--skip-gh`):** runs `gh attestation verify <file> --bundle … --repo <repo> --signer-workflow <signer-workflow> --predicate-type <predicate-type>`. If `gh` rejects what sigstore-swift accepted, the command fails.
+
+The command exits with a non-zero status when the file has no attestation, no attestation verifies, a TUF repository is unreachable, or `gh` disagrees.
+
+> [!NOTE]
+> Only files the signing workflow attested verify. appitool's release workflow attests the `appitool-*.tar.gz` archives only, so `checksums.txt`, `install.sh`, and the extracted binary do not.
+
+> [!TIP]
+> If you hit GitHub API rate limits, or the repository is private, export `GITHUB_TOKEN` (or `GH_TOKEN`) or configure `GITHUB_TOKEN` in `.env`.
+
+## Synopsis
+
+```bash
+appitool verify -f <file> [options]
+```
+
+## Options
+
+| Option | Default | Description |
+|:---|:---|:---|
+| `-f, --file <path>` | **Required** | Path to the file to verify. |
+| `--bundle <path>` | — | Sigstore bundle file (one JSON document or JSON Lines) to verify instead of fetching the file's attestations from GitHub, e.g. from `gh attestation download`. |
+| `--repo <owner/name>` | `appibara-ltd/appitool` | Repository the file must have been built from; attestations are fetched from it. |
+| `--signer-workflow <workflow>` | `<repo>/.github/workflows/release.yml` | Workflow that must have signed the attestation, as `owner/repo/.github/workflows/<file>.yml` (a `github.com/` or `https://github.com/` prefix and an `@ref` suffix are accepted and ignored). |
+| `--predicate-type <uri>` | `https://slsa.dev/provenance/v1` | In-toto predicate type the attestation must have. |
+| `--skip-gh` | `false` | Skip the `gh attestation verify` cross-check. |
+
+## Examples
+
+```bash
+# Verify a downloaded appitool release archive
+appitool verify -f ~/Downloads/appitool-darwin-arm64.tar.gz
+
+# Verify against a bundle file saved with `gh attestation download`
+appitool verify -f appitool-linux-x86_64.tar.gz --bundle sha256:<digest>.jsonl
+
+# Verify another project's artifact, signed by its build workflow
+appitool verify -f tool.zip --repo octo-org/octo-tool --signer-workflow octo-org/octo-tool/.github/workflows/build.yml
+
+# sigstore-swift only, without the gh cross-check
+appitool verify -f appitool-darwin-arm64.tar.gz --skip-gh
 ```
 
 ---
@@ -2764,5 +2835,5 @@ appitool status
 ```text
 Tool: appitool
 Purpose: A unified CLI utility for Apple App Store Connect and Google Play operations.
-Version: 0.11.0
+Version: 0.11.5
 ```

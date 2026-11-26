@@ -2,7 +2,7 @@
 
 > A unified CLI utility and release orchestration engine for Apple App Store Connect, Developer Portal, Google Play Console, Firebase App Distribution/Auth, and Fastlane-compatible Match code signing.
 
-- Current Version: 0.11.0
+- Current Version: 0.11.5
 - Source & Repository: https://github.com/appibara-ltd/appitool
 - Documentation: https://appitool.appibara.com/
 - Full Consolidated Context: [llms-full.txt](https://appitool.appibara.com/llms-full.txt)
@@ -28,7 +28,8 @@
 - [`appitool clean`](https://appitool.appibara.com/commands/clean): Scans ~/.appitool/ios and ~/.appitool/android and deletes previously built archives (.xcarchive, .ipa, .aab, .apk), optional Xcode DerivedData directories, and (with --assets) downloaded store assets under ~/.appitool/assets (plus the legacy ~/.appitool/screenshots folder used by older versions). System folders such as ~/.appitool/android/keystores and tmp are preserved, and asset folders are only touched with --assets.
 - [`appitool notes`](https://appitool.appibara.com/commands/notes): Generates categorized Markdown release notes from Git commit history between two tags or revisions (git log --no-merges).
 - [`appitool kokono`](https://appitool.appibara.com/commands/kokono): Dispatches a push notification to a KokoNo webhook endpoint (?token=<token>), with optional end-to-end (E2E) encryption.
-- [`appitool self-update`](https://appitool.appibara.com/commands/self-update): Checks GitHub Releases (appibara-ltd/appitool) for a newer semantic version and upgrades the currently running appitool binary in place after verifying its SHA256 checksum against checksums.txt.
+- [`appitool self-update`](https://appitool.appibara.com/commands/self-update): Checks GitHub Releases (appibara-ltd/appitool) for a newer semantic version and upgrades the currently running appitool binary in place after verifying its SHA256 checksum against checksums.txt and its GitHub build provenance attestation (with sigstore-swift, cross-checked with the GitHub CLI gh when it is installed).
+- [`appitool verify`](https://appitool.appibara.com/commands/verify): Verifies a file's GitHub artifact attestation with sigstore-swift, cross-checked with the GitHub CLI gh when it is installed. By default the file must be an appitool release archive (e.g. appitool-darwin-arm64.tar.gz), checked exactly as self-update checks it before installing. Use --repo, --signer-workflow, and --predicate-type to verify files attested by another GitHub repository, workflow, or predicate type.
 - [`appitool status`](https://appitool.appibara.com/commands/status): Displays the CLI tool name, purpose, and compiled version.
 
 ## AI Context Files

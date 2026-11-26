@@ -97,6 +97,7 @@ export default defineConfigWithTheme<AppitoolThemeConfig>({
           { text: 'notes', link: '/commands/notes' },
           { text: 'kokono', link: '/commands/kokono' },
           { text: 'self-update', link: '/commands/self-update' },
+          { text: 'verify', link: '/commands/verify' },
           { text: 'status', link: '/commands/status' },
         ],
       },

@@ -63,6 +63,7 @@ const sections = [
       'notes.md',
       'kokono.md',
       'self-update.md',
+      'verify.md',
       'status.md',
     ],
   },

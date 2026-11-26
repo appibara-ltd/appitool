@@ -15,6 +15,8 @@ Checks GitHub Releases (`appibara-ltd/appitool`) for a newer semantic version an
    - **`gh` cross-check (when installed):** if `gh` is found on `PATH` (or in `/opt/homebrew/bin`, `/usr/local/bin`, `/usr/bin`, `/bin`), also runs `gh attestation verify --bundle … --repo appibara-ltd/appitool --signer-workflow appibara-ltd/appitool/.github/workflows/release.yml`. If `gh` rejects what sigstore-swift accepted, the update is aborted as a disagreement. Without `gh` the cross-check is skipped with a notice.
 6. Extracts `appitool` and atomically swaps the executable (with rollback on failure).
 
+To run the build provenance check on an archive you downloaded yourself, use [`appitool verify`](/commands/verify).
+
 > [!TIP]
 > If you hit GitHub API rate limits (e.g., in CI or shared networks), export `GITHUB_TOKEN` (or `GH_TOKEN`) or configure `GITHUB_TOKEN` in `.env`.
 
