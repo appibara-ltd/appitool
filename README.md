@@ -136,7 +136,7 @@ Run `appitool --help` or `appitool <command> --help` to inspect live options. Fu
 | `notes` | — | Generates categorized Markdown release notes from Git conventional commits. |
 | `kokono` | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |
 | `self-update` | — | Checks GitHub Releases and updates the binary with SHA256 and build provenance verification. |
-| `verify` | — | Verifies a file's GitHub artifact attestation (sigstore-swift, cross-checked with `gh` when installed); defaults to appitool release archives, other repositories and workflows via `--repo` / `--signer-workflow`. |
+| `verify` | — | Verifies any file's GitHub artifact attestation with sigstore-swift; `--repo` / `--signer-workflow` / `--predicate-type` default to appitool's release attestations. |
 | `status` | — | Displays the tool name, purpose, and active version. |
 
 Distribution values for `-d, --distribution` (`flow`, `build`, `check`): `appstore`, `adhoc`, `development`.

@@ -22,7 +22,7 @@ Store commands follow `appitool <store> <resource> <action>`: a plural resource 
 | [`notes`](/commands/notes) | — | Generates categorized Markdown release notes from Git conventional commits. |
 | [`kokono`](/commands/kokono) | — | Sends push notifications to KokoNo webhooks (plain or E2E encrypted). |
 | [`self-update`](/commands/self-update) | — | Checks GitHub Releases and updates the `appitool` binary with SHA256 and build provenance verification (sigstore-swift, cross-checked with `gh` when installed). |
-| [`verify`](/commands/verify) | — | Verifies a file's GitHub artifact attestation (sigstore-swift, cross-checked with `gh` when installed); defaults to appitool release archives, other repositories and workflows via `--repo` / `--signer-workflow`. |
+| [`verify`](/commands/verify) | — | Verifies any file's GitHub artifact attestation with sigstore-swift; `--repo` / `--signer-workflow` / `--predicate-type` default to appitool's release attestations. |
 | [`status`](/commands/status) | — | Displays the tool name, purpose, and active version. |
 
 ---

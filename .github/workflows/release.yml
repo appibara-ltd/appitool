@@ -232,9 +232,9 @@ jobs:
         run: |
           sha256sum appitool-darwin-arm64.tar.gz appitool-linux-x86_64.tar.gz appitool-linux-arm64.tar.gz > checksums.txt
 
-      # Required: `self-update` and `appitool verify` always verify this attestation (sigstore-swift,
-      # cross-checked with `gh` when installed), and install.sh verifies it with `gh` when installed,
-      # so a release must never be published without one.
+      # Required: `self-update` always verifies this attestation (sigstore-swift, cross-checked with
+      # `gh` when installed), `appitool verify` checks it with sigstore-swift, and install.sh verifies
+      # it with `gh` when installed, so a release must never be published without one.
       - name: Generate Artifact Attestation
         uses: actions/attest-build-provenance@v4
         with:

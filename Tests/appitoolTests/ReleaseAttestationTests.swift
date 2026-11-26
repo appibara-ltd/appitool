@@ -365,15 +365,10 @@ struct SelfUpdateProvenanceTests {
 /// `ReleaseAttestationVerifierTests`.
 @Suite("Verify Command", .serialized)
 struct VerifyCommandTests {
-    private func run(_ router: StubRouter, gh: String?, _ args: [String]) async throws {
-        let savedGH = VerifyCommand.locateGH
+    private func run(_ router: StubRouter, _ args: [String]) async throws {
         let savedLoader = ReleaseAttestationVerifier.defaultTrustedRootLoader
-        VerifyCommand.locateGH = { gh }
         ReleaseAttestationVerifier.defaultTrustedRootLoader = AttestationFixtures.loader
-        defer {
-            VerifyCommand.locateGH = savedGH
-            ReleaseAttestationVerifier.defaultTrustedRootLoader = savedLoader
-        }
+        defer { ReleaseAttestationVerifier.defaultTrustedRootLoader = savedLoader }
         let cmd: VerifyCommand = try CmdStub.parse(["verify"] + args)
         try await DefaultNetworkStub.with(router) { _ in try await cmd.execute() }
     }
@@ -385,16 +380,15 @@ struct VerifyCommandTests {
         return (dir, path)
     }
 
-    @Test("Parses -f/--file, --bundle, and --skip-gh")
+    @Test("Parses -f/--file and --bundle; has no gh cross-check option")
     func parsesOptions() throws {
-        let cmd: VerifyCommand = try CmdStub.parse(["verify", "-f", "a.tar.gz", "--bundle", "b.jsonl", "--skip-gh"])
+        let cmd: VerifyCommand = try CmdStub.parse(["verify", "-f", "a.tar.gz", "--bundle", "b.jsonl"])
         #expect(cmd.file == "a.tar.gz")
         #expect(cmd.bundle == "b.jsonl")
-        #expect(cmd.skipGh)
         let long: VerifyCommand = try CmdStub.parse(["verify", "--file", "a.tar.gz"])
         #expect(long.bundle == nil)
-        #expect(!long.skipGh)
         #expect(throws: (any Error).self) { try CmdStub.parse(["verify"], as: VerifyCommand.self) }
+        #expect(throws: (any Error).self) { try CmdStub.parse(["verify", "-f", "a.tar.gz", "--skip-gh"], as: VerifyCommand.self) }
         #expect(long.repo == "appibara-ltd/appitool")
         #expect(long.signerWorkflow == nil)
         #expect(long.predicateType == "https://slsa.dev/provenance/v1")
@@ -420,7 +414,7 @@ struct VerifyCommandTests {
         defer { try? FileManager.default.removeItem(at: archive.dir) }
         let router = StubRouter().on("GET", "/attestations/", try AttestationFixtures.apiResponse(["provenance.sigstore"]))
 
-        await #expect(throws: CommandError.self) { try await run(router, gh: nil, ["-f", archive.path, "--repo", "octo-org/octo-repo"]) }
+        await #expect(throws: CommandError.self) { try await run(router, ["-f", archive.path, "--repo", "octo-org/octo-repo"]) }
 
         let request = try #require(router.log.requests.first)
         #expect(request.url.absoluteString.hasPrefix("https://api.github.com/repos/octo-org/octo-repo/attestations/sha256:"))
@@ -429,24 +423,21 @@ struct VerifyCommandTests {
     @Test("A missing file fails before any network access")
     func missingFile() async throws {
         let router = StubRouter()
-        await #expect(throws: CommandError.self) { try await run(router, gh: nil, ["-f", "/nonexistent/appitool.tar.gz"]) }
+        await #expect(throws: CommandError.self) { try await run(router, ["-f", "/nonexistent/appitool.tar.gz"]) }
         #expect(router.log.requests.isEmpty)
     }
 
-    @Test("Fetches the file's attestations by its SHA256 and rejects a digest mismatch before gh runs")
+    @Test("Fetches the file's attestations by its SHA256 and rejects a digest mismatch")
     func fetchesAndRejects() async throws {
         let archive = try makeArchive()
         defer { try? FileManager.default.removeItem(at: archive.dir) }
-        let gh = try makeFakeGH(exitCode: 0)
-        defer { try? FileManager.default.removeItem(at: gh.dir) }
         let router = StubRouter().on("GET", "/attestations/", try AttestationFixtures.apiResponse(["provenance.sigstore"]))
 
-        await #expect(throws: CommandError.self) { try await run(router, gh: gh.path, ["-f", archive.path]) }
+        await #expect(throws: CommandError.self) { try await run(router, ["-f", archive.path]) }
 
         let digest = SHA256Hex.of(Data("not the release archive".utf8))
         let request = try #require(router.log.requests.first)
         #expect(request.url.absoluteString.hasSuffix("/attestations/sha256:\(digest)"))
-        #expect(recordedArgs(gh.dir).isEmpty)
     }
 
     @Test("--bundle verifies a local bundle file without calling the attestations API")
@@ -457,7 +448,7 @@ struct VerifyCommandTests {
         let router = StubRouter()
 
         await #expect(throws: CommandError.self) {
-            try await run(router, gh: nil, ["-f", archive.path, "--bundle", bundleURL.path, "--skip-gh"])
+            try await run(router, ["-f", archive.path, "--bundle", bundleURL.path])
         }
         #expect(router.log.requests.isEmpty)
     }
@@ -469,7 +460,7 @@ struct VerifyCommandTests {
         let empty = archive.dir.appendingPathComponent("empty.jsonl")
         try Data().write(to: empty)
         for bundle in [empty.path, "/nonexistent/bundle.jsonl"] {
-            await #expect(throws: CommandError.self) { try await run(StubRouter(), gh: nil, ["-f", archive.path, "--bundle", bundle]) }
+            await #expect(throws: CommandError.self) { try await run(StubRouter(), ["-f", archive.path, "--bundle", bundle]) }
         }
     }
 }
