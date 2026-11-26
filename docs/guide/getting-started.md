@@ -7,7 +7,7 @@
 ## Requirements
 
 - **Prebuilt binary (`install.sh` / `self-update`)**:
-  - **macOS**: Apple Silicon (`arm64`), macOS 13+
+  - **macOS**: Apple Silicon (`arm64`), macOS 26+
   - **Linux**: `x86_64` (`amd64`) or `arm64` (`aarch64`)
 - **Platform build tooling** (only required when compiling mobile apps via `build` or `flow`):
   - **iOS**: macOS with Xcode command-line tools (`xcodebuild`, `xcrun`) and optionally `xcbeautify` (default formatter)
@@ -63,7 +63,7 @@ swift run appitool -h
 
 ## Upgrading
 
-`appitool` includes a built-in self-updater with SHA256 verification and, when `gh` is installed, build provenance (attestation) verification:
+`appitool` includes a built-in self-updater with SHA256 verification and build provenance (attestation) verification with sigstore-swift, cross-checked with `gh` when it is installed:
 
 ```bash
 # Check if a newer release is available

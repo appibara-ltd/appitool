@@ -16,7 +16,7 @@ let apiSwiftSettings: [SwiftSetting] = [
 let package = Package(
     name: "appitool",
     platforms: [
-        .macOS(.v13),
+        .macOS(.v26),
     ],
     products: [
         .executable(name: "appitool", targets: ["appitool"]),
@@ -34,7 +34,8 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-certificates.git", .upToNextMajor(from: "1.21.0")),
         .package(url: "https://github.com/tuist/XcodeProj.git", from: "8.25.0"),
         .package(url: "https://github.com/swiftlang/swift-subprocess.git", from: "1.0.0"),
-        .package(url: "https://github.com/apple/swift-system.git", from: "1.8.1")
+        .package(url: "https://github.com/apple/swift-system.git", from: "1.8.1"),
+        .package(url: "https://github.com/appibara-ltd/sigstore-swift.git", .upToNextMinor(from: "0.2.0")),
     ],
     targets: [
         // Apple App Store Connect API (library target with generator plugin)
@@ -186,7 +187,8 @@ let package = Package(
                 .product(name: "Rainbow", package: "Rainbow"),
                 .product(name: "XcodeProj", package: "XcodeProj"),
                 .product(name: "Subprocess", package: "swift-subprocess"),
-                .product(name: "SystemPackage", package: "swift-system")
+                .product(name: "SystemPackage", package: "swift-system"),
+                .product(name: "Sigstore", package: "sigstore-swift"),
             ],
             swiftSettings: defaultSwiftSettings,
             linkerSettings: [
@@ -209,7 +211,9 @@ let package = Package(
                 "appitool",
                 "AppleServices",
                 "GoogleServices",
+                .product(name: "Sigstore", package: "sigstore-swift"),
             ],
+            resources: [.copy("Fixtures")],
 //            swiftSettings: defaultSwiftSettings
         ),
     ]

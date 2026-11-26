@@ -22,7 +22,7 @@ struct SelfUpdateCommand: BaseCommand {
     @Flag(name: .long, help: "Force update even if the current version is already up to date.")
     var force: Bool = false
 
-    @Flag(name: .long, help: "Skip the GitHub build provenance (attestation) check that runs when the 'gh' CLI is installed.")
+    @Flag(name: .long, help: "Skip the GitHub build provenance (attestation) check (sigstore-swift, cross-checked with 'gh' when installed).")
     var skipAttestation: Bool = false
 
     /// Resolves the `gh` executable used for provenance checks. Tests replace it to inject a fake `gh`.
@@ -186,22 +186,22 @@ struct SelfUpdateCommand: BaseCommand {
 
     // MARK: - Build Provenance
 
-    /// Verifies the GitHub artifact attestation with `gh` when it is installed; aborts the update on failure.
+    /// Verifies the GitHub artifact attestation with sigstore-swift, cross-checked with `gh` when it is
+    /// installed; aborts the update when either rejects it.
     private func verifyProvenance(artifact: URL, sha256: String, workDirectory: URL) async throws {
         if skipAttestation {
             Log("   🟡 Skipping build provenance check (--skip-attestation).".yellow)
             return
         }
         let verifier = ReleaseAttestationVerifier(ghPath: Self.locateGH(), token: githubToken)
-        if verifier.ghPath != nil {
-            Log("   🔄 Verifying build provenance with gh...")
-        }
+        Log("   🔄 Verifying build provenance with sigstore-swift\(verifier.ghPath != nil ? " and gh" : "")...")
         do {
             switch try await verifier.verify(artifact: artifact, sha256: sha256, workDirectory: workDirectory) {
-            case .verified:
+            case .verified(gh: .agreed):
+                Log("   🟢 Build provenance verified (\(verifier.signerWorkflow)); gh agrees.")
+            case .verified(gh: .unavailable):
                 Log("   🟢 Build provenance verified (\(verifier.signerWorkflow)).")
-            case .skipped(let reason):
-                Log("   🟡 Skipping build provenance check (\(reason)).".yellow)
+                Log("   🟡 gh not installed: cross-check skipped.".yellow)
             }
         } catch {
             throw CommandError(

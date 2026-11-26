@@ -5,7 +5,7 @@
 A unified CLI utility and release orchestration engine for Apple App Store Connect, Apple Developer Portal, Google Play Console, Firebase App Distribution, Firebase Authentication, and Git-backed code signing.
 
 [![Swift](https://img.shields.io/badge/Swift-6.4-orange.svg?style=flat)](https://swift.org)
-[![Platform](https://img.shields.io/badge/Platform-macOS%2013%2B%20%7C%20Linux-blue.svg?style=flat)](https://apple.com)
+[![Platform](https://img.shields.io/badge/Platform-macOS%2026%2B%20%7C%20Linux-blue.svg?style=flat)](https://apple.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat)](LICENSE)
 [![Docs](https://img.shields.io/badge/Docs-appitool.appibara.com-0891b2.svg?style=flat)](https://appitool.appibara.com/)
 [![codecov](https://codecov.io/gh/appibara-ltd/appitool/graph/badge.svg?token=Y70RV2TEC9)](https://codecov.io/gh/appibara-ltd/appitool)
@@ -21,7 +21,7 @@ A unified CLI utility and release orchestration engine for Apple App Store Conne
 - **Git-Backed Code Signing (`match`):** Encrypted sync of iOS certificates/profiles and Android keystores via a private Git repository.
 - **Store & Firebase Management:** Manage App Store Connect identifiers, capabilities, profiles, certificates, devices, team users, and screenshots; Google Play Console store screenshots and graphics; plus Firebase App Distribution releases/groups, Auth users, and Cloud Firestore.
 - **Release Notes:** Categorized Markdown release notes generated from Git conventional commits.
-- **Built-in Self-Update:** Upgrade the CLI in-place on demand via `appitool self-update` with SHA256 checksum and (when `gh` is installed) GitHub build provenance verification.
+- **Built-in Self-Update:** Upgrade the CLI in-place on demand via `appitool self-update` with SHA256 checksum and GitHub build provenance verification (sigstore-swift, cross-checked with `gh` when installed).
 - **Dry-Run Mode:** Validate configurations, credentials, and stage workflows without triggering builds or mutating remote state.
 - **CI Mode Guard (`--ci` / `--no-ci`):** Automatically detects CI environments (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, etc.) and skips destructive commands (`* delete`, `* prune`, `devices disable`, `invitations cancel`, `users revoke`, `match ios nuke/prune`) as a safe no-op (exit code `0`).
 

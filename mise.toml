@@ -1,6 +1,6 @@
 [tasks.build]
 description = "Build release binary for arm64 macOS and strip symbols"
-run = 'swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx13.0 && BIN_PATH="$(swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx13.0 --show-bin-path)/appitool" && strip -rSTx "$BIN_PATH"'
+run = 'swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx26.0 && BIN_PATH="$(swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx26.0 --show-bin-path)/appitool" && strip -rSTx "$BIN_PATH"'
 
 [tasks.coverage]
 description = "Run tests with code coverage and print a per-module Markdown report"

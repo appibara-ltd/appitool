@@ -104,8 +104,8 @@ jobs:
 
       - name: Build and Package (Apple Silicon arm64)
         run: |
-          swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx13.0
-          BIN_PATH="$(swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx13.0 --show-bin-path)/appitool"
+          swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx26.0
+          BIN_PATH="$(swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx26.0 --show-bin-path)/appitool"
           strip -rSTx "$BIN_PATH"
           codesign --force --sign - "$BIN_PATH"
 
